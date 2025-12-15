@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { Target } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -10,12 +10,12 @@ const Footer = () => {
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-primary-foreground" />
+                <Target className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">ZapFlow</span>
+              <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
             </Link>
             <p className="text-muted-foreground text-sm max-w-xs">
-              Plataforma SaaS profissional de automação de WhatsApp com inteligência artificial para empresas.
+              Geração de leads inteligente via WhatsApp. Encontre empresas por região e nicho em segundos.
             </p>
           </div>
 
@@ -66,7 +66,7 @@ const Footer = () => {
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} ZapFlow. Todos os direitos reservados.
+            © {new Date().getFullYear()} roiLead. Todos os direitos reservados.
           </p>
           <p className="text-muted-foreground text-sm">
             Feito com 💚 no Brasil

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Bot, Shield, Zap } from "lucide-react";
+import { ArrowRight, Search, Shield, Zap } from "lucide-react";
 
 const HeroSection = () => {
   return (
@@ -18,20 +18,20 @@ const HeroSection = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border mb-8 animate-fade-in">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-sm text-muted-foreground">
-              Plataforma #1 em Automação WhatsApp
+              Geração de Leads Inteligente via WhatsApp
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">
-            Automatize seu WhatsApp com{" "}
-            <span className="text-gradient">Inteligência Artificial</span>
+            Encontre leads qualificados em{" "}
+            <span className="text-gradient">segundos</span>
           </h1>
 
           {/* Subheadline */}
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            Prospecção, atendimento e qualificação de leads 100% automatizados. 
-            Segurança empresarial com isolamento total de dados.
+            Busque empresas por região e nicho diretamente no seu WhatsApp. 
+            Receba contatos prontos para prospectar e aumente seu ROI.
           </p>
 
           {/* CTA Buttons */}
@@ -50,16 +50,16 @@ const HeroSection = () => {
           {/* Trust Badges */}
           <div className="flex flex-wrap items-center justify-center gap-8 animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="text-sm">Dados 100% isolados</span>
+              <Search className="w-5 h-5 text-primary" />
+              <span className="text-sm">Busca por região e nicho</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Bot className="w-5 h-5 text-primary" />
-              <span className="text-sm">IA Avançada</span>
+              <Shield className="w-5 h-5 text-primary" />
+              <span className="text-sm">Dados atualizados</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Zap className="w-5 h-5 text-primary" />
-              <span className="text-sm">Setup em 5 minutos</span>
+              <span className="text-sm">Resultados em segundos</span>
             </div>
           </div>
         </div>
@@ -75,10 +75,11 @@ const HeroSection = () => {
                 <div className="w-3 h-3 rounded-full bg-warning/80" />
                 <div className="w-3 h-3 rounded-full bg-success/80" />
               </div>
-              {/* Mock Dashboard Content */}
+              {/* Mock Chat Interface */}
               <div className="p-6 space-y-4">
                 <div className="flex gap-4">
-                  <div className="w-48 h-full bg-secondary rounded-lg p-4 space-y-3">
+                  {/* Sidebar */}
+                  <div className="w-48 bg-secondary rounded-lg p-4 space-y-3">
                     <div className="h-2 w-20 bg-muted rounded" />
                     <div className="space-y-2">
                       <div className="h-8 bg-primary/20 rounded flex items-center px-3">
@@ -88,35 +89,30 @@ const HeroSection = () => {
                       <div className="h-8 bg-muted/30 rounded flex items-center px-3">
                         <div className="h-2 w-14 bg-muted rounded" />
                       </div>
-                      <div className="h-8 bg-muted/30 rounded flex items-center px-3">
-                        <div className="h-2 w-12 bg-muted rounded" />
-                      </div>
                     </div>
                   </div>
+                  {/* Chat Area */}
                   <div className="flex-1 space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-secondary rounded-lg p-4">
-                        <div className="h-2 w-16 bg-muted rounded mb-2" />
-                        <div className="h-6 w-12 bg-primary/30 rounded" />
-                      </div>
-                      <div className="bg-secondary rounded-lg p-4">
-                        <div className="h-2 w-16 bg-muted rounded mb-2" />
-                        <div className="h-6 w-14 bg-primary/30 rounded" />
-                      </div>
-                      <div className="bg-secondary rounded-lg p-4">
-                        <div className="h-2 w-16 bg-muted rounded mb-2" />
-                        <div className="h-6 w-10 bg-primary/30 rounded" />
+                    {/* User Message */}
+                    <div className="flex justify-end">
+                      <div className="bg-primary/20 rounded-lg p-3 max-w-xs">
+                        <p className="text-sm text-foreground">Quero 5 empresas de tecnologia em São Paulo</p>
                       </div>
                     </div>
-                    <div className="bg-secondary rounded-lg p-4 h-40">
-                      <div className="flex items-end gap-2 h-full">
-                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
-                          <div
-                            key={i}
-                            className="flex-1 bg-primary/30 rounded-t"
-                            style={{ height: `${h}%` }}
-                          />
-                        ))}
+                    {/* AI Response */}
+                    <div className="flex justify-start">
+                      <div className="bg-secondary rounded-lg p-3 max-w-md">
+                        <p className="text-sm text-muted-foreground mb-2">Encontrei 5 empresas de tecnologia em SP:</p>
+                        <div className="space-y-2">
+                          <div className="bg-card/50 rounded p-2">
+                            <p className="text-xs font-medium text-foreground">TechSolutions Ltda</p>
+                            <p className="text-xs text-muted-foreground">(11) 99999-9999</p>
+                          </div>
+                          <div className="bg-card/50 rounded p-2">
+                            <p className="text-xs font-medium text-foreground">InovaTech SA</p>
+                            <p className="text-xs text-muted-foreground">(11) 88888-8888</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

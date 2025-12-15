@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MessageSquare, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Target, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -46,13 +46,13 @@ const Signup = () => {
         
         <div className="relative z-10 text-center max-w-md">
           <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-8 shadow-glow animate-float">
-            <MessageSquare className="w-10 h-10 text-primary-foreground" />
+            <Target className="w-10 h-10 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-4">
-            Comece a automatizar hoje
+            Comece a prospectar hoje
           </h2>
           <p className="text-muted-foreground">
-            7 dias grátis para testar todas as funcionalidades. Sem cartão de crédito.
+            7 dias grátis para encontrar seus primeiros leads. Sem cartão de crédito.
           </p>
         </div>
       </div>
@@ -69,9 +69,9 @@ const Signup = () => {
           {/* Logo */}
           <div className="flex items-center gap-2 mb-8">
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-primary-foreground" />
+              <Target className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-foreground">ZapFlow</span>
+            <span className="text-2xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
           </div>
 
           {/* Header */}
@@ -116,11 +116,12 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="company">Empresa</Label>
+              <Label htmlFor="phone">WhatsApp</Label>
               <Input
-                id="company"
-                type="text"
-                placeholder="Nome da sua empresa"
+                id="phone"
+                type="tel"
+                placeholder="(11) 99999-9999"
+                required
               />
             </div>
 

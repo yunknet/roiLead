@@ -1,45 +1,45 @@
-import { Bot, Shield, MessageSquare, Users, Zap, Lock, BarChart3, Clock } from "lucide-react";
+import { Search, Shield, MessageSquare, MapPin, Zap, Lock, BarChart3, Filter } from "lucide-react";
 
 const features = [
   {
-    icon: Bot,
-    title: "Agentes de IA Inteligentes",
-    description: "Múltiplos agentes especializados: prospecção, atendimento e qualificação trabalhando 24/7.",
+    icon: Search,
+    title: "Busca Inteligente de Leads",
+    description: "Encontre empresas por nicho, região, tamanho e outros critérios diretamente no WhatsApp.",
   },
   {
-    icon: Shield,
-    title: "Multi-Tenant Isolado",
-    description: "Cada cliente possui dados completamente isolados. Nenhuma informação é compartilhada entre tenants.",
+    icon: MapPin,
+    title: "Filtro por Localização",
+    description: "Busque leads em cidades, estados ou regiões específicas para prospecção local.",
+  },
+  {
+    icon: Filter,
+    title: "Segmentação por Nicho",
+    description: "Filtre empresas por setor de atuação: tecnologia, saúde, varejo, indústria e mais.",
   },
   {
     icon: MessageSquare,
-    title: "Orquestrador Central",
-    description: "Todas as mensagens passam por um orquestrador que decide qual agente responde e quando.",
+    title: "Integração WhatsApp",
+    description: "Conecte seu número e receba leads diretamente no chat. Prospecte sem sair do WhatsApp.",
   },
   {
-    icon: Lock,
-    title: "Segurança Empresarial",
-    description: "Criptografia em repouso, tokens com expiração, rate limiting e proteção contra brute force.",
-  },
-  {
-    icon: Users,
-    title: "Gestão de Conversas",
-    description: "Contexto e histórico por telefone, agrupamento de mensagens e controle de timeout inteligente.",
+    icon: Shield,
+    title: "Dados Verificados",
+    description: "Leads com informações atualizadas: telefone, email, endereço e responsável.",
   },
   {
     icon: Zap,
-    title: "WhatsApp Dedicado",
-    description: "Cada cliente conecta seu próprio número com instância dedicada e QR Code exclusivo.",
+    title: "Resultados Instantâneos",
+    description: "Receba listas de leads em segundos. Sem espera, sem processos complicados.",
   },
   {
     icon: BarChart3,
-    title: "Métricas em Tempo Real",
-    description: "Acompanhe conversões, mensagens enviadas, taxa de resposta e performance dos agentes.",
+    title: "Histórico de Buscas",
+    description: "Acompanhe suas buscas anteriores e leads salvos para organizar sua prospecção.",
   },
   {
-    icon: Clock,
-    title: "Anti-Spam Inteligente",
-    description: "Proteção contra loops, reenvio indevido, opt-out automático e controle de números bloqueados.",
+    icon: Lock,
+    title: "Dados Seguros",
+    description: "Suas buscas e contatos são privados. Isolamento total entre clientes.",
   },
 ];
 
@@ -53,10 +53,10 @@ const FeaturesSection = () => {
             Recursos
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
-            Tudo que você precisa para escalar
+            Leads qualificados na palma da mão
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Uma plataforma completa para automatizar seu WhatsApp com segurança e inteligência artificial.
+            Tudo que você precisa para encontrar e prospectar novos clientes de forma eficiente.
           </p>
         </div>
 

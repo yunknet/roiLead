@@ -5,45 +5,45 @@ import { Link } from "react-router-dom";
 const plans = [
   {
     name: "Starter",
-    description: "Para começar a automatizar",
-    price: "197",
+    description: "Para começar a prospectar",
+    price: "97",
     features: [
-      "1 número WhatsApp",
-      "2.000 mensagens/mês",
-      "1 agente de IA",
+      "100 leads/mês",
+      "Busca por região",
+      "Busca por nicho",
+      "WhatsApp conectado",
       "Suporte por email",
-      "Métricas básicas",
     ],
     popular: false,
   },
   {
     name: "Professional",
-    description: "Para empresas em crescimento",
-    price: "497",
+    description: "Para vendedores ativos",
+    price: "197",
     features: [
-      "3 números WhatsApp",
-      "10.000 mensagens/mês",
-      "3 agentes de IA",
+      "500 leads/mês",
+      "Filtros avançados",
+      "Busca por porte da empresa",
+      "Exportação CSV",
       "Suporte prioritário",
-      "Métricas avançadas",
-      "Webhooks customizados",
-      "API de integração",
+      "Histórico ilimitado",
+      "Leads com email",
     ],
     popular: true,
   },
   {
     name: "Enterprise",
-    description: "Para grandes operações",
-    price: "997",
+    description: "Para equipes de vendas",
+    price: "497",
     features: [
-      "Números ilimitados",
-      "Mensagens ilimitadas",
-      "Agentes ilimitados",
+      "Leads ilimitados",
+      "Múltiplos usuários",
+      "API de integração",
       "Suporte 24/7",
       "Gerente de conta",
-      "SLA garantido",
-      "White-label disponível",
-      "Treinamento dedicado",
+      "Dados enriquecidos",
+      "Webhooks",
+      "White-label",
     ],
     popular: false,
   },
@@ -61,7 +61,7 @@ const PricingSection = () => {
             Preços
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
-            Planos para cada etapa do seu negócio
+            Invista em leads que convertem
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Comece grátis por 7 dias. Sem cartão de crédito necessário.

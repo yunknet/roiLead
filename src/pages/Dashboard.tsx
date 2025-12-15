@@ -1,41 +1,47 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
-  MessageSquare, 
+  Target, 
   LayoutDashboard, 
-  Bot, 
-  Users, 
+  Search, 
+  History, 
   Settings, 
   LogOut,
   QrCode,
   TrendingUp,
-  Send,
-  UserCheck,
+  Users,
+  MapPin,
   Bell,
-  Search,
-  ChevronDown
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", active: true },
-  { icon: Bot, label: "Agentes de IA", active: false },
-  { icon: MessageSquare, label: "Conversas", active: false },
-  { icon: Users, label: "Contatos", active: false },
+  { icon: Search, label: "Buscar Leads", active: false },
+  { icon: History, label: "Histórico", active: false },
+  { icon: Users, label: "Leads Salvos", active: false },
   { icon: QrCode, label: "WhatsApp", active: false },
   { icon: Settings, label: "Configurações", active: false },
 ];
 
 const stats = [
-  { label: "Mensagens Hoje", value: "1,234", change: "+12%", icon: Send },
-  { label: "Conversas Ativas", value: "89", change: "+5%", icon: MessageSquare },
-  { label: "Leads Qualificados", value: "34", change: "+23%", icon: UserCheck },
-  { label: "Taxa de Resposta", value: "94%", change: "+2%", icon: TrendingUp },
+  { label: "Leads Buscados", value: "234", change: "+18%", icon: Search },
+  { label: "Leads Salvos", value: "89", change: "+12%", icon: Users },
+  { label: "Regiões Ativas", value: "5", change: "+2", icon: MapPin },
+  { label: "Taxa de Conversão", value: "12%", change: "+3%", icon: TrendingUp },
+];
+
+const recentSearches = [
+  { query: "Empresas de tecnologia em São Paulo", results: 15, date: "Há 2 min" },
+  { query: "Clínicas odontológicas no RJ", results: 8, date: "Há 1 hora" },
+  { query: "Indústrias em Santa Catarina", results: 23, date: "Há 3 horas" },
 ];
 
 const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -45,9 +51,9 @@ const Dashboard = () => {
         <div className="p-4 border-b border-sidebar-border">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-primary-foreground" />
+              <Target className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-sidebar-foreground">ZapFlow</span>
+            <span className="text-xl font-bold text-sidebar-foreground">roi<span className="text-primary">Lead</span></span>
           </Link>
         </div>
 
@@ -80,7 +86,7 @@ const Dashboard = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">João Silva</p>
-              <p className="text-xs text-muted-foreground truncate">joao@empresa.com</p>
+              <p className="text-xs text-muted-foreground truncate">Professional</p>
             </div>
             <button className="text-muted-foreground hover:text-sidebar-foreground">
               <LogOut className="w-4 h-4" />
@@ -93,25 +99,28 @@ const Dashboard = () => {
       <main className="flex-1 flex flex-col">
         {/* Header */}
         <header className="h-16 border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-xl">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Buscar..." 
-                className="pl-9 w-64 bg-secondary/50"
+                placeholder="Ex: 5 empresas de tecnologia em São Paulo..." 
+                className="pl-9 bg-secondary/50"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <Button variant="hero" size="default">
+              <Send className="w-4 h-4 mr-2" />
+              Buscar Leads
+            </Button>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ml-4">
             <button className="relative p-2 text-muted-foreground hover:text-foreground">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
             </button>
-            <div className="flex items-center gap-2 cursor-pointer">
-              <span className="text-sm text-muted-foreground">Professional</span>
-              <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium">
-                Ativo
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">423 leads restantes</span>
             </div>
           </div>
         </header>
@@ -124,7 +133,7 @@ const Dashboard = () => {
               Olá, João! 👋
             </h1>
             <p className="text-muted-foreground">
-              Aqui está o resumo da sua automação hoje.
+              Pronto para encontrar novos leads hoje?
             </p>
           </div>
 
@@ -147,7 +156,7 @@ const Dashboard = () => {
             ))}
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Search & Recent */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* WhatsApp Connection */}
             <div className="p-6 rounded-xl bg-card border border-border">
@@ -159,45 +168,35 @@ const Dashboard = () => {
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-primary" />
+                  <QrCode className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-foreground">+55 11 99999-9999</p>
-                  <p className="text-sm text-muted-foreground">Última atividade: há 2 min</p>
+                  <p className="text-sm text-muted-foreground">Pronto para buscar leads</p>
                 </div>
               </div>
             </div>
 
-            {/* Active Agents */}
+            {/* Recent Searches */}
             <div className="p-6 rounded-xl bg-card border border-border">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">Agentes Ativos</h3>
+                <h3 className="font-semibold text-foreground">Buscas Recentes</h3>
                 <Button variant="ghost" size="sm">
-                  Gerenciar
+                  Ver todas
                 </Button>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-sm text-foreground">Agente de Prospecção</span>
+                {recentSearches.map((search, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-foreground">{search.query}</p>
+                        <p className="text-xs text-muted-foreground">{search.results} resultados • {search.date}</p>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground">127 conversas</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-sm text-foreground">Agente de Atendimento</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">45 conversas</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Agente de Qualificação</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Inativo</span>
-                </div>
+                ))}
               </div>
             </div>
           </div>

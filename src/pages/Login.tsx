@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MessageSquare, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Target, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -39,9 +39,9 @@ const Login = () => {
           {/* Logo */}
           <div className="flex items-center gap-2 mb-8">
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-primary-foreground" />
+              <Target className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-foreground">ZapFlow</span>
+            <span className="text-2xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
           </div>
 
           {/* Header */}
@@ -110,13 +110,13 @@ const Login = () => {
         
         <div className="relative z-10 text-center max-w-md">
           <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-8 shadow-glow animate-float">
-            <MessageSquare className="w-10 h-10 text-primary-foreground" />
+            <Target className="w-10 h-10 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-4">
-            Automatize seu WhatsApp com IA
+            Leads qualificados em segundos
           </h2>
           <p className="text-muted-foreground">
-            Prospecção, atendimento e qualificação 100% automatizados com segurança empresarial.
+            Busque empresas por região e nicho diretamente no seu WhatsApp.
           </p>
         </div>
       </div>

@@ -7,28 +7,28 @@ import {
 
 const faqs = [
   {
-    question: "Como funciona o isolamento de dados entre clientes?",
-    answer: "Cada cliente possui um tenant completamente isolado. Nenhum dado, conversa, contato ou histórico pode ser acessado por outro cliente. O administrador da plataforma visualiza apenas métricas de uso, nunca o conteúdo das mensagens.",
+    question: "Como funciona a busca de leads?",
+    answer: "Você conecta seu WhatsApp e envia comandos de busca como 'Quero 5 empresas de tecnologia em São Paulo'. Nossa IA encontra leads qualificados com base nos seus critérios e retorna os contatos diretamente no chat.",
   },
   {
-    question: "Preciso de conhecimento técnico para usar?",
-    answer: "Não! A plataforma foi desenvolvida para ser intuitiva. Você conecta seu WhatsApp via QR Code, configura suas mensagens de prospecção e ativa os agentes de IA em poucos cliques.",
+    question: "Preciso instalar algum aplicativo?",
+    answer: "Não! Você usa seu próprio WhatsApp. Basta conectar seu número via QR Code e pronto. Toda interação acontece no seu chat normal.",
   },
   {
-    question: "Como funciona a cobrança?",
-    answer: "O pagamento é feito via Hubla de forma recorrente. Sem pagamento ativo, as funcionalidades de envio e agentes de IA são automaticamente bloqueadas. Você pode cancelar a qualquer momento.",
+    question: "De onde vêm os dados dos leads?",
+    answer: "Trabalhamos com bases de dados empresariais atualizadas, incluindo CNPJ, razão social, telefones, emails e endereços verificados. Os dados são enriquecidos e validados regularmente.",
   },
   {
-    question: "Os agentes de IA podem enviar qualquer mensagem?",
-    answer: "Não. Todas as mensagens passam por um orquestrador central que controla qual agente responde, quando responde e se a mensagem pode ser enviada. Mensagens de prospecção são previamente definidas e controladas.",
+    question: "Posso filtrar leads por região específica?",
+    answer: "Sim! Você pode buscar por cidade, estado, região ou até bairro. Por exemplo: 'Empresas de saúde na zona sul de São Paulo' ou 'Indústrias em Santa Catarina'.",
   },
   {
-    question: "Como funciona a proteção contra spam?",
-    answer: "O sistema implementa proteções contra loops de mensagens, reenvio indevido, envio excessivo, contatos duplicados e números bloqueados. Respeitamos automaticamente solicitações de opt-out.",
+    question: "Os leads vêm com telefone de WhatsApp?",
+    answer: "Fornecemos telefones comerciais verificados. Alguns podem ser WhatsApp, outros telefones fixos. Você recebe todas as informações disponíveis para contato.",
   },
   {
-    question: "Posso integrar com outros sistemas?",
-    answer: "Sim! Nos planos Professional e Enterprise, você tem acesso a webhooks customizados e API de integração para conectar com seu CRM, ERP ou qualquer outro sistema.",
+    question: "Posso exportar os leads?",
+    answer: "Sim! Nos planos Professional e Enterprise você pode exportar suas listas de leads em CSV para usar em CRMs ou planilhas.",
   },
 ];
 

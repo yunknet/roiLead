@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,25 +10,27 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulated - will be replaced with actual auth
+    // Simulated login - will be replaced with actual auth
     setTimeout(() => {
       toast({
-        title: "Backend necessário",
-        description: "Conecte o Lovable Cloud para habilitar autenticação.",
+        title: "Login realizado!",
+        description: "Redirecionando para o dashboard...",
       });
       setIsLoading(false);
+      navigate("/dashboard");
     }, 1000);
   };
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
           {/* Back Link */}
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
@@ -45,7 +47,7 @@ const Login = () => {
           </div>
 
           {/* Header */}
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
             Bem-vindo de volta
           </h1>
           <p className="text-muted-foreground mb-8">
@@ -55,11 +57,11 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">E-mail ou Telefone</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="seu@email.com"
+                type="text"
+                placeholder="seu@email.com ou (11) 99999-9999"
                 required
               />
             </div>
@@ -103,7 +105,7 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Side - Decorative */}
+      {/* Right Side - Decorative (Hidden on mobile) */}
       <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-pattern" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />

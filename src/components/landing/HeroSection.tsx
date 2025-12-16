@@ -1,8 +1,14 @@
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Search, Shield, Zap } from "lucide-react";
 
 const HeroSection = () => {
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
       {/* Background Effects */}
@@ -23,49 +29,57 @@ const HeroSection = () => {
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">
             Encontre leads qualificados em{" "}
             <span className="text-gradient">segundos</span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up px-4" style={{ animationDelay: "0.1s" }}>
             Busque empresas por região e nicho diretamente no seu WhatsApp. 
             Receba contatos prontos para prospectar e aumente seu ROI.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Link to="/signup">
-              <Button variant="hero" size="xl" className="group">
-                Começar Agora
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Button variant="heroOutline" size="xl">
-              Ver Demonstração
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up px-4" style={{ animationDelay: "0.2s" }}>
+            <Button 
+              variant="hero" 
+              size="xl" 
+              className="group w-full sm:w-auto"
+              onClick={() => scrollToSection("pricing")}
+            >
+              Começar Agora
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button 
+              variant="heroOutline" 
+              size="xl"
+              className="w-full sm:w-auto"
+              onClick={() => scrollToSection("features")}
+            >
+              Ver como funciona
             </Button>
           </div>
 
           {/* Trust Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-8 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 animate-fade-in px-4" style={{ animationDelay: "0.3s" }}>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Search className="w-5 h-5 text-primary" />
-              <span className="text-sm">Busca por região e nicho</span>
+              <span className="text-xs sm:text-sm">Busca por região e nicho</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Shield className="w-5 h-5 text-primary" />
-              <span className="text-sm">Dados atualizados</span>
+              <span className="text-xs sm:text-sm">Dados atualizados</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Zap className="w-5 h-5 text-primary" />
-              <span className="text-sm">Resultados em segundos</span>
+              <span className="text-xs sm:text-sm">Resultados em segundos</span>
             </div>
           </div>
         </div>
 
         {/* Dashboard Preview */}
-        <div className="mt-20 relative animate-slide-up" style={{ animationDelay: "0.4s" }}>
+        <div className="mt-12 sm:mt-20 relative animate-slide-up px-4" style={{ animationDelay: "0.4s" }}>
           <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
           <div className="glass rounded-2xl p-2 shadow-elevated max-w-5xl mx-auto">
             <div className="bg-card rounded-xl overflow-hidden">
@@ -76,10 +90,10 @@ const HeroSection = () => {
                 <div className="w-3 h-3 rounded-full bg-success/80" />
               </div>
               {/* Mock Chat Interface */}
-              <div className="p-6 space-y-4">
-                <div className="flex gap-4">
-                  {/* Sidebar */}
-                  <div className="w-48 bg-secondary rounded-lg p-4 space-y-3">
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Sidebar - Hidden on mobile */}
+                  <div className="hidden sm:block w-48 bg-secondary rounded-lg p-4 space-y-3">
                     <div className="h-2 w-20 bg-muted rounded" />
                     <div className="space-y-2">
                       <div className="h-8 bg-primary/20 rounded flex items-center px-3">
@@ -96,13 +110,13 @@ const HeroSection = () => {
                     {/* User Message */}
                     <div className="flex justify-end">
                       <div className="bg-primary/20 rounded-lg p-3 max-w-xs">
-                        <p className="text-sm text-foreground">Quero 5 empresas de tecnologia em São Paulo</p>
+                        <p className="text-xs sm:text-sm text-foreground">Quero 5 empresas de tecnologia em São Paulo</p>
                       </div>
                     </div>
                     {/* AI Response */}
                     <div className="flex justify-start">
                       <div className="bg-secondary rounded-lg p-3 max-w-md">
-                        <p className="text-sm text-muted-foreground mb-2">Encontrei 5 empresas de tecnologia em SP:</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2">Encontrei 5 empresas de tecnologia em SP:</p>
                         <div className="space-y-2">
                           <div className="bg-card/50 rounded p-2">
                             <p className="text-xs font-medium text-foreground">TechSolutions Ltda</p>

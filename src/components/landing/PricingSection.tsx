@@ -4,76 +4,65 @@ import { Link } from "react-router-dom";
 
 const plans = [
   {
-    name: "Starter",
-    description: "Para começar a prospectar",
-    price: "97",
+    name: "Mensal",
+    description: "Pagamento mensal flexível",
+    price: "59,90",
+    period: "/mês",
     features: [
-      "100 leads/mês",
+      "Leads ilimitados",
       "Busca por região",
       "Busca por nicho",
       "WhatsApp conectado",
       "Suporte por email",
+      "Cancele quando quiser",
     ],
     popular: false,
   },
   {
-    name: "Professional",
-    description: "Para vendedores ativos",
-    price: "197",
+    name: "Anual",
+    description: "Melhor custo-benefício",
+    price: "39,90",
+    period: "/mês",
+    originalPrice: "59,90",
+    savings: "Economize R$ 240/ano",
     features: [
-      "500 leads/mês",
+      "Tudo do plano Mensal",
+      "Leads ilimitados",
       "Filtros avançados",
-      "Busca por porte da empresa",
       "Exportação CSV",
       "Suporte prioritário",
       "Histórico ilimitado",
-      "Leads com email",
+      "2 meses grátis",
     ],
     popular: true,
-  },
-  {
-    name: "Enterprise",
-    description: "Para equipes de vendas",
-    price: "497",
-    features: [
-      "Leads ilimitados",
-      "Múltiplos usuários",
-      "API de integração",
-      "Suporte 24/7",
-      "Gerente de conta",
-      "Dados enriquecidos",
-      "Webhooks",
-      "White-label",
-    ],
-    popular: false,
   },
 ];
 
 const PricingSection = () => {
   return (
-    <section id="pricing" className="py-24 relative">
+    <section id="pricing" className="py-16 sm:py-24 relative">
       <div className="absolute inset-0 bg-hero-pattern opacity-50" />
       
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12 sm:mb-16">
           <span className="text-primary text-sm font-semibold uppercase tracking-wider">
             Preços
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
             Invista em leads que convertem
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto px-4">
             Comece grátis por 7 dias. Sem cartão de crédito necessário.
           </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`relative p-8 rounded-2xl transition-all duration-300 ${
+              className={`relative p-6 sm:p-8 rounded-2xl transition-all duration-300 ${
                 plan.popular
                   ? "bg-gradient-card border-2 border-primary shadow-glow"
                   : "bg-card border border-border hover:border-primary/50"
@@ -87,14 +76,25 @@ const PricingSection = () => {
                 </div>
               )}
 
+              {plan.savings && (
+                <div className="mb-4">
+                  <span className="px-3 py-1 rounded-full bg-success/20 text-success text-xs font-medium">
+                    {plan.savings}
+                  </span>
+                </div>
+              )}
+
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
                 <p className="text-muted-foreground text-sm mt-1">{plan.description}</p>
               </div>
 
               <div className="mb-6">
+                {plan.originalPrice && (
+                  <span className="text-lg text-muted-foreground line-through mr-2">R${plan.originalPrice}</span>
+                )}
                 <span className="text-4xl font-bold text-foreground">R${plan.price}</span>
-                <span className="text-muted-foreground">/mês</span>
+                <span className="text-muted-foreground">{plan.period}</span>
               </div>
 
               <ul className="space-y-3 mb-8">

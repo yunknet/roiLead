@@ -29,15 +29,17 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
+            <Link to="/login">
+              <Button variant="hero" size="sm">
+                Login
+              </Button>
+            </Link>
           </div>
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost">Entrar</Button>
-            </Link>
             <Link to="/signup">
-              <Button variant="hero">Começar Grátis</Button>
+              <Button variant="heroOutline">Começar Grátis</Button>
             </Link>
           </div>
 
@@ -54,21 +56,21 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden py-4 border-t border-border/50 animate-fade-in">
             <div className="flex flex-col gap-4">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 Recursos
               </a>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 Preços
               </a>
-              <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 FAQ
               </a>
               <div className="flex flex-col gap-2 pt-4 border-t border-border/50">
-                <Link to="/login">
-                  <Button variant="ghost" className="w-full">Entrar</Button>
+                <Link to="/login" onClick={() => setIsOpen(false)}>
+                  <Button variant="hero" className="w-full">Login</Button>
                 </Link>
-                <Link to="/signup">
-                  <Button variant="hero" className="w-full">Começar Grátis</Button>
+                <Link to="/signup" onClick={() => setIsOpen(false)}>
+                  <Button variant="heroOutline" className="w-full">Começar Grátis</Button>
                 </Link>
               </div>
             </div>

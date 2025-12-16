@@ -8,11 +8,7 @@ import {
 const faqs = [
   {
     question: "Como funciona a busca de leads?",
-    answer: "Você conecta seu WhatsApp e envia comandos de busca como 'Quero 5 empresas de tecnologia em São Paulo'. Nossa IA encontra leads qualificados com base nos seus critérios e retorna os contatos diretamente no chat.",
-  },
-  {
-    question: "Preciso instalar algum aplicativo?",
-    answer: "Não! Você usa seu próprio WhatsApp. Basta conectar seu número via QR Code e pronto. Toda interação acontece no seu chat normal.",
+    answer: "Você envia o pedido no WhatsApp do roiLead e ele busca. Exemplos de referência: \"quero 3 empresas de engenharia em Belo Horizonte\", \"Quero 3 empresas ativas de 'sistemas de informação', localizada em São Paulo, Guarulhos, Belo Horizonte e Campinas. Desejo que esteja aberta entre 24/08/2021 e 24/08/2024, com capital social entre 20 mil e 500 mil, com e-mail e telefone (fixo ou celular).\", \"3 empresas de supermercado em Niterói\". Nossa IA encontra leads qualificados com base nos seus critérios e retorna os contatos diretamente no chat.",
   },
   {
     question: "De onde vêm os dados dos leads?",
@@ -20,7 +16,7 @@ const faqs = [
   },
   {
     question: "Posso filtrar leads por região específica?",
-    answer: "Sim! Você pode buscar por cidade, estado, região ou até bairro. Por exemplo: 'Empresas de saúde na zona sul de São Paulo' ou 'Indústrias em Santa Catarina'.",
+    answer: "Sim! Você pode buscar por cidade, estado ou região. Por exemplo: 'Empresas de saúde em São Paulo' ou 'Indústrias em Santa Catarina'.",
   },
   {
     question: "Os leads vêm com telefone de WhatsApp?",
@@ -28,7 +24,7 @@ const faqs = [
   },
   {
     question: "Posso exportar os leads?",
-    answer: "Sim! Nos planos Professional e Enterprise você pode exportar suas listas de leads em CSV para usar em CRMs ou planilhas.",
+    answer: "Ainda não, mas em breve atualização.",
   },
 ];
 

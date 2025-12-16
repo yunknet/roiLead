@@ -37,7 +37,7 @@ const HeroSection = () => {
           {/* Subheadline */}
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up px-4" style={{ animationDelay: "0.1s" }}>
             Busque empresas por região e nicho diretamente no seu WhatsApp. 
-            Receba contatos prontos para prospectar e aumente seu ROI.
+            Receba contatos prontos para prospectar.
           </p>
 
           {/* CTA Buttons */}

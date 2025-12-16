@@ -52,13 +52,10 @@ const PricingSection = () => {
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
             Invista em leads que convertem
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto px-4">
-            Comece grátis por 7 dias. Sem cartão de crédito necessário.
-          </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-6 sm:gap-8 max-w-4xl mx-auto">
           {plans.map((plan, index) => (
             <div
               key={index}

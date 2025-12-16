@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Menu, X, Target } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,10 +10,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary-foreground" />
-            </div>
+          <Link to="/" className="flex items-center">
             <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
           </Link>
 
@@ -29,18 +25,6 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
-            <Link to="/login">
-              <Button variant="hero" size="sm">
-                Login
-              </Button>
-            </Link>
-          </div>
-
-          {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link to="/signup">
-              <Button variant="heroOutline">Começar Grátis</Button>
-            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -65,14 +49,6 @@ const Navbar = () => {
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 FAQ
               </a>
-              <div className="flex flex-col gap-2 pt-4 border-t border-border/50">
-                <Link to="/login" onClick={() => setIsOpen(false)}>
-                  <Button variant="hero" className="w-full">Login</Button>
-                </Link>
-                <Link to="/signup" onClick={() => setIsOpen(false)}>
-                  <Button variant="heroOutline" className="w-full">Começar Grátis</Button>
-                </Link>
-              </div>
             </div>
           </div>
         )}

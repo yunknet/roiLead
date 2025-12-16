@@ -109,22 +109,22 @@ const HeroSection = () => {
                   <div className="flex-1 space-y-4">
                     {/* User Message */}
                     <div className="flex justify-end">
-                      <div className="bg-primary/20 rounded-lg p-3 max-w-xs">
-                        <p className="text-xs sm:text-sm text-foreground">Quero 5 empresas de tecnologia em São Paulo</p>
+                      <div className="bg-primary/20 rounded-lg p-3 max-w-xs sm:max-w-sm">
+                        <p className="text-xs sm:text-sm text-foreground">Quero 3 empresas ativas de engenharia civil, localizada em São Paulo, Guarulhos, Belo Horizonte e Campinas. Desejo que esteja aberta entre 24/08/2021 e 24/08/2024, com capital social entre 20 mil e 500 mil, com e-mail e telefone</p>
                       </div>
                     </div>
                     {/* AI Response */}
                     <div className="flex justify-start">
                       <div className="bg-secondary rounded-lg p-3 max-w-md">
-                        <p className="text-xs sm:text-sm text-muted-foreground mb-2">Encontrei 5 empresas de tecnologia em SP:</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2">Encontrei 3 empresas de engenharia civil:</p>
                         <div className="space-y-2">
                           <div className="bg-card/50 rounded p-2">
-                            <p className="text-xs font-medium text-foreground">TechSolutions Ltda</p>
-                            <p className="text-xs text-muted-foreground">(11) 99999-9999</p>
+                            <p className="text-xs font-medium text-foreground">Construtora ABC Ltda</p>
+                            <p className="text-xs text-muted-foreground">(11) 99999-9999 | contato@abc.com</p>
                           </div>
                           <div className="bg-card/50 rounded p-2">
-                            <p className="text-xs font-medium text-foreground">InovaTech SA</p>
-                            <p className="text-xs text-muted-foreground">(11) 88888-8888</p>
+                            <p className="text-xs font-medium text-foreground">Engenharia XYZ SA</p>
+                            <p className="text-xs text-muted-foreground">(31) 88888-8888 | xyz@eng.com</p>
                           </div>
                         </div>
                       </div>

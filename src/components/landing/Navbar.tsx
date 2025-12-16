@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
@@ -25,6 +26,11 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
+            <Link to="/login">
+              <Button variant="hero" size="sm">
+                Entrar
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -49,6 +55,9 @@ const Navbar = () => {
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 FAQ
               </a>
+              <Link to="/login" onClick={() => setIsOpen(false)}>
+                <Button variant="hero" className="w-full">Entrar</Button>
+              </Link>
             </div>
           </div>
         )}

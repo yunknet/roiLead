@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { 
-  Target, 
-  ShoppingCart, 
-  DollarSign, 
-  BarChart3, 
-  Settings, 
+import {
+  Target,
+  ShoppingCart,
+  DollarSign,
+  BarChart3,
+  Settings,
   LogOut,
   Plus,
   TrendingUp,
@@ -84,7 +84,7 @@ const Dashboard = () => {
             </div>
           </div>
         );
-      
+
       case "budget":
         return (
           <div className="space-y-6">
@@ -237,7 +237,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background flex">
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -253,12 +253,9 @@ const Dashboard = () => {
         {/* Logo */}
         <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary-foreground" />
-            </div>
             <span className="text-xl font-bold text-sidebar-foreground">roi<span className="text-primary">Lead</span></span>
           </Link>
-          <button 
+          <button
             className="lg:hidden text-sidebar-foreground"
             onClick={() => setSidebarOpen(false)}
           >
@@ -276,11 +273,10 @@ const Dashboard = () => {
                     setActiveMenu(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    activeMenu === item.id
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeMenu === item.id
                       ? "bg-sidebar-primary text-sidebar-primary-foreground"
                       : "text-sidebar-foreground hover:bg-sidebar-accent"
-                  }`}
+                    }`}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
@@ -300,7 +296,7 @@ const Dashboard = () => {
               <p className="text-sm font-medium text-sidebar-foreground truncate">João Silva</p>
               <p className="text-xs text-muted-foreground truncate">Mensal</p>
             </div>
-            <button 
+            <button
               onClick={handleLogout}
               className="text-muted-foreground hover:text-sidebar-foreground"
             >
@@ -315,7 +311,7 @@ const Dashboard = () => {
         {/* Header */}
         <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               className="lg:hidden p-2 -ml-2 text-foreground"
               onClick={() => setSidebarOpen(true)}
             >

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Target } from "lucide-react";
+
 
 const Footer = () => {
   return (
@@ -8,19 +8,20 @@ const Footer = () => {
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="sm:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Target className="w-5 h-5 text-primary-foreground" />
-              </div>
+            <Link
+              to="/"
+              className="flex items-center gap-2 mb-4"
+              onClick={() => window.scrollTo(0, 0)}
+            >
               <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
             </Link>
             <p className="text-muted-foreground text-sm max-w-xs mb-4">
               Geração de leads inteligente via WhatsApp. Encontre empresas por região e nicho em segundos.
             </p>
             {/* Instagram Link */}
-            <a 
-              href="https://www.instagram.com/roi_lead/" 
-              target="_blank" 
+            <a
+              href="https://www.instagram.com/roi_lead/"
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm"
             >

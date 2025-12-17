@@ -9,9 +9,6 @@ const PrivacyPolicy = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Target className="w-5 h-5 text-primary-foreground" />
-              </div>
               <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
             </Link>
             <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -39,7 +36,7 @@ const PrivacyPolicy = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Informações que Coletamos</h2>
-            
+
             <h3 className="text-lg font-medium text-foreground mb-3">a. Informações fornecidas diretamente pelo usuário:</h3>
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
               <li>Nome</li>

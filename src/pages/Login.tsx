@@ -15,7 +15,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulated login - will be replaced with actual auth
     setTimeout(() => {
       toast({
@@ -38,11 +38,7 @@ const Login = () => {
             Voltar
           </Link>
 
-          {/* Logo */}
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary-foreground" />
-            </div>
             <span className="text-2xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
           </div>
 
@@ -109,10 +105,10 @@ const Login = () => {
       <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-pattern" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />
-        
+
         <div className="relative z-10 text-center max-w-md">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-8 shadow-glow animate-float">
-            <Target className="w-10 h-10 text-primary-foreground" />
+          <div className="mb-8 animate-float select-none">
+            <span className="text-6xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-4">
             Leads qualificados em segundos

@@ -31,6 +31,7 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
+      "Agente IA personalizado para atender leads",
     ],
     popular: true,
   },

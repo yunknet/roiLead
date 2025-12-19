@@ -1,6 +1,9 @@
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { useState } from "react";
 
 const plans = [
   {
@@ -38,10 +41,35 @@ const plans = [
 ];
 
 const PricingSection = () => {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleCheckout = async (plan: typeof plans[0]) => {
+    try {
+      setLoadingPlan(plan.name);
+      const price = parseFloat(plan.price.replace(',', '.'));
+
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          planId: plan.name,
+          price,
+          returnUrl: `${window.location.origin}/complete-registration` // Passing return URL context
+        }
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error("URL de pagamento não gerada");
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast.error("Erro ao iniciar: " + error.message);
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <section id="pricing" className="py-16 sm:py-24 relative">
       <div className="absolute inset-0 bg-hero-pattern opacity-50" />
-      
+
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
@@ -58,11 +86,10 @@ const PricingSection = () => {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`relative p-6 sm:p-8 rounded-2xl transition-all duration-300 ${
-                plan.popular
-                  ? "bg-gradient-card border-2 border-primary shadow-glow"
-                  : "bg-card border border-border hover:border-primary/50"
-              }`}
+              className={`relative p-6 sm:p-8 rounded-2xl transition-all duration-300 ${plan.popular
+                ? "bg-gradient-card border-2 border-primary shadow-glow"
+                : "bg-card border border-border hover:border-primary/50"
+                }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -102,15 +129,16 @@ const PricingSection = () => {
                 ))}
               </ul>
 
-              <Link to="/signup">
-                <Button
-                  variant={plan.popular ? "hero" : "outline"}
-                  className="w-full"
-                  size="lg"
-                >
-                  Começar Agora
-                </Button>
-              </Link>
+              <Button
+                variant={plan.popular ? "hero" : "outline"}
+                className="w-full"
+                size="lg"
+                onClick={() => handleCheckout(plan)}
+                disabled={!!loadingPlan}
+              >
+                {loadingPlan === plan.name ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                Começar Agora
+              </Button>
             </div>
           ))}
         </div>

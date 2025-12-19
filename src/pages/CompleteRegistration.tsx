@@ -1,0 +1,164 @@
+
+import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, CheckCircle2 } from "lucide-react";
+
+export default function CompleteRegistration() {
+    const [searchParams] = useSearchParams();
+    const referenceId = searchParams.get("ref");
+    const navigate = useNavigate();
+
+    const [loading, setLoading] = useState(true);
+    const [status, setStatus] = useState<"pending" | "paid" | "failed">("pending");
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({ fullName: "", email: "", phone: "" });
+
+    useEffect(() => {
+        if (!referenceId) {
+            toast.error("Referência de pagamento não encontrada.");
+            return;
+        }
+
+        const checkStatus = async () => {
+            const { data } = await supabase
+                .from('subscriptions')
+                .select('payment_status')
+                .eq('external_reference_id', referenceId)
+                .single();
+
+            if (data?.payment_status === 'paid') {
+                setStatus('paid');
+                setLoading(false);
+                return true; // Stop polling
+            }
+            return false;
+        };
+
+        // Immediate check
+        checkStatus();
+
+        // Poll status
+        const interval = setInterval(async () => {
+            const stop = await checkStatus();
+            if (stop) clearInterval(interval);
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [referenceId]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('complete-registration', {
+                body: { referenceId, ...formData }
+            });
+
+            if (error) {
+                // Parse error body if possible
+                const body = error.context ? await error.context.json() : {};
+                throw new Error(body.error || error.message);
+            }
+
+            toast.success("Cadastro concluído com sucesso!");
+            // Redirect to login or dashboard
+            // Note: User is not authenticated in Supabase Auth sense yet (unless we integrate Auth).
+            // For now we assume the flow leads them to login or an instructions page.
+            // Since we just collected email/phone, maybe we should sign them up?
+            // The requirement didn't specify Supabase Auth User creation, just data persistence in `subscriptions`.
+            // But typically we want a real user. 
+            // For this step I'll just redirect to dashboard/login.
+            navigate('/login');
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || "Erro ao salvar dados.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (!referenceId) {
+        return <div className="flex items-center justify-center min-h-screen">Link inválido.</div>;
+    }
+
+    return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-md bg-card border rounded-xl p-8 shadow-lg">
+                {status === 'pending' ? (
+                    <div className="text-center space-y-6">
+                        <div className="flex justify-center">
+                            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                        </div>
+                        <h2 className="text-2xl font-bold">Aguardando Pagamento</h2>
+                        <p className="text-muted-foreground">
+                            Estamos aguardando a confirmação do seu pagamento. Assim que confirmado, esta página será atualizada automaticamente.
+                        </p>
+                        <div className="text-sm bg-secondary/50 p-4 rounded-lg">
+                            <p>Referência: {referenceId}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="text-center">
+                            <div className="flex justify-center mb-4">
+                                <CheckCircle2 className="w-12 h-12 text-green-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold">Pagamento Confirmado!</h2>
+                            <p className="text-muted-foreground">
+                                Por favor, complete seus dados para ativar seu acesso.
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+                            <div className="space-y-2">
+                                <Label htmlFor="fullName">Nome Completo</Label>
+                                <Input
+                                    id="fullName"
+                                    placeholder="João da Silva"
+                                    value={formData.fullName}
+                                    onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="joao@emplo.com"
+                                    value={formData.email}
+                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">WhatsApp (com DDD)</Label>
+                                <Input
+                                    id="phone"
+                                    placeholder="11999999999"
+                                    value={formData.phone}
+                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    required
+                                    pattern="[0-9]{10,13}"
+                                    title="Digite apenas números, incluindo DDD"
+                                />
+                            </div>
+
+                            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Finalizar Cadastro
+                            </Button>
+                        </form>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

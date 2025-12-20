@@ -19,7 +19,16 @@ export default function CompleteRegistration() {
     const [formData, setFormData] = useState({ fullName: "", email: "", phone: "" });
 
     useEffect(() => {
-        if (!referenceId) {
+        let ref = referenceId;
+        if (!ref) {
+            ref = localStorage.getItem("subscription_ref");
+            if (ref) {
+                // Update URL to include ref for better UX/shareability if needed, or just use it
+                // For now, just using it locally
+            }
+        }
+
+        if (!ref) {
             toast.error("Referência de pagamento não encontrada.");
             return;
         }
@@ -28,7 +37,7 @@ export default function CompleteRegistration() {
             const { data } = await supabase
                 .from('subscriptions')
                 .select('payment_status')
-                .eq('external_reference_id', referenceId)
+                .eq('external_reference_id', ref)
                 .single();
 
             if (data?.payment_status === 'paid') {
@@ -54,29 +63,41 @@ export default function CompleteRegistration() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
+        const ref = referenceId || localStorage.getItem("subscription_ref");
+
         try {
-            const { data, error } = await supabase.functions.invoke('complete-registration', {
-                body: { referenceId, ...formData }
+            const { data, error } = await supabase.functions.invoke('subscription', {
+                body: { referenceId: ref, ...formData }
             });
 
             if (error) {
-                // Parse error body if possible
+                // Check if it's the "already active" error
+                // The error object from invoke might be wrapped.
+                // Depending on the client version, error might be an object with message or context.
+                // We'll try to parse it.
+                // But simplified: if it fails, check message.
                 const body = error.context ? await error.context.json() : {};
-                throw new Error(body.error || error.message);
+                const msg = body.error || error.message || "";
+
+                if (msg.includes("Assinatura já está ativa")) {
+                    toast.success("Assinatura já ativa! Redirecionando...");
+                    navigate('/login');
+                    return;
+                }
+
+                throw new Error(msg);
             }
 
             toast.success("Cadastro concluído com sucesso!");
-            // Redirect to login or dashboard
-            // Note: User is not authenticated in Supabase Auth sense yet (unless we integrate Auth).
-            // For now we assume the flow leads them to login or an instructions page.
-            // Since we just collected email/phone, maybe we should sign them up?
-            // The requirement didn't specify Supabase Auth User creation, just data persistence in `subscriptions`.
-            // But typically we want a real user. 
-            // For this step I'll just redirect to dashboard/login.
             navigate('/login');
         } catch (err: any) {
             console.error(err);
-            toast.error(err.message || "Erro ao salvar dados.");
+            if (err.message && err.message.includes("Assinatura já está ativa")) {
+                toast.success("Assinatura já ativa! Redirecionando...");
+                navigate('/login');
+            } else {
+                toast.error(err.message || "Erro ao salvar dados.");
+            }
         } finally {
             setSubmitting(false);
         }

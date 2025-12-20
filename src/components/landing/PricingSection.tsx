@@ -46,20 +46,22 @@ const PricingSection = () => {
   const handleCheckout = async (plan: typeof plans[0]) => {
     try {
       setLoadingPlan(plan.name);
-      const price = parseFloat(plan.price.replace(',', '.'));
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
-          planId: plan.name,
-          price,
-          returnUrl: `${window.location.origin}/complete-registration` // Passing return URL context
+          plan: plan.name.toLowerCase(), // "mensal" or "anual"
         }
       });
 
       if (error) throw error;
-      if (!data?.url) throw new Error("URL de pagamento não gerada");
+      if (!data?.payment_url) throw new Error("URL de pagamento não gerada");
 
-      window.location.href = data.url;
+      // Store referenceId for the return flow
+      if (data.referenceId) {
+        localStorage.setItem("subscription_ref", data.referenceId);
+      }
+
+      window.location.href = data.payment_url;
     } catch (error: any) {
       toast.error("Erro ao iniciar: " + error.message);
       setLoadingPlan(null);

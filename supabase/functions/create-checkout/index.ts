@@ -25,6 +25,14 @@ serve(async (req) => {
     }
 
     const price = plan === "mensal" ? 59.9 : 599.9
+    const checkoutUrl =
+      plan === "mensal"
+        ? Deno.env.get("KIWIFY_MONTHLY_LINK")
+        : Deno.env.get("KIWIFY_YEARLY_LINK")
+
+    if (!checkoutUrl) {
+      throw new Error("Links de pagamento não configurados")
+    }
 
     const referenceId = crypto.randomUUID()
 
@@ -37,48 +45,13 @@ serve(async (req) => {
       amount_paid: price,
     })
 
-    const response = await fetch(
-      "https://api.abacatepay.com/v1/billing/create",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${Deno.env.get("ABACATE_API_KEY")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          frequency: "ONE_TIME", // ÚNICO VALOR ACEITO
-
-          methods: ["PIX", "CARD"],
-
-          returnUrl: "https://roilead.ynksystems.com/pagamento/sucesso",
-          completionUrl: "https://roilead.ynksystems.com/pagamento/sucesso",
-
-          products: [
-            {
-              externalId: `roilead-${plan}`,
-              name: `Assinatura roiLead - ${plan}`,
-              quantity: 1,
-              price: Math.round(price * 100),
-            },
-          ],
-
-          metadata: {
-            reference_id: referenceId,
-            plan,
-          },
-        }),
-      }
-    )
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw result
-    }
+    // Adiciona o referenceId como parâmetro 'src' para rastreamento no webhook
+    const paymentUrl = new URL(checkoutUrl)
+    paymentUrl.searchParams.append("src", referenceId)
 
     return new Response(
       JSON.stringify({
-        payment_url: result.data.url,
+        payment_url: paymentUrl.toString(),
         referenceId,
       }),
       {
@@ -88,8 +61,11 @@ serve(async (req) => {
     )
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err }),
-      { status: 400 }
+      JSON.stringify({ error: err.message || err }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400
+      }
     )
   }
 })

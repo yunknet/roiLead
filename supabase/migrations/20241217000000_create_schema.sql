@@ -2,8 +2,28 @@
 -- TYPES
 -- ===============================
 
-CREATE TYPE payment_status_type AS ENUM ('pending', 'paid', 'failed');
-CREATE TYPE subscription_status_type AS ENUM ('inactive', 'active', 'suspended');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'payment_status_type'
+  ) THEN
+    CREATE TYPE payment_status_type AS ENUM ('pending', 'paid', 'failed');
+  END IF;
+END$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'subscription_status_type'
+  ) THEN
+    CREATE TYPE subscription_status_type AS ENUM (
+      'inactive',
+      'pending_activation',
+      'active',
+      'suspended'
+    );
+  END IF;
+END$$;
 
 -- ===============================
 -- TABLE
@@ -19,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     payment_status payment_status_type NOT NULL DEFAULT 'pending',
     subscription_status subscription_status_type NOT NULL DEFAULT 'inactive',
 
-    -- User info (post-payment)
+    -- User info
     full_name TEXT,
     email TEXT,
     phone_number TEXT,
@@ -30,9 +50,12 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 
     -- Payment tracking
     external_reference_id UUID NOT NULL,
-    abacate_billing_id TEXT,
     plan_name TEXT,
-    amount_paid NUMERIC(10,2)
+    amount_paid NUMERIC(10,2),
+
+    -- Gateway specific
+    kiwify_order_id TEXT,
+    payment_method TEXT
 );
 
 -- ===============================
@@ -40,9 +63,16 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 -- ===============================
 
 -- External reference must be unique (CRITICAL)
-ALTER TABLE public.subscriptions
-ADD CONSTRAINT subscriptions_external_reference_unique
-UNIQUE (external_reference_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_external_reference_unique'
+  ) THEN
+    ALTER TABLE public.subscriptions
+    ADD CONSTRAINT subscriptions_external_reference_unique
+    UNIQUE (external_reference_id);
+  END IF;
+END$$;
 
 -- Unique email only when present
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_email
@@ -61,6 +91,9 @@ ON public.subscriptions (phone_number);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_reference
 ON public.subscriptions (external_reference_id);
 
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status
+ON public.subscriptions (subscription_status);
+
 -- ===============================
 -- UPDATED_AT TRIGGER
 -- ===============================
@@ -72,6 +105,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_subscriptions_updated_at
+ON public.subscriptions;
 
 CREATE TRIGGER trg_update_subscriptions_updated_at
 BEFORE UPDATE ON public.subscriptions
@@ -87,8 +123,8 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 -- Remove insecure policy if exists
 DROP POLICY IF EXISTS "Public read by reference" ON public.subscriptions;
 
--- Secure read policy (used only if needed)
--- RECOMMENDED: use Edge Functions instead of direct SELECT
+-- Secure read policy (OPTIONAL)
+-- Recomendado usar Edge Functions para acesso
 CREATE POLICY "Read own subscription by reference"
 ON public.subscriptions
 FOR SELECT

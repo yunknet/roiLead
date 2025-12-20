@@ -381,35 +381,35 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.create-billing]
+[functions.create-checkout]
 enabled = true
 verify_jwt = true
-import_map = "./functions/create-billing/deno.json"
+import_map = "./functions/create-checkout/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/create-billing/index.ts"
+entrypoint = "./functions/create-checkout/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/create-billing/*.html" ]
+# static_files = [ "./functions/create-checkout/*.html" ]
 
-[functions.webhook-abacate]
+[functions.subscription]
 enabled = true
 verify_jwt = true
-import_map = "./functions/webhook-abacate/deno.json"
+import_map = "./functions/subscription/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/webhook-abacate/index.ts"
+entrypoint = "./functions/subscription/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/webhook-abacate/*.html" ]
+# static_files = [ "./functions/subscription/*.html" ]
 
-[functions.finalize-subscription]
+[functions.kiwify-webhook]
 enabled = true
 verify_jwt = true
-import_map = "./functions/finalize-subscription/deno.json"
+import_map = "./functions/kiwify-webhook/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/finalize-subscription/index.ts"
+entrypoint = "./functions/kiwify-webhook/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/finalize-subscription/*.html" ]
+# static_files = [ "./functions/kiwify-webhook/*.html" ]

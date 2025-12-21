@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 
     -- Gateway specific
     kiwify_order_id TEXT,
+    kiwify_status TEXT,
     payment_method TEXT
 );
 
@@ -125,10 +126,9 @@ DROP POLICY IF EXISTS "Public read by reference" ON public.subscriptions;
 
 -- Secure read policy (OPTIONAL)
 -- Recomendado usar Edge Functions para acesso
-CREATE POLICY "Read own subscription by reference"
+CREATE POLICY "Read own subscription by email"
 ON public.subscriptions
 FOR SELECT
 USING (
-  external_reference_id::text =
-  (current_setting('request.jwt.claims', true)::json ->> 'external_reference_id')
+  email = (auth.jwt() ->> 'email')
 );

@@ -97,8 +97,8 @@ serve(async (req) => {
     const customer = event.Customer || event.customer || {}
 
     const updates: any = {
-      payment_status: "paid",
-      subscription_status: "active",
+      payment_status: payment_status,
+      subscription_status: subscription_status,
       kiwify_order_id: event.order_id || null,
       kiwify_status: event.order_status || null,
       amount_paid: event.amount ? event.amount / 100 : null,

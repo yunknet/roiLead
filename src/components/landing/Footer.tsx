@@ -76,9 +76,7 @@ const Footer = () => {
           <p className="text-muted-foreground text-sm text-center md:text-left">
             © {new Date().getFullYear()} roiLead. Todos os direitos reservados.
           </p>
-          <p className="text-muted-foreground text-sm">
-            Feito com 💚 no Brasil
-          </p>
+
         </div>
       </div>
     </footer>

@@ -22,6 +22,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy env script to run on container start
 COPY env.sh /docker-entrypoint.d/40-env.sh
+# Fix windows line endings just in case
+RUN sed -i 's/\r$//' /docker-entrypoint.d/40-env.sh
 RUN chmod +x /docker-entrypoint.d/40-env.sh
 
 EXPOSE 80

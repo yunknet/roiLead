@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -124,7 +124,7 @@ serve(async (req) => {
       JSON.stringify({ received: true, processed: true }),
       { status: 200 }
     )
-  } catch (err) {
+  } catch (err: any) {
     console.error("Webhook error:", err)
     return new Response(
       JSON.stringify({ error: "invalid_webhook", details: err.message }),

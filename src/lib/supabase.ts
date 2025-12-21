@@ -19,6 +19,11 @@ console.log('Supabase Config:', {
     isPlaceholder: supabaseUrl.includes('placeholder')
 });
 
+if (typeof window !== 'undefined' && supabaseUrl.includes('placeholder')) {
+    console.error('CRITICAL: Supabase URL is missing configuration!');
+    // alert('Atenção: A conexão com o banco de dados não foi configurada corretamente (URL inválida). Verifique as variáveis de ambiente.');
+}
+
 export const supabase = createClient(
     supabaseUrl,
     supabaseAnonKey

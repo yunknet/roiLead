@@ -7,6 +7,7 @@ import { useState } from "react";
 
 const plans = [
   {
+    id: "mensal",
     name: "Mensal",
     description: "Pagamento mensal flexível",
     price: "59,90",
@@ -22,10 +23,12 @@ const plans = [
     popular: false,
   },
   {
+    id: "anual",
     name: "Anual",
     description: "Melhor custo-benefício",
     price: "39,90",
-    period: "/mês",
+    period: "/mês", // Display price per month
+    // yearlyPrice: "478,80", // Implicit in backend
     originalPrice: "59,90",
     savings: "Economize R$ 240/ano",
     features: [
@@ -47,23 +50,35 @@ const PricingSection = () => {
     try {
       setLoadingPlan(plan.name);
 
+      console.log("Iniciando checkout para o plano:", plan.id);
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
-          plan: plan.name.toLowerCase(), // "mensal" or "anual"
+          plan: plan.id, // Sends "mensal" or "anual" explicitly
         }
       });
 
-      if (error) throw error;
-      if (!data?.payment_url) throw new Error("URL de pagamento não gerada");
+      if (error) {
+        console.error("Erro na Edge Function:", error);
+        throw error;
+      }
+
+      if (!data?.payment_url) {
+        throw new Error("URL de pagamento não retornada pela função.");
+      }
+
+      console.log("Checkout criado com sucesso:", data);
 
       // Store referenceId for the return flow
       if (data.referenceId) {
         localStorage.setItem("subscription_ref", data.referenceId);
       }
 
+      // Redirect to external payment gateway
       window.location.href = data.payment_url;
     } catch (error: any) {
-      toast.error("Erro ao iniciar: " + error.message);
+      console.error("Erro ao processar checkout:", error);
+      toast.error("Erro ao iniciar o pagamento: " + (error.message || "Tente novamente."));
       setLoadingPlan(null);
     }
   };

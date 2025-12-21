@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Target,
@@ -25,6 +25,7 @@ const menuItems = [
   { icon: ShoppingCart, label: "Minhas Listas de Compras", id: "lists" },
   { icon: DollarSign, label: "Orçamento", id: "budget" },
   { icon: BarChart3, label: "Relatórios", id: "reports" },
+  { icon: CreditCard, label: "Assinatura", id: "subscription" }, // New menu item
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
 
@@ -35,10 +36,20 @@ const mockLists = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState("lists");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const navigate = useNavigate();
-  const userName = "João";
+
+  // Check for plan param in URL (passed from signup)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const plan = searchParams.get("plan");
+    if (plan) {
+      navigate(`/subscription?plan=${plan}`);
+    }
+  }, [navigate]);
+
+  const userName = "João"; // This should come from auth context eventually
 
   // Mock data
   const budgetData = {
@@ -167,6 +178,17 @@ const Dashboard = () => {
           </div>
         );
 
+      case "subscription":
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-foreground">Gerenciar Assinatura</h2>
+            <div className="p-6 bg-card rounded-xl border border-border">
+              <p className="text-muted-foreground mb-4">Você ainda não possui uma assinatura ativa ou deseja alterar seu plano.</p>
+              <Button onClick={() => navigate("/subscription")}>Ver Planos Disponíveis</Button>
+            </div>
+          </div>
+        );
+
       case "settings":
         return (
           <div className="space-y-6">
@@ -274,8 +296,8 @@ const Dashboard = () => {
                     setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeMenu === item.id
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent"
                     }`}
                 >
                   <item.icon className="w-5 h-5" />

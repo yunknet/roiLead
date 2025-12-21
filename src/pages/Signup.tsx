@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Target, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -27,14 +28,54 @@ const Signup = () => {
 
     setIsLoading(true);
 
-    // Simulated - will be replaced with actual auth
-    setTimeout(() => {
-      toast({
-        title: "Backend necessário",
-        description: "Conecte o Lovable Cloud para habilitar autenticação.",
+    try {
+      const email = (document.getElementById("email") as HTMLInputElement).value;
+      const password = (document.getElementById("password") as HTMLInputElement).value;
+      const firstName = (document.getElementById("firstName") as HTMLInputElement).value;
+      const lastName = (document.getElementById("lastName") as HTMLInputElement).value;
+      const phone = (document.getElementById("phone") as HTMLInputElement).value;
+
+      // Get plan from URL query params
+      const searchParams = new URLSearchParams(window.location.search);
+      const plan = searchParams.get("plan");
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+          },
+        },
       });
+
+      if (error) throw error;
+
+      toast({
+        title: "Conta criada com sucesso!",
+        description: "Bem-vindo ao roiLead.",
+      });
+
+      // Redirect logic
+      // If a plan was selected, redirect to dashboard/subscription (or handle subscription somehow)
+      // For now, let's assume we go to dashboard where the user can subscribe
+      // We can pass the plan in the state or URL
+
+      // Using window.location for full reload ensuring auth state update, or useNavigate if we import it
+      window.location.href = `/dashboard?plan=${plan || ''}`;
+
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      toast({
+        title: "Erro ao criar conta",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -52,7 +93,7 @@ const Signup = () => {
             Comece a prospectar hoje
           </h2>
           <p className="text-muted-foreground">
-            7 dias grátis para encontrar seus primeiros leads. Sem cartão de crédito.
+            Encontre seus primeiros leads agora mesmo.
           </p>
         </div>
       </div>
@@ -75,7 +116,7 @@ const Signup = () => {
             Criar sua conta
           </h1>
           <p className="text-muted-foreground mb-8">
-            Comece seu teste grátis de 7 dias
+            Preencha seus dados para começar
           </p>
 
           {/* Form */}
@@ -126,18 +167,11 @@ const Signup = () => {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Mínimo 8 caracteres"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
                   required
-                  minLength={8}
+                  minLength={6}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
             </div>
 
@@ -156,7 +190,7 @@ const Signup = () => {
             </div>
 
             <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? "Criando conta..." : "Criar conta grátis"}
+              {isLoading ? "Criando conta..." : "Criar conta"}
             </Button>
           </form>
 

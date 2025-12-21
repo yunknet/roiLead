@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { ArrowRight, Search, Shield, Zap } from "lucide-react";
 
 const HeroSection = () => {
@@ -14,7 +15,7 @@ const HeroSection = () => {
       {/* Background Effects */}
       <div className="absolute inset-0 bg-hero-pattern" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/10 via-transparent to-transparent blur-3xl" />
-      
+
       {/* Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
@@ -36,23 +37,24 @@ const HeroSection = () => {
 
           {/* Subheadline */}
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up px-4" style={{ animationDelay: "0.1s" }}>
-            Busque empresas por região e nicho diretamente no seu WhatsApp. 
+            Busque empresas por região e nicho diretamente no seu WhatsApp.
             Receba contatos prontos para prospectar.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up px-4" style={{ animationDelay: "0.2s" }}>
-            <Button 
-              variant="hero" 
-              size="xl" 
-              className="group w-full sm:w-auto"
-              onClick={() => scrollToSection("pricing")}
-            >
-              Começar Agora
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button 
-              variant="heroOutline" 
+            <Link to="/signup">
+              <Button
+                variant="hero"
+                size="xl"
+                className="group w-full sm:w-auto"
+              >
+                Começar Agora
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+            <Button
+              variant="heroOutline"
               size="xl"
               className="w-full sm:w-auto"
               onClick={() => scrollToSection("features")}

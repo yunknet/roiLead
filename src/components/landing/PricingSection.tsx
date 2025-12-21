@@ -44,44 +44,8 @@ const plans = [
 ];
 
 const PricingSection = () => {
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-
-  const handleCheckout = async (plan: typeof plans[0]) => {
-    try {
-      setLoadingPlan(plan.name);
-
-      console.log("Iniciando checkout para o plano:", plan.id);
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          plan: plan.id, // Sends "mensal" or "anual" explicitly
-        }
-      });
-
-      if (error) {
-        console.error("Erro na Edge Function:", error);
-        throw error;
-      }
-
-      if (!data?.payment_url) {
-        throw new Error("URL de pagamento não retornada pela função.");
-      }
-
-      console.log("Checkout criado com sucesso:", data);
-
-      // Store referenceId for the return flow
-      if (data.referenceId) {
-        localStorage.setItem("subscription_ref", data.referenceId);
-      }
-
-      // Redirect to external payment gateway
-      window.location.href = data.payment_url;
-    } catch (error: any) {
-      console.error("Erro ao processar checkout:", error);
-      toast.error("Erro ao iniciar o pagamento: " + (error.message || "Tente novamente."));
-      setLoadingPlan(null);
-    }
-  };
+  // We don't need handleCheckout anymore for the landing page, as we want to register first.
+  // Instead, the button will be a Link or we use navigate.
 
   return (
     <section id="pricing" className="py-16 sm:py-24 relative">
@@ -146,16 +110,18 @@ const PricingSection = () => {
                 ))}
               </ul>
 
-              <Button
-                variant={plan.popular ? "hero" : "outline"}
-                className="w-full"
-                size="lg"
-                onClick={() => handleCheckout(plan)}
-                disabled={!!loadingPlan}
-              >
-                {loadingPlan === plan.name ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                Começar Agora
-              </Button>
+              <Link to={`/signup?plan=${plan.id}`} className="w-full">
+                <Button
+                  variant={plan.popular ? "hero" : "outline"}
+                  className="w-full"
+                  size="lg"
+                // onClick={() => handleCheckout(plan)}
+                // disabled={!!loadingPlan}
+                >
+                  {/* {loadingPlan === plan.name ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null} */}
+                  Começar Agora
+                </Button>
+              </Link>
             </div>
           ))}
         </div>

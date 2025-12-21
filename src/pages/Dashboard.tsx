@@ -7,10 +7,9 @@ import {
   X,
   User,
   CreditCard,
-  Search,
+  MessageCircle,
   Check,
-  Loader2,
-  MessageCircle
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,25 +45,61 @@ const plans = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  // Default to search to make it the main view
   const [activeMenu, setActiveMenu] = useState("search");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  // Profile state
-  const [phone, setPhone] = useState("(11) 99999-9999");
+  // User Profile state
+  const [userProfile, setUserProfile] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  } | null>(null);
+
+  // Editing state
+  const [phone, setPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Handle initial redirect or plan params
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const plan = searchParams.get("plan");
-    if (plan) {
-      setActiveMenu("subscription");
-    }
-  }, []);
+    const fetchUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-  const userName = "João";
+        if (!user) {
+          navigate("/login");
+          return;
+        }
+
+        // Get data from user metadata (saved during signup)
+        const meta = user.user_metadata || {};
+
+        setUserProfile({
+          firstName: meta.first_name || "Usuário",
+          lastName: meta.last_name || "",
+          email: user.email || "",
+          phone: meta.phone || ""
+        });
+
+        setPhone(meta.phone || "");
+
+        // Check for plan param in URL
+        const searchParams = new URLSearchParams(window.location.search);
+        const plan = searchParams.get("plan");
+        if (plan) {
+          setActiveMenu("subscription");
+        }
+
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -81,8 +116,6 @@ const Dashboard = () => {
         navigate("/login");
         return;
       }
-
-      console.log("Iniciando checkout para:", planId);
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
@@ -107,6 +140,16 @@ const Dashboard = () => {
       setLoadingPlan(null);
     }
   };
+
+  // Derived state for display
+  const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";
+  const userInitials = userProfile?.firstName ? userProfile.firstName.substring(0, 2).toUpperCase() : "US";
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>;
+  }
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -213,13 +256,13 @@ const Dashboard = () => {
                   <div className="grid gap-2">
                     <label className="text-sm font-medium text-muted-foreground">Nome</label>
                     <div className="p-2 bg-muted/50 rounded-md text-foreground">
-                      João Silva
+                      {fullName}
                     </div>
                   </div>
                   <div className="grid gap-2">
                     <label className="text-sm font-medium text-muted-foreground">E-mail</label>
                     <div className="p-2 bg-muted/50 rounded-md text-foreground">
-                      joao@email.com
+                      {userProfile?.email}
                     </div>
                   </div>
                   <div className="grid gap-2">
@@ -251,13 +294,13 @@ const Dashboard = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">Plano Mensal</span>
-                      <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-medium">Ativo</span>
+                      <span className="font-semibold text-foreground">Plano Gratuito</span>
+                      <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">Inativo</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">Próxima cobrança em 15/01/2025</p>
+                    <p className="text-sm text-muted-foreground">Assine um plano para liberar os recursos.</p>
                   </div>
                   <Button variant="outline" onClick={() => setActiveMenu("subscription")}>
-                    Alterar Plano
+                    Ver Planos
                   </Button>
                 </div>
               </div>
@@ -323,15 +366,15 @@ const Dashboard = () => {
           </ul>
         </nav>
 
-        {/* User Menu Footer - NO Logout button as requested */}
+        {/* User Menu Footer */}
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center">
-              <span className="text-sm font-medium text-sidebar-foreground">JS</span>
+              <span className="text-sm font-medium text-sidebar-foreground">{userInitials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">João Silva</p>
-              <p className="text-xs text-muted-foreground truncate">Mensal</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{fullName}</p>
+              <p className="text-xs text-muted-foreground truncate">{userProfile?.email}</p>
             </div>
           </div>
         </div>
@@ -349,7 +392,7 @@ const Dashboard = () => {
               <Menu className="w-5 h-5" />
             </button>
             <h1 className="text-lg sm:text-xl font-semibold text-foreground">
-              Bem-vindo, <span className="text-primary">{userName}</span>!
+              Bem-vindo, <span className="text-primary">{userProfile?.firstName}</span>!
             </h1>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">

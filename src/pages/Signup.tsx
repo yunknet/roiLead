@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +47,7 @@ const Signup = () => {
           data: {
             first_name: firstName,
             last_name: lastName,
-            phone: phone,
+            phone: phone, // Metadata used by the trigger
           },
         },
       });
@@ -59,12 +60,18 @@ const Signup = () => {
       });
 
       // Redirect logic
-      // If a plan was selected, redirect to dashboard/subscription (or handle subscription somehow)
-      // For now, let's assume we go to dashboard where the user can subscribe
-      // We can pass the plan in the state or URL
-
-      // Using window.location for full reload ensuring auth state update, or useNavigate if we import it
-      window.location.href = `/dashboard?plan=${plan || ''}`;
+      if (data.session) {
+        // Auto-login successful (Email confirm disabled)
+        navigate(`/dashboard?plan=${plan || ''}`);
+      } else {
+        // Email verification required
+        toast({
+          title: "Verifique seu e-mail",
+          description: "Para acessar sua conta, confirme seu e-mail.",
+        });
+        // Redirect to login with email prefilled
+        navigate(`/login?email=${encodeURIComponent(email)}&message=check_email`);
+      }
 
     } catch (error: any) {
       console.error("Signup error:", error);

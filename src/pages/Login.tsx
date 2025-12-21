@@ -1,30 +1,51 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Target, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    // Check if we came from signup with an email to pre-fill
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulated login - will be replaced with actual auth
-    setTimeout(() => {
-      toast({
-        title: "Login realizado!",
-        description: "Redirecionando para o dashboard...",
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      setIsLoading(false);
+
+      if (error) throw error;
+
+      toast.success("Login realizado com sucesso!");
       navigate("/dashboard");
-    }, 1000);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message === "Invalid login credentials"
+        ? "E-mail ou senha incorretos."
+        : "Erro ao fazer login: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -53,11 +74,13 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail ou Telefone</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
-                type="text"
-                placeholder="seu@email.com ou (11) 99999-9999"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -74,6 +97,8 @@ const Login = () => {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
                 <button
@@ -87,6 +112,7 @@ const Login = () => {
             </div>
 
             <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>

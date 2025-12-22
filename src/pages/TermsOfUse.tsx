@@ -58,6 +58,11 @@ const TermsOfUse = () => {
           </section>
 
           <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Fontes de Dados</h2>
+            <p className="text-muted-foreground">Todos os dados disponibilizados são de domínio público e obtidos por meio da Receita Federal, conforme previsto na Lei de Acesso à Informação.</p>
+          </section>
+
+          <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Cadastro e Utilização dos Serviços</h2>
             <p className="text-muted-foreground mb-3">Para utilizar o roiLead, o usuário deverá realizar cadastro informando, no mínimo:</p>
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
@@ -140,7 +145,7 @@ const TermsOfUse = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Legislação Aplicável e Foro</h2>
-            <p className="text-muted-foreground">Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer controvérsias, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+            <p className="text-muted-foreground">Estes Termos de Uso são regidos pelas leis brasileiras, em especial pela LGPD. Para dirimir quaisquer conflitos relacionados ao uso do serviço, fica eleito o foro da Comarca de Várzea da Palma/MG, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
           </section>
 
           <section>
@@ -209,6 +214,10 @@ const TermsOfUse = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">Status Legal do Produto</h2>
             <p className="text-muted-foreground">O roiLead é classificado como: <strong className="text-foreground">Software como Serviço (SaaS) de Automação e Inteligência para Geração de Leads</strong></p>
           </section>
+
+          <p className="text-sm text-muted-foreground italic mt-8 border-t border-border/50 pt-4">
+            Última atualização: 21/12/2025
+          </p>
         </div>
       </main>
     </div>

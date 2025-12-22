@@ -121,7 +121,12 @@ const PrivacyPolicy = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">8. Contato</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">8. Isenção de Vínculo</h2>
+            <p className="text-muted-foreground">O roiLead não possui qualquer tipo de vínculo, parceria ou relação com a empresa WHATSAPP, LLC ou Facebook Inc. O roiLead é uma ferramenta de automação.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">9. Contato</h2>
             <p className="text-muted-foreground">Em caso de dúvidas, solicitações ou questões relacionadas à privacidade e proteção de dados, entre em contato:</p>
             <p className="text-primary mt-2">📧 E-mail: ynksystems@gmail.com</p>
           </section>

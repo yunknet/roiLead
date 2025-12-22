@@ -23,7 +23,7 @@ const faqs = [
     answer: "Fornecemos telefones comerciais verificados. Alguns podem ser WhatsApp, outros telefones fixos. Você recebe todas as informações disponíveis para contato.",
   },
   {
-    question: "Posso exportar os leads?",
+    question: "Posso exportar os leads para uma planilha Excel?",
     answer: "Ainda não, mas em breve atualização.",
   },
 ];

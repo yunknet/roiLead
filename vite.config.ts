@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     host: true,
-    allowedHosts: "all",
+    allowedHosts: true,
   },
   plugins: [react()].filter(Boolean),
   resolve: {

@@ -60,8 +60,8 @@ const ForgotPassword = () => {
             return;
         }
 
-        if (otp.length !== 6) {
-            toast.error("Digite o código de 6 dígitos");
+        if (otp.length !== 8) {
+            toast.error("Digite o código de 8 dígitos");
             return;
         }
 
@@ -176,7 +176,7 @@ const ForgotPassword = () => {
                                         id="otp"
                                         value={otp}
                                         onChange={(value) => setOtp(value)}
-                                        maxLength={6}
+                                        maxLength={8}
                                     >
                                         <InputOTPGroup>
                                             <InputOTPSlot index={0} />
@@ -185,6 +185,8 @@ const ForgotPassword = () => {
                                             <InputOTPSlot index={3} />
                                             <InputOTPSlot index={4} />
                                             <InputOTPSlot index={5} />
+                                            <InputOTPSlot index={6} />
+                                            <InputOTPSlot index={7} />
                                         </InputOTPGroup>
                                     </InputOTP>
                                 </div>

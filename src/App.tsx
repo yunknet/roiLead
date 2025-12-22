@@ -15,6 +15,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
+import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />

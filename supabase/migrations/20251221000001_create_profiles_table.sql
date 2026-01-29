@@ -52,15 +52,30 @@ returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
-begin
+DECLARE
+  meta_first text;
+  meta_last text;
+  meta_full text;
+BEGIN
+  -- Extract metadata
+  meta_first := new.raw_user_meta_data ->> 'first_name';
+  meta_last := new.raw_user_meta_data ->> 'last_name';
+  meta_full := COALESCE(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name');
+
+  -- Fallback: If first name is missing but we have full name from Google/Provider
+  IF meta_first IS NULL AND meta_full IS NOT NULL THEN
+     meta_first := split_part(meta_full, ' ', 1);
+     meta_last := substring(meta_full from length(meta_first) + 2);
+  END IF;
+
   -- Insert into profiles
   insert into public.profiles (id, email, phone_number, first_name, last_name)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'phone', ''),
-    coalesce(new.raw_user_meta_data ->> 'first_name', ''),
-    coalesce(new.raw_user_meta_data ->> 'last_name', '')
+    coalesce(meta_first, ''),
+    coalesce(meta_last, '')
   )
   on conflict (id) do update set
     first_name = excluded.first_name,
@@ -73,7 +88,7 @@ begin
   where id = new.id;
   
   return new;
-end;
+END;
 $$;
 
 -- 7. Trigger on Auth Users

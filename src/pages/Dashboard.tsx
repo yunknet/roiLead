@@ -63,6 +63,12 @@ const Dashboard = () => {
   // Editing state
   const [phone, setPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
+
+  // Name Editing State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempFirstName, setTempFirstName] = useState("");
+  const [tempLastName, setTempLastName] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,13 +85,7 @@ const Dashboard = () => {
         const meta = user.user_metadata || {};
         const email = user.email || "";
 
-        setUserProfile({
-          firstName: meta.first_name || "Usuário",
-          lastName: meta.last_name || "",
-          email: email,
-        });
-
-        // 1. Fetch Profile for Phone Number
+        // 1. Fetch Profile
         let { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -114,22 +114,33 @@ const Dashboard = () => {
 
           if (insertError) {
             console.error("Failed to auto-create profile:", insertError);
-            // Don't block execution, maybe just temporary glitch or race condition
           } else {
             profile = newProfile;
-            console.log("Profile created successfully.");
           }
         }
 
+        // Update State from DB Profile (Source of Truth)
         if (profile) {
+          setUserProfile({
+            firstName: profile.first_name || meta.first_name || "Usuário",
+            lastName: profile.last_name || meta.last_name || "",
+            email: email,
+          });
+          setTempFirstName(profile.first_name || meta.first_name || "");
+          setTempLastName(profile.last_name || meta.last_name || "");
+
           if (profile.phone_number) {
             setPhone(profile.phone_number);
           } else if (meta.phone) {
             setPhone(meta.phone);
           }
         } else {
-          // Fallback if creation failed
-          if (meta.phone) setPhone(meta.phone);
+          // Fallback purely to metadata if DB failed hard
+          setUserProfile({
+            firstName: meta.first_name || "Usuário",
+            lastName: meta.last_name || "",
+            email: email,
+          });
         }
 
         // 2. Fetch Subscription Status directly from subscriptions table
@@ -163,6 +174,30 @@ const Dashboard = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const handleSaveName = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: tempFirstName,
+          last_name: tempLastName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUserProfile(prev => prev ? ({ ...prev, firstName: tempFirstName, lastName: tempLastName }) : null);
+      setIsEditingName(false);
+      toast.success("Nome atualizado com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao atualizar nome: " + err.message);
+    }
   };
 
   const handleSubscribe = async (planId: string) => {
@@ -419,8 +454,41 @@ const Dashboard = () => {
                   <div className="space-y-4">
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-muted-foreground">Nome</label>
-                      <div className="p-2 bg-muted/50 rounded-md text-foreground">
-                        {fullName}
+                      <div className="flex gap-2 items-start">
+                        {isEditingName ? (
+                          <div className="flex-1 flex gap-2">
+                            <div className="space-y-1 flex-1">
+                              <Input
+                                placeholder="Nome"
+                                value={tempFirstName}
+                                onChange={(e) => setTempFirstName(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-1 flex-1">
+                              <Input
+                                placeholder="Sobrenome"
+                                value={tempLastName}
+                                onChange={(e) => setTempLastName(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-muted/50 rounded-md text-foreground flex-1">
+                            {fullName}
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            if (isEditingName) {
+                              handleSaveName();
+                            } else {
+                              setIsEditingName(true);
+                            }
+                          }}
+                        >
+                          {isEditingName ? "Salvar" : "Alterar"}
+                        </Button>
                       </div>
                     </div>
                     <div className="grid gap-2">

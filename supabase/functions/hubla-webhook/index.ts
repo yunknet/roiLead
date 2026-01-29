@@ -88,7 +88,7 @@ serve(async (req: Request) => {
       updated_at: new Date().toISOString()
     }
 
-    if (data.amount) updates.amount_paid = Number(data.amount)
+    if (data.amount) updates.amount_paid = Number(data.amount) / 100
 
     const { error: updateError } = await supabase
       .from("subscriptions")

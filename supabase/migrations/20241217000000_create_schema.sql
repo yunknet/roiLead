@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     phone_verified BOOLEAN NOT NULL DEFAULT false,
 
     -- Payment tracking
-    external_reference_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth.users(id),
     plan_name TEXT,
     amount_paid NUMERIC(10,2),
 
@@ -63,15 +63,15 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 -- CONSTRAINTS & INDEXES
 -- ===============================
 
--- External reference must be unique (CRITICAL)
+-- User must be unique
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_external_reference_unique'
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_user_id_unique'
   ) THEN
     ALTER TABLE public.subscriptions
-    ADD CONSTRAINT subscriptions_external_reference_unique
-    UNIQUE (external_reference_id);
+    ADD CONSTRAINT subscriptions_user_id_unique
+    UNIQUE (user_id);
   END IF;
 END$$;
 
@@ -89,8 +89,8 @@ WHERE phone_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_subscriptions_phone
 ON public.subscriptions (phone_number);
 
-CREATE INDEX IF NOT EXISTS idx_subscriptions_reference
-ON public.subscriptions (external_reference_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user
+ON public.subscriptions (user_id);
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status
 ON public.subscriptions (subscription_status);
@@ -125,11 +125,10 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read by reference" ON public.subscriptions;
 
 -- Secure read policy (OPTIONAL)
--- Secure read policy (OPTIONAL)
 -- Recomendado usar Edge Functions para acesso
-CREATE POLICY "Users can view own subscription via email"
+CREATE POLICY "Users can view own subscription"
 ON public.subscriptions
 FOR SELECT
 USING (
-  email = (select auth.jwt() ->> 'email')
+  user_id = auth.uid()
 );

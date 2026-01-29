@@ -26,11 +26,11 @@ const plans = [
     id: "anual",
     name: "Anual",
     description: "Melhor custo-benefício",
-    price: "39,90",
+    price: "19,90",
     period: "/mês", // Display price per month
-    // yearlyPrice: "478,80", // Implicit in backend
+    // yearlyPrice: "238,80", // Implicit in backend
     originalPrice: "59,90",
-    savings: "Economize R$ 240/ano",
+    savings: "Economize R$ 480/ano",
     features: [
       "Tudo do plano Mensal",
       "Leads ilimitados",

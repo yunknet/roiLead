@@ -403,16 +403,16 @@ entrypoint = "./functions/subscription/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/subscription/*.html" ]
 
-[functions.kiwify-webhook]
+[functions.hubla-webhook]
 enabled = true
 verify_jwt = true
-import_map = "./functions/kiwify-webhook/deno.json"
+import_map = "./functions/hubla-webhook/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/kiwify-webhook/index.ts"
+entrypoint = "./functions/hubla-webhook/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/kiwify-webhook/*.html" ]
+# static_files = [ "./functions/hubla-webhook/*.html" ]
 
 [functions.check-subscription]
 enabled = true

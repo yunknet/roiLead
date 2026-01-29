@@ -3,56 +3,91 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
 serve(async (req: Request) => {
+  // 1. Tratamento de CORS (Padrão para browsers)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    // 2. Inicializa o Supabase
+    // Precisamos do Auth context, então criamos o cliente passando o Header de Autorização
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: req.headers.get("Authorization")! },
+        },
+      }
     )
 
+    // 3. Verifica QUEM é o usuário chamando a função
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser()
+
+    if (!user) {
+      throw new Error("Usuário não autenticado")
+    }
+
+    // 4. Recebe o plano escolhido
     const { plan } = await req.json()
 
     if (!plan || !["mensal", "anual"].includes(plan)) {
       throw new Error("Plano inválido (mensal ou anual)")
     }
 
-    const price = plan === "mensal" ? 59.9 : 599.9
+    // 5. Define preços e links (configure isso nos Secrets do Supabase)
+    const price = plan === "mensal" ? 59.9 : 238.8
     const checkoutUrl =
       plan === "mensal"
-        ? Deno.env.get("KIWIFY_MONTHLY_LINK")
-        : Deno.env.get("KIWIFY_YEARLY_LINK")
+        ? Deno.env.get("HUBLA_MONTHLY_LINK")
+        : Deno.env.get("HUBLA_YEARLY_LINK")
 
     if (!checkoutUrl) {
-      throw new Error("Links de pagamento não configurados")
+      throw new Error("Links de pagamento Hubla não configurados")
     }
 
-    const referenceId = crypto.randomUUID()
+    // 6. Prepara o Rastreamento
+    // Usamos o ID do usuário como referência. Isso facilita muito no Webhook.
+    const userId = user.id
 
-    // cria assinatura pendente
-    await supabase.from("subscriptions").insert({
-      external_reference_id: referenceId,
+    // 7. Salva/Atualiza a intenção de compra no Banco
+    // Usamos 'upsert' para não criar duplicatas se o usuário clicar 10x no botão
+    const { error: dbError } = await supabaseClient.from("subscriptions").upsert({
+      user_id: userId,          // <--- IMPORTANTE: Vínculo com o usuário
       payment_status: "pending",
-      subscription_status: "inactive",
+      subscription_status: "inactive", // Ainda não pagou
       plan_name: plan,
-      amount_paid: price,
-    })
+      amount_paid: null,        // Só preenche quando o webhook confirmar
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }) // Se já tiver linha pra esse user, atualiza
 
-    // Adiciona o referenceId como parâmetro 'src' para rastreamento no webhook
+    if (dbError) {
+      console.error(dbError)
+      throw new Error("Erro ao salvar assinatura inicial")
+    }
+
+    // 8. Gera o Link Final da Hubla
     const paymentUrl = new URL(checkoutUrl)
-    paymentUrl.searchParams.append("src", referenceId)
+
+    // IMPORTANTE: O Webhook espera ler o 'src'. 
+    // A Hubla pega o parâmetro 'src' e devolve no webhook dentro de utm.src ou metadata
+    paymentUrl.searchParams.set("src", userId)
+
+    // Opcional: E-mail para pré-preencher o checkout (Aumenta conversão)
+    if (user.email) {
+      paymentUrl.searchParams.set("email", user.email)
+    }
 
     return new Response(
       JSON.stringify({
         payment_url: paymentUrl.toString(),
-        referenceId,
+        referenceId: userId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -64,7 +99,7 @@ serve(async (req: Request) => {
       JSON.stringify({ error: err.message || err }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400
+        status: 400,
       }
     )
   }

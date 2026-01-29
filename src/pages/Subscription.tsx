@@ -19,9 +19,9 @@ const plans = [
         id: "anual",
         name: "Anual",
         description: "Melhor custo-benefício",
-        price: "39,90",
+        price: "19,90",
         period: "/mês",
-        features: ["Tudo do plano Mensal", "Suporte prioritário", "Histórico ilimitado", "Economize R$ 240/ano"],
+        features: ["Tudo do plano Mensal", "Suporte prioritário", "Histórico ilimitado", "Economize R$ 480/ano"],
         popular: true,
     }
 ];

@@ -5,7 +5,6 @@ create table if not exists public.profiles (
   email text not null,
   constraint profiles_pkey primary key (id),
   constraint profiles_email_key unique (email),
-  constraint profiles_phone_number_key unique (phone_number),
   constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
@@ -92,3 +91,37 @@ create policy "Users can update their own profile" on public.profiles for update
 
 -- 9. ONE-TIME FIX: Confirm all existing users
 UPDATE auth.users SET email_confirmed_at = now() WHERE email_confirmed_at IS NULL;
+
+-- 10. Backfill missing profiles
+DO $$
+DECLARE
+    user_record record;
+BEGIN
+    FOR user_record IN
+        SELECT * FROM auth.users
+        WHERE id NOT IN (SELECT id FROM public.profiles)
+    LOOP
+        INSERT INTO public.profiles (
+            id,
+            email,
+            phone_number,
+            first_name,
+            last_name,
+            created_at,
+            updated_at,
+            email_verified
+        )
+        VALUES (
+            user_record.id,
+            user_record.email,
+            COALESCE(user_record.raw_user_meta_data ->> 'phone', ''),
+            COALESCE(user_record.raw_user_meta_data ->> 'first_name', ''),
+            COALESCE(user_record.raw_user_meta_data ->> 'last_name', ''),
+            user_record.created_at,
+            now(),
+            (user_record.email_confirmed_at IS NOT NULL)
+        )
+        ON CONFLICT (id) DO NOTHING;
+    END LOOP;
+END;
+$$;

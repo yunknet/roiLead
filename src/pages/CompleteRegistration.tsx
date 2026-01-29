@@ -63,41 +63,38 @@ export default function CompleteRegistration() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        const ref = referenceId || localStorage.getItem("subscription_ref");
 
         try {
-            const { data, error } = await supabase.functions.invoke('subscription', {
-                body: { referenceId: ref, ...formData }
-            });
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (error) {
-                // Check if it's the "already active" error
-                // The error object from invoke might be wrapped.
-                // Depending on the client version, error might be an object with message or context.
-                // We'll try to parse it.
-                // But simplified: if it fails, check message.
-                const body = error.context ? await error.context.json() : {};
-                const msg = body.error || error.message || "";
+            if (!session) {
+                toast.error("Você precisa estar logado para finalizar o cadastro.");
+                navigate('/login');
+                return;
+            }
 
-                if (msg.includes("Assinatura já está ativa")) {
-                    toast.success("Assinatura já ativa! Redirecionando...");
-                    navigate('/login');
-                    return;
-                }
+            const updates = {
+                id: session.user.id,
+                first_name: formData.fullName.split(" ")[0],
+                last_name: formData.fullName.split(" ").slice(1).join(" "),
+                phone_number: formData.phone,
+                updated_at: new Date().toISOString(),
+            };
 
-                throw new Error(msg);
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert(updates);
+
+            if (profileError) {
+                throw profileError;
             }
 
             toast.success("Cadastro concluído com sucesso!");
-            navigate('/login');
+            navigate('/dashboard');
+
         } catch (err: any) {
             console.error(err);
-            if (err.message && err.message.includes("Assinatura já está ativa")) {
-                toast.success("Assinatura já ativa! Redirecionando...");
-                navigate('/login');
-            } else {
-                toast.error(err.message || "Erro ao salvar dados.");
-            }
+            toast.error(err.message || "Erro ao salvar dados.");
         } finally {
             setSubmitting(false);
         }

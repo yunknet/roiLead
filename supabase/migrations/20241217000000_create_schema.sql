@@ -54,8 +54,8 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     amount_paid NUMERIC(10,2),
 
     -- Gateway specific
-    kiwify_order_id TEXT,
-    kiwify_status TEXT,
+    gateway_order_id TEXT,
+    gateway_status TEXT,
     payment_method TEXT
 );
 
@@ -125,10 +125,11 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read by reference" ON public.subscriptions;
 
 -- Secure read policy (OPTIONAL)
+-- Secure read policy (OPTIONAL)
 -- Recomendado usar Edge Functions para acesso
-CREATE POLICY "Read own subscription by email"
+CREATE POLICY "Users can view own subscription via email"
 ON public.subscriptions
 FOR SELECT
 USING (
-  email = (auth.jwt() ->> 'email')
+  email = (select auth.jwt() ->> 'email')
 );

@@ -61,16 +61,35 @@ const Signup = () => {
 
       // Redirect logic
       if (data.session) {
-        // Auto-login successful (Email confirm disabled)
+        // Auto-login successful (Email confirm disabled in Supabase)
         navigate(`/dashboard?plan=${plan || ''}`);
       } else {
-        // Email verification required
+        // Session is null, likely waiting for DB trigger to confirm email.
+        // Retry login a few times to give the backend time to process.
+        let attempts = 0;
+        let loggedIn = false;
+
+        while (attempts < 3 && !loggedIn) {
+          await new Promise(resolve => setTimeout(resolve, 800)); // Wait 800ms
+          const { data: loginData } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+
+          if (loginData.session) {
+            loggedIn = true;
+            navigate(`/dashboard?plan=${plan || ''}`);
+            return;
+          }
+          attempts++;
+        }
+
+        // Only shows if retries failed
         toast({
-          title: "Verifique seu e-mail",
-          description: "Para acessar sua conta, confirme seu e-mail.",
+          title: "Cadastro realizado!",
+          description: "Sua conta foi criada. Faça login para continuar.",
         });
-        // Redirect to login with email prefilled
-        navigate(`/login?email=${encodeURIComponent(email)}&message=check_email`);
+        navigate("/login");
       }
 
     } catch (error: any) {

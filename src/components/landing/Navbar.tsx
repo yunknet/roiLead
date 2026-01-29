@@ -1,10 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [session, setSession] = useState<boolean>(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(!!session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
@@ -30,9 +46,9 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
-            <Link to="/login">
+            <Link to={session ? "/dashboard" : "/login"}>
               <Button variant="hero" size="sm">
-                Entrar
+                {session ? "Dashboard" : "Entrar"}
               </Button>
             </Link>
           </div>
@@ -59,8 +75,8 @@ const Navbar = () => {
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 FAQ
               </a>
-              <Link to="/login" onClick={() => setIsOpen(false)}>
-                <Button variant="hero" className="w-full">Entrar</Button>
+              <Link to={session ? "/dashboard" : "/login"} onClick={() => setIsOpen(false)}>
+                <Button variant="hero" className="w-full">{session ? "Dashboard" : "Entrar"}</Button>
               </Link>
             </div>
           </div>

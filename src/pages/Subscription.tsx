@@ -7,21 +7,21 @@ import { toast } from "sonner";
 
 const plans = [
     {
-        id: "mensal",
-        name: "Mensal",
-        description: "Pagamento mensal flexível",
-        price: "59,90",
-        period: "/mês",
-        features: ["Leads ilimitados", "Busca por região", "Busca por nicho", "WhatsApp conectado"],
-        popular: false,
-    },
-    {
         id: "anual",
         name: "Anual",
-        description: "Melhor custo-benefício",
-        price: "19,90",
-        period: "/mês",
-        features: ["Tudo do plano Mensal", "Suporte prioritário", "Histórico ilimitado", "Economize R$ 480/ano"],
+        description: "Plano completo para o seu negócio",
+        price: "69,90",
+        period: "/ano",
+        features: [
+            "Leads ilimitados",
+            "Busca por região e nicho",
+            "WhatsApp conectado",
+            "Filtros avançados",
+            "Suporte prioritário",
+            "Histórico ilimitado",
+            "Agente IA personalizado",
+            "Acesso imediato"
+        ],
         popular: true,
     }
 ];

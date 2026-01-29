@@ -7,37 +7,20 @@ import { useState } from "react";
 
 const plans = [
   {
-    id: "mensal",
-    name: "Mensal",
-    description: "Pagamento mensal flexível",
-    price: "59,90",
-    period: "/mês",
-    features: [
-      "Leads ilimitados",
-      "Busca por região",
-      "Busca por nicho",
-      "WhatsApp conectado",
-      "Suporte por email",
-      "Cancele quando quiser",
-    ],
-    popular: false,
-  },
-  {
     id: "anual",
     name: "Anual",
-    description: "Melhor custo-benefício",
-    price: "19,90",
-    period: "/mês", // Display price per month
-    // yearlyPrice: "238,80", // Implicit in backend
-    originalPrice: "59,90",
-    savings: "Economize R$ 480/ano",
+    description: "Plano completo para o seu negócio",
+    price: "69,90",
+    period: "/ano",
     features: [
-      "Tudo do plano Mensal",
       "Leads ilimitados",
+      "Busca por região e nicho",
+      "WhatsApp conectado",
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-      "Agente IA personalizado para atender leads",
+      "Agente IA personalizado",
+      "Acesso imediato"
     ],
     popular: true,
   },
@@ -80,23 +63,12 @@ const PricingSection = () => {
                 </div>
               )}
 
-              {plan.savings && (
-                <div className="mb-4">
-                  <span className="px-3 py-1 rounded-full bg-success/20 text-success text-xs font-medium">
-                    {plan.savings}
-                  </span>
-                </div>
-              )}
-
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
                 <p className="text-muted-foreground text-sm mt-1">{plan.description}</p>
               </div>
 
               <div className="mb-6">
-                {plan.originalPrice && (
-                  <span className="text-lg text-muted-foreground line-through mr-2">R${plan.originalPrice}</span>
-                )}
                 <span className="text-4xl font-bold text-foreground">R${plan.price}</span>
                 <span className="text-muted-foreground">{plan.period}</span>
               </div>

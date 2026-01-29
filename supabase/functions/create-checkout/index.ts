@@ -7,14 +7,13 @@ const corsHeaders = {
 }
 
 serve(async (req: Request) => {
-  // 1. Tratamento de CORS (Padrão para browsers)
+  // 1. Tratamento de CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
   try {
-    // 2. Inicializa o Supabase
-    // Precisamos do Auth context, então criamos o cliente passando o Header de Autorização
+    // 2. Inicializa Supabase com Auth Context
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -25,7 +24,7 @@ serve(async (req: Request) => {
       }
     )
 
-    // 3. Verifica QUEM é o usuário chamando a função
+    // 3. Verifica usuário logado
     const {
       data: { user },
     } = await supabaseClient.auth.getUser()
@@ -34,52 +33,40 @@ serve(async (req: Request) => {
       throw new Error("Usuário não autenticado")
     }
 
-    // 4. Recebe o plano escolhido
-    const { plan } = await req.json()
-
-    if (!plan || !["mensal", "anual"].includes(plan)) {
-      throw new Error("Plano inválido (mensal ou anual)")
-    }
-
-    // 5. Define preços e links (configure isso nos Secrets do Supabase)
-    const price = plan === "mensal" ? 59.9 : 238.8
-    const checkoutUrl =
-      plan === "mensal"
-        ? Deno.env.get("HUBLA_MONTHLY_LINK")
-        : Deno.env.get("HUBLA_YEARLY_LINK")
+    // 4. CONFIGURAÇÃO DO PLANO ÚNICO
+    // Não precisamos mais ler o "req.json()" para saber o plano
+    const PLAN_NAME = "anual"
+    const PRICE = 69.90
+    const checkoutUrl = Deno.env.get("HUBLA_CHECKOUT_LINK") // Link único agora
 
     if (!checkoutUrl) {
-      throw new Error("Links de pagamento Hubla não configurados")
+      throw new Error("Link de pagamento (HUBLA_CHECKOUT_LINK) não configurado")
     }
 
-    // 6. Prepara o Rastreamento
-    // Usamos o ID do usuário como referência. Isso facilita muito no Webhook.
     const userId = user.id
 
-    // 7. Salva/Atualiza a intenção de compra no Banco
-    // Usamos 'upsert' para não criar duplicatas se o usuário clicar 10x no botão
+    // 5. Salva a intenção de compra no banco
     const { error: dbError } = await supabaseClient.from("subscriptions").upsert({
-      user_id: userId,          // <--- IMPORTANTE: Vínculo com o usuário
+      user_id: userId,
       payment_status: "pending",
-      subscription_status: "inactive", // Ainda não pagou
-      plan_name: plan,
-      amount_paid: null,        // Só preenche quando o webhook confirmar
+      subscription_status: "inactive",
+      plan_name: PLAN_NAME,
+      amount_paid: null, // Será preenchido pelo webhook quando pagar
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' }) // Se já tiver linha pra esse user, atualiza
+    }, { onConflict: 'user_id' })
 
     if (dbError) {
       console.error(dbError)
       throw new Error("Erro ao salvar assinatura inicial")
     }
 
-    // 8. Gera o Link Final da Hubla
+    // 6. Gera o Link Final com Rastreamento (src)
     const paymentUrl = new URL(checkoutUrl)
 
-    // IMPORTANTE: O Webhook espera ler o 'src'. 
-    // A Hubla pega o parâmetro 'src' e devolve no webhook dentro de utm.src ou metadata
+    // Anexa o ID do usuário para o Webhook identificar depois
     paymentUrl.searchParams.set("src", userId)
 
-    // Opcional: E-mail para pré-preencher o checkout (Aumenta conversão)
+    // Pré-preenche o e-mail (Opcional, mas ajuda a converter)
     if (user.email) {
       paymentUrl.searchParams.set("email", user.email)
     }

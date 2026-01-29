@@ -25,21 +25,21 @@ const menuItems = [
 
 const plans = [
   {
-    id: "mensal",
-    name: "Mensal",
-    description: "Pagamento mensal flexível",
-    price: "59,90",
-    period: "/mês",
-    features: ["Leads ilimitados", "Busca por região", "Busca por nicho", "WhatsApp conectado"],
-    popular: false,
-  },
-  {
     id: "anual",
     name: "Anual",
-    description: "Melhor custo-benefício",
-    price: "39,90",
-    period: "/mês",
-    features: ["Tudo do plano Mensal", "Suporte prioritário", "Histórico ilimitado", "Economize R$ 240/ano"],
+    description: "Plano completo para o seu negócio",
+    price: "69,90",
+    period: "/ano",
+    features: [
+      "Leads ilimitados",
+      "Busca por região e nicho",
+      "WhatsApp conectado",
+      "Filtros avançados",
+      "Suporte prioritário",
+      "Histórico ilimitado",
+      "Agente IA personalizado",
+      "Acesso imediato"
+    ],
     popular: true,
   }
 ];
@@ -212,7 +212,7 @@ const Dashboard = () => {
       setActiveMenu("subscription");
       return;
     }
-    window.open("https://wa.me/38998957907?text=Oi+roiLead+🤖❤️", "_blank");
+    window.open("https://wa.me/3897426436?text=Oi+roiLead+🤖❤️", "_blank");
   };
 
   const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";

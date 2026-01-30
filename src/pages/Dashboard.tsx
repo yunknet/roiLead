@@ -390,14 +390,14 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
+              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
                 {plans.map((plan) => (
                   <div
                     key={plan.id}
                     className={`
-                                                relative p-6 rounded-xl border-2 transition-all duration-200 bg-card
-                                                ${plan.popular ? 'border-primary shadow-md ring-1 ring-primary/20' : 'border-border hover:border-primary/50'}
-                                            `}
+                      w-full max-w-md relative p-6 rounded-xl border-2 transition-all duration-200 bg-card
+                      ${plan.popular ? 'border-primary shadow-md ring-1 ring-primary/20' : 'border-border hover:border-primary/50'}
+                    `}
                   >
                     {plan.popular && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
@@ -440,12 +440,12 @@ const Dashboard = () => {
 
           {activeMenu === "settings" && (
             <div className="space-y-6">
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 items-center text-center">
                 <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
                 <p className="text-muted-foreground">Gerencie seus dados e preferências.</p>
               </div>
 
-              <div className="space-y-4 max-w-2xl">
+              <div className="space-y-4 max-w-2xl mx-auto">
                 <div className="p-6 rounded-xl bg-card border border-border space-y-6">
                   <div className="flex items-center gap-3 border-b border-border pb-4">
                     <User className="w-5 h-5 text-primary" />

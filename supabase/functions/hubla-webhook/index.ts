@@ -8,71 +8,131 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     )
 
-    // 1. Segurança (Opcional mas recomendado): Validar token da Hubla se configurado
-    // const secret = req.headers.get('x-hubla-token') 
-    
-    const body = await req.json()
-    console.log("Webhook recebido:", JSON.stringify(body))
+    const evoUrl = Deno.env.get("EVOLUTION_API_URL")
+    const evoKey = Deno.env.get("EVOLUTION_API_KEY")
+    const evoInstance = Deno.env.get("EVOLUTION_INSTANCE")
 
-    const event = body.event // Ex: 'invoice.paid' ou 'subscription.activated'
-    const data = body.data
+    // 1. Pega o Payload
+    const payload = await req.json()
+    const eventType = payload.type
+    const eventData = payload.event
 
-    // 2. Verifica se é um evento de pagamento aprovado
-    // Na V2 Hubla, geralmente olhamos para 'invoice.paid' ou 'sale.approved'
-    if (event === 'invoice.paid' || event === 'subscription.activated') {
-      
-      // 3. Recupera o ID que enviamos no passo anterior (utm_content)
-      // A Hubla geralmente devolve isso dentro de 'utm' ou 'metadata'
-      const referenceId = data.utm?.content 
+    console.log(`⚡ Evento Recebido: ${eventType}`)
 
-      if (!referenceId) {
-        console.error("ID de referência não encontrado no webhook")
-        return new Response("ID não encontrado", { status: 200 }) // Retorna 200 para a Hubla parar de tentar
-      }
+    // --- FUNÇÃO DE BUSCA DE DADOS (AGORA COM SUPER-VISÃO) ---
+    const getCustomerData = (data: any) => {
+      const invoice = data.invoice || {}
+      const user = data.user || data.customer || data.payer || invoice.payer || data.subscriber || {}
 
-      // 4. Extrai dados do cliente do payload da Hubla
-      const customerEmail = data.customer?.email || data.payer?.email
-      const customerName = data.customer?.name || data.payer?.name
-      const customerPhone = data.customer?.phone || data.payer?.phone || data.customer?.phone_number
-      const transactionId = data.id 
+      // CORREÇÃO: Adicionei 'data.userEmail' na lista de busca
+      const email = user.email || data.email || invoice.email || data.userEmail
 
-      // 5. Atualiza a tabela subscriptions
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({
+      // CORREÇÃO: Adicionei 'data.userPhone'
+      let phone = user.phone || data.phone || invoice.phone || data.userPhone || ""
+      if (phone) phone = phone.replace(/\D/g, "")
+
+      // CORREÇÃO: Adicionei 'data.userName'
+      const firstName = user.firstName || data.first_name || user.name || data.userName || ""
+      const fullName = `${firstName} ${user.lastName || ""}`.trim() || firstName || "Cliente"
+
+      return { email, firstName, fullName, phone, invoice }
+    }
+
+    // ====================================================
+    // GRUPO 1: VENDA APROVADA
+    // ====================================================
+    if (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid' || eventType === 'subscription.activated') {
+
+      const { email, firstName, fullName, phone, invoice } = getCustomerData(eventData)
+
+      const cents = invoice.amount?.totalCents || 0
+      const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0)
+
+      let planName = amount > 100 ? "Anual" : "Mensal"
+      if (amount === 0) planName = "Mensal"
+
+      const externalId = invoice.paymentSession?.utm?.content || invoice.id
+
+      console.log(`💰 Aprovado: ${fullName} | ${email} | R$ ${amount}`)
+
+      if (email) {
+        await supabase.from("subscriptions").upsert({
+          email: email,
+          full_name: fullName,
+          phone_number: phone,
+          plan_name: planName,
+          amount_paid: amount,
           payment_status: "paid",
-          subscription_status: "active", // Ativa o plano
-          email: customerEmail,          // Salva o email digitado no checkout
-          phone_number: customerPhone,   // Salva o telefone digitado no checkout
-          full_name: customerName,
-          gateway_order_id: transactionId,
+          subscription_status: "active",
+          external_reference_id: externalId,
           updated_at: new Date().toISOString()
-        })
-        .eq("external_reference_id", referenceId) // Busca pelo ID que geramos no create-checkout
-
-      if (error) {
-        console.error("Erro ao atualizar banco:", error)
-        throw error
+        }, { onConflict: 'email' })
       }
-      
-      console.log(`Assinatura ${referenceId} ativada para ${customerEmail}`)
+
+      if (phone && evoUrl && evoInstance) {
+        const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo. Se tiver qualquer dúvida, é só me chamar por aqui!`
+        await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+      }
     }
 
-    // Tratamento para cancelamento ou reembolso (Opcional)
-    if (event === 'invoice.refunded' || event === 'subscription.canceled') {
-       const referenceId = data.utm?.content
-       if (referenceId) {
-         await supabase.from("subscriptions").update({
-           subscription_status: "inactive",
-           payment_status: "refunded"
-         }).eq("external_reference_id", referenceId)
-       }
+    // ====================================================
+    // GRUPO 2: CANCELAMENTO
+    // ====================================================
+    else if (
+      eventType === 'invoice.refunded' ||
+      eventType === 'subscription.canceled' ||
+      eventType === 'CanceledSubscription' ||
+      eventType === 'subscription.desactivated'
+    ) {
+
+      const { email, firstName, phone } = getCustomerData(eventData)
+
+      // Agora vai mostrar o email certo!
+      console.log(`🚫 Cancelando acesso de: ${email} (Tel: ${phone})`)
+
+      if (email) {
+        const payStatus = eventType === 'invoice.refunded' ? 'refunded' : 'canceled'
+
+        const { error } = await supabase
+          .from("subscriptions")
+          .update({
+            subscription_status: "canceled",
+            payment_status: payStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("email", email)
+
+        if (error) console.error("❌ Erro ao atualizar banco:", error)
+        else console.log("✅ Banco atualizado: Status CANCELADO")
+      } else {
+        console.error("❌ E-mail não encontrado no evento de cancelamento.")
+      }
+
+      if (phone && evoUrl && evoInstance) {
+        const textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente clicando no link abaixo:\n\n👉 https://www.roilead.ynksystems.com`
+        await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+      }
     }
 
-    return new Response(JSON.stringify({ received: true }), { status: 200 })
+    return new Response(JSON.stringify({ success: true }), { status: 200 })
 
-  } catch (err) {
-    console.error(err)
+  } catch (err: any) {
+    console.error("❌ Erro Crítico:", err.message)
     return new Response(JSON.stringify({ error: err.message }), { status: 400 })
   }
 })
+
+// Função de Envio Segura
+async function sendWhatsapp(url: string, key: string, instance: string, phone: string, text: string) {
+  try {
+    let cleanPhone = phone
+    if (cleanPhone.length >= 10 && cleanPhone.length <= 11) cleanPhone = "55" + cleanPhone
+    const safeInstanceName = encodeURIComponent(instance)
+    const response = await fetch(`${url}/message/sendText/${safeInstanceName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({ number: cleanPhone, text: text })
+    })
+    if (!response.ok) { console.error(`❌ Erro Evolution:`, await response.text()) }
+  } catch (e) { console.error("❌ Falha na conexão Evolution:", e) }
+}

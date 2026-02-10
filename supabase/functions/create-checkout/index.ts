@@ -7,87 +7,90 @@ const corsHeaders = {
 }
 
 serve(async (req: Request) => {
-  // 1. Tratamento de CORS
+  // Tratamento de CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
   try {
-    // 2. Inicializa Supabase com Auth Context
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
-        },
-      }
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     )
 
-    // 3. Verifica usuário logado
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
-
-    if (!user) {
-      throw new Error("Usuário não autenticado")
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error("Usuário não autenticado (Falta token)")
     }
 
-    // 4. CONFIGURAÇÃO DO PLANO ÚNICO
-    // Não precisamos mais ler o "req.json()" para saber o plano
-    const PLAN_NAME = "anual"
-    const PRICE = 69.90
-    const checkoutUrl = Deno.env.get("HUBLA_CHECKOUT_LINK") // Link único agora
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    )
 
-    if (!checkoutUrl) {
-      throw new Error("Link de pagamento (HUBLA_CHECKOUT_LINK) não configurado")
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser()
+
+    if (userError || !user) {
+      throw new Error("Usuário inválido ou não logado")
     }
 
-    const userId = user.id
+    // 1. Definição do Plano
+    const PLANO_NOME = "Anual"
+    const PLANO_PRECO = 69.90
 
-    // 5. Salva a intenção de compra no banco
-    const { error: dbError } = await supabaseClient.from("subscriptions").upsert({
-      user_id: userId,
-      payment_status: "pending",
-      subscription_status: "inactive",
-      plan_name: PLAN_NAME,
-      amount_paid: null, // Será preenchido pelo webhook quando pagar
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
+    // --- CORREÇÃO AQUI ---
+    // Antes estava HUBLA_CHECKOUT_LINK, agora mudei para HUBLA_YEARLY_LINK
+    // para bater com o seu print dos Secrets.
+    const HUBLA_CHECKOUT_URL = Deno.env.get("HUBLA_YEARLY_LINK")
 
-    if (dbError) {
-      console.error(dbError)
-      throw new Error("Erro ao salvar assinatura inicial")
+    if (!HUBLA_CHECKOUT_URL) {
+      throw new Error("Erro de Configuração: O Secret 'HUBLA_YEARLY_LINK' não foi encontrado.")
     }
 
-    // 6. Gera o Link Final com Rastreamento (src)
-    const paymentUrl = new URL(checkoutUrl)
+    const referenceId = crypto.randomUUID()
 
-    // Anexa o ID do usuário para o Webhook identificar depois
-    paymentUrl.searchParams.set("src", userId)
+    // 2. Cria registro no banco
+    const { error } = await supabaseAdmin
+      .from("subscriptions")
+      .insert({
+        user_id: user.id,
+        gateway_order_id: referenceId,
+        plan_name: PLANO_NOME,
+        amount_paid: PLANO_PRECO,
+        payment_status: "pending",
+        subscription_status: "inactive",
+        created_at: new Date().toISOString(),
+      })
 
-    // Pré-preenche o e-mail (Opcional, mas ajuda a converter)
-    if (user.email) {
-      paymentUrl.searchParams.set("email", user.email)
+    if (error) {
+      console.error("Erro ao salvar no banco:", error)
+      throw error
     }
 
+    // 3. Gera URL
+    const paymentUrl = new URL(HUBLA_CHECKOUT_URL)
+    paymentUrl.searchParams.append("utm_content", referenceId)
+
+    if (user.email) paymentUrl.searchParams.append("email", user.email)
+    if (user.user_metadata?.phone) paymentUrl.searchParams.append("phone", user.user_metadata.phone)
+
+    paymentUrl.searchParams.append("utm_source", "site_roiLead")
+
+    // Retorna 'payment_url' corretamente
     return new Response(
-      JSON.stringify({
-        payment_url: paymentUrl.toString(),
-        referenceId: userId,
-      }),
+      JSON.stringify({ payment_url: paymentUrl.toString() }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       }
     )
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || err }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      }
-    )
+
+  } catch (error: any) {
+    console.error("Erro na create-checkout:", error.message)
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    })
   }
 })

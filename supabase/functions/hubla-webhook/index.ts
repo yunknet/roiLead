@@ -19,44 +19,59 @@ serve(async (req: Request) => {
 
     console.log(`⚡ Evento Recebido: ${eventType}`)
 
-    // --- FUNÇÃO DE BUSCA DE DADOS (AGORA COM SUPER-VISÃO) ---
+    // --- FUNÇÃO DE BUSCA DE DADOS (ROBUSTA) ---
     const getCustomerData = (data: any) => {
       const invoice = data.invoice || {}
+      // Tenta achar o objeto de usuário em vários lugares possíveis do payload
       const user = data.user || data.customer || data.payer || invoice.payer || data.subscriber || {}
 
-      // CORREÇÃO: Adicionei 'data.userEmail' na lista de busca
+      // E-mail: varre todas as possibilidades
       const email = user.email || data.email || invoice.email || data.userEmail
 
-      // CORREÇÃO: Adicionei 'data.userPhone'
+      // Telefone: varre todas as possibilidades e limpa
       let phone = user.phone || data.phone || invoice.phone || data.userPhone || ""
       if (phone) phone = phone.replace(/\D/g, "")
 
-      // CORREÇÃO: Adicionei 'data.userName'
+      // Nome: varre e formata
       const firstName = user.firstName || data.first_name || user.name || data.userName || ""
-      const fullName = `${firstName} ${user.lastName || ""}`.trim() || firstName || "Cliente"
+      const lastName = user.lastName || ""
+      const fullName = `${firstName} ${lastName}`.trim() || firstName || "Cliente"
 
-      return { email, firstName, fullName, phone, invoice }
+      return { email, firstName, fullName, phone, invoice, user }
     }
 
     // ====================================================
-    // GRUPO 1: VENDA APROVADA
+    // GRUPO 1: VENDA APROVADA / ASSINATURA ATIVA
     // ====================================================
     if (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid' || eventType === 'subscription.activated') {
 
       const { email, firstName, fullName, phone, invoice } = getCustomerData(eventData)
 
       const cents = invoice.amount?.totalCents || 0
+      // Se cents > 0 divide por 100, senão tenta pegar de data.amount (number normal)
       const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0)
 
-      let planName = amount > 100 ? "Anual" : "Mensal"
-      if (amount === 0) planName = "Mensal"
+      const planName = "Anual";
 
-      const externalId = invoice.paymentSession?.utm?.content || invoice.id
+      // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
+      const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
 
-      console.log(`💰 Aprovado: ${fullName} | ${email} | R$ ${amount}`)
+      console.log(`💰 Aprovado roiLead: ${fullName} | ${email} | R$ ${amount}`)
 
       if (email) {
-        await supabase.from("subscriptions").upsert({
+        // Busca usuário para vincular (opcional, mas bom ter)
+        let userId = null
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single()
+
+        if (userProfile) userId = userProfile.id
+
+        // Upsert na tabela subscriptions
+        const { error: dbError } = await supabase.from("subscriptions").upsert({
+          user_id: userId,
           email: email,
           full_name: fullName,
           phone_number: phone,
@@ -66,17 +81,43 @@ serve(async (req: Request) => {
           subscription_status: "active",
           external_reference_id: externalId,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'email' })
+        }, { onConflict: 'external_reference_id' }) // Tentei manter external_reference_id como chave, se falhar mude para email (mas o user disse que external é unique)
+
+        if (dbError) {
+          // Fallback: se der erro de unique constraint no external_id, tenta pelo email se a lógica do Carrin+ for essa
+          console.error("⚠️ Erro no upsert (tentando fallback):", dbError.message)
+          await supabase.from("subscriptions").upsert({
+            email: email,
+            full_name: fullName,
+            phone_number: phone,
+            plan_name: planName,
+            amount_paid: amount,
+            payment_status: "paid",
+            subscription_status: "active",
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'email' })
+        } else {
+          console.log("✅ Banco atualizado: Assinatura ATIVA")
+        }
+
+        // Atualiza status no Profile tbm para garantir o acesso imediato
+        if (userId) {
+          await supabase.from('profiles').update({
+            payment_status: 'PAID',
+            access_status: 'PAID_USER'
+          }).eq('id', userId)
+        }
       }
 
-      if (phone && evoUrl && evoInstance) {
+      // Envia WhatsApp do roiLead
+      if (eventType === 'invoice.payment_succeeded' && phone && evoUrl && evoInstance) {
         const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo. Se tiver qualquer dúvida, é só me chamar por aqui!`
         await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
       }
     }
 
     // ====================================================
-    // GRUPO 2: CANCELAMENTO
+    // GRUPO 2: CANCELAMENTO / REEMBOLSO
     // ====================================================
     else if (
       eventType === 'invoice.refunded' ||
@@ -87,8 +128,7 @@ serve(async (req: Request) => {
 
       const { email, firstName, phone } = getCustomerData(eventData)
 
-      // Agora vai mostrar o email certo!
-      console.log(`🚫 Cancelando acesso de: ${email} (Tel: ${phone})`)
+      console.log(`🚫 Cancelando acesso roiLead de: ${email} (Tel: ${phone})`)
 
       if (email) {
         const payStatus = eventType === 'invoice.refunded' ? 'refunded' : 'canceled'
@@ -102,37 +142,55 @@ serve(async (req: Request) => {
           })
           .eq("email", email)
 
-        if (error) console.error("❌ Erro ao atualizar banco:", error)
+        if (error) console.error("❌ Erro ao atualizar banco (Cancelamento):", error)
         else console.log("✅ Banco atualizado: Status CANCELADO")
-      } else {
-        console.error("❌ E-mail não encontrado no evento de cancelamento.")
+
+        // Opcional: remover acesso no perfil
+        await supabase.from('profiles').update({
+          payment_status: 'NONE',
+          access_status: 'NEW'
+        }).eq('email', email)
       }
 
       if (phone && evoUrl && evoInstance) {
-        const textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente clicando no link abaixo:\n\n👉 https://www.roilead.ynksystems.com`
+        const textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente acessando o painel.`
         await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
       }
     }
 
+    // Resposta padrão 200 para a Hubla não ficar retentando em loop se for um evento desconhecido
     return new Response(JSON.stringify({ success: true }), { status: 200 })
 
   } catch (err: any) {
     console.error("❌ Erro Crítico:", err.message)
-    return new Response(JSON.stringify({ error: err.message }), { status: 400 })
+    // Retornamos 400 apenas em erro crítico de execução, mas idealmente 200 pra não travar a fila da Hubla
+    return new Response(JSON.stringify({ error: err.message }), { status: 200 })
   }
 })
 
-// Função de Envio Segura
+// Função de Envio WhatsApp (Evolution API)
 async function sendWhatsapp(url: string, key: string, instance: string, phone: string, text: string) {
   try {
     let cleanPhone = phone
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11) cleanPhone = "55" + cleanPhone
-    const safeInstanceName = encodeURIComponent(instance)
+
+    // Remove espaços do instance name
+    const safeInstanceName = instance.trim()
+
     const response = await fetch(`${url}/message/sendText/${safeInstanceName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify({ number: cleanPhone, text: text })
+      body: JSON.stringify({
+        number: cleanPhone,
+        text: text,
+        linkPreview: false
+      })
     })
-    if (!response.ok) { console.error(`❌ Erro Evolution:`, await response.text()) }
+
+    if (!response.ok) {
+      console.error(`❌ Erro Evolution:`, await response.text())
+    } else {
+      console.log("✅ WhatsApp enviado com sucesso.")
+    }
   } catch (e) { console.error("❌ Falha na conexão Evolution:", e) }
 }

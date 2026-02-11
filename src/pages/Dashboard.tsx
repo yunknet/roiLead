@@ -219,13 +219,15 @@ const Dashboard = () => {
       });
 
       if (error) throw error;
-      if (!data?.payment_url) throw new Error("URL de pagamento não gerada");
+      const paymentUrl = data?.payment_url || data?.url;
+
+      if (!paymentUrl) throw new Error("URL de pagamento não gerada");
 
       if (data.referenceId) {
         localStorage.setItem("subscription_ref", data.referenceId);
       }
 
-      window.location.href = data.payment_url;
+      window.location.href = paymentUrl;
 
     } catch (error: any) {
       console.error("Erro:", error);

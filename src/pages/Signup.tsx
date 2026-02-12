@@ -12,6 +12,14 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: ""
+  });
+
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -33,6 +41,11 @@ const Signup = () => {
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -48,11 +61,7 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const email = (document.getElementById("email") as HTMLInputElement).value;
-      const password = (document.getElementById("password") as HTMLInputElement).value;
-      const firstName = (document.getElementById("firstName") as HTMLInputElement).value;
-      const lastName = (document.getElementById("lastName") as HTMLInputElement).value;
-      const phone = (document.getElementById("phone") as HTMLInputElement).value;
+      const { email, password, firstName, lastName, phone } = formData;
 
       // Get plan from URL query params
       const searchParams = new URLSearchParams(window.location.search);
@@ -65,30 +74,47 @@ const Signup = () => {
           data: {
             first_name: firstName,
             last_name: lastName,
-            phone: phone, // Metadata used by the trigger
+            phone: phone,
           },
         },
       });
 
       if (error) throw error;
 
+      // Explicitly create profile if session exists immediately
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phone,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (profileError) {
+          console.error("Erro ao criar perfil automaticamente:", profileError);
+          // Non-blocking error
+        }
+      }
+
       toast({
         title: "Conta criada com sucesso!",
         description: "Bem-vindo ao roiLead.",
       });
 
-      // Redirect logic
       if (data.session) {
-        // Auto-login successful (Email confirm disabled in Supabase)
         navigate(`/dashboard?plan=${plan || ''}`);
       } else {
         // Session is null, likely waiting for DB trigger to confirm email.
-        // Retry login a few times to give the backend time to process.
+        // Retry login logic...
         let attempts = 0;
         let loggedIn = false;
 
         while (attempts < 3 && !loggedIn) {
-          await new Promise(resolve => setTimeout(resolve, 800)); // Wait 800ms
+          await new Promise(resolve => setTimeout(resolve, 800));
           const { data: loginData } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -102,7 +128,6 @@ const Signup = () => {
           attempts++;
         }
 
-        // Only shows if retries failed
         toast({
           title: "Cadastro realizado!",
           description: "Sua conta foi criada. Faça login para continuar.",
@@ -193,6 +218,8 @@ const Signup = () => {
                   type="text"
                   placeholder="João"
                   required
+                  value={formData.firstName}
+                  onChange={handleChange}
                 />
               </div>
               <div className="space-y-2">
@@ -202,6 +229,8 @@ const Signup = () => {
                   type="text"
                   placeholder="Silva"
                   required
+                  value={formData.lastName}
+                  onChange={handleChange}
                 />
               </div>
             </div>
@@ -213,6 +242,8 @@ const Signup = () => {
                 type="email"
                 placeholder="seu@email.com"
                 required
+                value={formData.email}
+                onChange={handleChange}
               />
             </div>
 
@@ -223,6 +254,8 @@ const Signup = () => {
                 type="tel"
                 placeholder="(11) 99999-9999"
                 required
+                value={formData.phone}
+                onChange={handleChange}
               />
             </div>
 
@@ -235,6 +268,8 @@ const Signup = () => {
                   placeholder="Mínimo 6 caracteres"
                   required
                   minLength={6}
+                  value={formData.password}
+                  onChange={handleChange}
                 />
                 <button
                   type="button"

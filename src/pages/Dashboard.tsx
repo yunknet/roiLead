@@ -10,7 +10,10 @@ import {
   MessageCircle,
   Check,
   Loader2,
-  Lock
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +73,7 @@ const Dashboard = () => {
   const [tempLastName, setTempLastName] = useState("");
 
   const [loading, setLoading] = useState(true);
+  const [leadRequests, setLeadRequests] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -85,6 +89,8 @@ const Dashboard = () => {
         const meta = user.user_metadata || {};
         const email = user.email || "";
 
+        console.log("DEBUG: User Metadata:", meta);
+
         // 1. Fetch Profile
         let { data: profile } = await supabase
           .from('profiles')
@@ -92,7 +98,20 @@ const Dashboard = () => {
           .eq('id', user.id)
           .single();
 
-        // SELF-HEALING: If profile is missing but user exists in Auth, create it now.
+        console.log("DEBUG: Fetched Profile:", profile);
+
+        // Extrai nome do Google/Metadados se disponível
+        const googleName = meta.full_name || meta.name || "";
+        let googleFirstName = "";
+        let googleLastName = "";
+
+        if (googleName) {
+          const parts = googleName.split(" ");
+          googleFirstName = parts[0];
+          googleLastName = parts.slice(1).join(" ");
+        }
+
+        // SELF-HEALING & SYNC: Create or Update Profile
         if (!profile) {
           console.log("Profile missing for user, creating now...", user.id);
 
@@ -100,8 +119,8 @@ const Dashboard = () => {
             id: user.id,
             email: email,
             phone_number: meta.phone || "",
-            first_name: meta.first_name || "",
-            last_name: meta.last_name || "",
+            first_name: meta.first_name || googleFirstName || "",
+            last_name: meta.last_name || googleLastName || "",
             access_status: 'NEW',
             payment_status: 'NONE',
             created_at: new Date().toISOString(),
@@ -117,17 +136,35 @@ const Dashboard = () => {
           } else {
             profile = newProfile;
           }
+        } else if (!profile.first_name && (googleFirstName || meta.first_name)) {
+          // SYNC: Se o perfil existe mas não tem nome, e temos nome nos metadados (Google), atualiza agora.
+          console.log("Syncing profile with Google metadata...");
+
+          const updates = {
+            first_name: meta.first_name || googleFirstName,
+            last_name: meta.last_name || googleLastName,
+            updated_at: new Date().toISOString()
+          };
+
+          await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+
+          // Atualiza o objeto local para refletir na UI imediatamente
+          profile.first_name = updates.first_name;
+          profile.last_name = updates.last_name;
         }
 
         // Update State from DB Profile (Source of Truth)
         if (profile) {
           setUserProfile({
-            firstName: profile.first_name || meta.first_name || "Usuário",
-            lastName: profile.last_name || meta.last_name || "",
+            firstName: profile.first_name || "Usuário",
+            lastName: profile.last_name || "",
             email: email,
           });
-          setTempFirstName(profile.first_name || meta.first_name || "");
-          setTempLastName(profile.last_name || meta.last_name || "");
+          setTempFirstName(profile.first_name || "");
+          setTempLastName(profile.last_name || "");
 
           if (profile.phone_number) {
             setPhone(profile.phone_number);
@@ -137,8 +174,8 @@ const Dashboard = () => {
         } else {
           // Fallback purely to metadata if DB failed hard
           setUserProfile({
-            firstName: meta.first_name || "Usuário",
-            lastName: meta.last_name || "",
+            firstName: meta.first_name || googleFirstName || "Usuário",
+            lastName: meta.last_name || googleLastName || "",
             email: email,
           });
         }
@@ -150,9 +187,39 @@ const Dashboard = () => {
           .select('subscription_status')
           .eq('email', email)
           .eq('subscription_status', 'active')
+          .eq('subscription_status', 'active')
           .maybeSingle();
 
         setHasActiveSubscription(!!subData);
+
+        // 3. Fetch Lead Requests (History)
+        // Sanitiza o telefone para busca (apenas números)
+        const userPhone = profile?.phone_number || meta.phone || "";
+        const cleanPhone = userPhone.replace(/\D/g, "");
+
+        let queryBuilder = supabase
+          .from('lead_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        // Tenta buscar por ID do usuário OU Telefone (para pegar leads gerados pelo Bot)
+        if (cleanPhone && cleanPhone.length > 5) {
+          const phoneWith55 = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+          const phoneWithout55 = cleanPhone.startsWith('55') ? cleanPhone.substring(2) : cleanPhone;
+
+          // Monta query OR: user_id igual AO SEU OU telefone igual a um dos formatos
+          queryBuilder = queryBuilder.or(`user_id.eq.${user.id},phone_number.eq.${cleanPhone},phone_number.eq.${phoneWith55},phone_number.eq.${phoneWithout55}`);
+        } else {
+          queryBuilder = queryBuilder.eq('user_id', user.id);
+        }
+
+        const { data: requests, error: requestsError } = await queryBuilder;
+
+        if (!requestsError && requests) {
+          setLeadRequests(requests);
+        } else if (requestsError) {
+          console.error("Error fetching requests:", requestsError);
+        }
 
         // Check for plan param in URL
         const searchParams = new URLSearchParams(window.location.search);
@@ -197,6 +264,31 @@ const Dashboard = () => {
       toast.success("Nome atualizado com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao atualizar nome: " + err.message);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          phone_number: phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast.success("Telefone atualizado com sucesso!");
+      setIsEditingPhone(false);
+      // Atualiza estado local
+      setUserProfile(prev => prev ? ({ ...prev, phone_number: phone }) : null);
+
+    } catch (err: any) {
+      toast.error("Erro ao atualizar telefone: " + err.message);
     }
   };
 
@@ -354,34 +446,47 @@ const Dashboard = () => {
           {activeMenu === "search" && (
             <div className="space-y-6">
               <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold text-foreground">roiLead</h2>
-                <p className="text-muted-foreground">Inicie uma conversa com nossa IA no WhatsApp para encontrar os melhores leads.</p>
+                <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
+                <p className="text-muted-foreground">
+                  {hasActiveSubscription
+                    ? "Veja o registro de todas as suas solicitações de leads."
+                    : "Assine um plano para realizar pesquisas e ver seu histórico."}
+                </p>
               </div>
 
-              <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${hasActiveSubscription ? 'bg-[#25D366]/10' : 'bg-muted'}`}>
-                  {hasActiveSubscription ? (
-                    <MessageCircle className="w-8 h-8 text-[#25D366]" />
-                  ) : (
+              {!hasActiveSubscription ? (
+                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
                     <Lock className="w-8 h-8 text-muted-foreground" />
-                  )}
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
+                  <p className="text-muted-foreground max-w-md mb-8">
+                    Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.
+                  </p>
+                  <Button
+                    size="lg"
+                    onClick={() => setActiveMenu("subscription")}
+                  >
+                    Ver Planos
+                  </Button>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-3">Converse com o roiLead</h3>
-                <p className="text-muted-foreground max-w-md mb-8">
-                  {hasActiveSubscription
-                    ? "Clique no botão abaixo para ser redirecionado ao WhatsApp e iniciar sua busca."
-                    : "Para iniciar a busca por leads e acessar o WhatsApp, é necessário assinar um plano."
-                  }
-                </p>
-                <Button
-                  size="lg"
-                  className={`gap-2 border-none ${hasActiveSubscription ? 'bg-[#25D366] hover:bg-[#25D366]/90 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                  onClick={handleWhatsAppClick}
-                >
-                  {hasActiveSubscription ? <MessageCircle className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
-                  {hasActiveSubscription ? "Chamar no WhatsApp" : "Assinar para Liberar"}
-                </Button>
-              </div>
+              ) : leadRequests.length === 0 ? (
+                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                    <FileText className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground mb-3">Nenhuma pesquisa encontrada</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Você ainda não realizou nenhuma pesquisa com o roiLead.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {leadRequests.map((req) => (
+                    <RequestCard key={req.id} request={req} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -510,7 +615,13 @@ const Dashboard = () => {
                         />
                         <Button
                           variant="outline"
-                          onClick={() => setIsEditingPhone(!isEditingPhone)}
+                          onClick={() => {
+                            if (isEditingPhone) {
+                              handleSavePhone();
+                            } else {
+                              setIsEditingPhone(true);
+                            }
+                          }}
                         >
                           {isEditingPhone ? "Salvar" : "Alterar"}
                         </Button>
@@ -556,3 +667,131 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+const RequestCard = ({ request }: { request: any }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  // Format Date
+  const date = new Date(request.created_at).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // Extract Query Text
+  let queryText = "Pesquisa de Leads";
+  if (request.request_details) {
+    if (typeof request.request_details === 'string') {
+      queryText = request.request_details;
+    } else if (typeof request.request_details === 'object') {
+      queryText = request.request_details.message || request.request_details.query || "Detalhes da pesquisa";
+      if (queryText === "Detalhes da pesquisa" && Object.keys(request.request_details).length > 0) {
+        queryText = JSON.stringify(request.request_details).substring(0, 50) + "...";
+      }
+    }
+  }
+
+  // Parse Leads Data
+  let leads: any[] = [];
+  try {
+    let rawData = request.leads_data;
+
+    // 1. String parsing
+    if (typeof rawData === 'string') {
+      try { rawData = JSON.parse(rawData); } catch (e) {
+        // Try cleanup if needed (unescape)
+        try { rawData = JSON.parse(rawData.replace(/\\n/g, '').replace(/\\"/g, '"')); } catch (e2) { }
+      }
+    }
+    // Double parse check
+    if (typeof rawData === 'string') {
+      try { rawData = JSON.parse(rawData); } catch (e) { }
+    }
+
+    // 2. Structure Extraction
+    if (Array.isArray(rawData)) {
+      // Support for wrapped response: [ { total: 12, cnpjs: [...] } ]
+      // or flat response: [ { ... }, { ... } ]
+      leads = rawData.flatMap((item: any) => item.cnpjs || [item]);
+    } else if (rawData && typeof rawData === 'object') {
+      if (Array.isArray(rawData.cnpjs)) leads = rawData.cnpjs;
+      else if (Array.isArray(rawData.leads)) leads = rawData.leads;
+      else if (Array.isArray(rawData.data)) leads = rawData.data;
+      else if (Array.isArray(rawData.companies)) leads = rawData.companies;
+    }
+  } catch (err) {
+    console.error("Error extracting leads data:", err);
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:border-primary/50">
+      <div
+        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-accent/5"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">{date}</span>
+          <h4 className="font-semibold text-foreground text-sm sm:text-base line-clamp-1" title={queryText}>
+            {queryText}
+          </h4>
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-4">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
+              {leads.length} Leads
+            </span>
+          </div>
+          {expanded ? (
+            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-border bg-muted/30 p-4 animate-in slide-in-from-top-2">
+          {leads.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+              {leads.map((lead, idx) => {
+                // Mapeamento inteligente de propriedades (snake_case novo vs CamelCase antigo)
+                const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
+                const porte = lead.porte_empresa?.descricao || lead.Porte || "N/A";
+                const cnpj = lead.cnpj || lead.CNPJ || "";
+
+                const cidade = lead.endereco?.municipio || lead.Cidade || "";
+                const uf = lead.endereco?.uf || lead.UF || "";
+
+                const telefone = lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || "N/A";
+                const email = lead.contato_email?.[0]?.email || lead.Email || "N/A";
+
+                return (
+                  <div key={idx} className="bg-background border border-border rounded-md p-3 text-sm space-y-2 shadow-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
+                      <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground whitespace-nowrap">
+                        {porte}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-1 text-muted-foreground">
+                      <p className="truncate"><span className="font-medium text-foreground">CNPJ:</span> {cnpj}</p>
+                      <p className="truncate"><span className="font-medium text-foreground">Local:</span> {cidade}/{uf}</p>
+                      <p className="truncate"><span className="font-medium text-foreground">Tel:</span> {telefone}</p>
+                      <p className="truncate" title={email}><span className="font-medium text-foreground">Email:</span> {email}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado detalhado disponível ou formato desconhecido.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

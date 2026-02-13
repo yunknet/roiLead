@@ -27,7 +27,7 @@ const VideoSection = () => {
                             <div className="h-[64px] w-[3px] bg-gray-800 absolute -end-[17px] top-[142px] rounded-e-lg"></div>
                             <div className="rounded-[2rem] overflow-hidden w-[300px] h-[600px] bg-black relative">
                                 <video
-                                    src="/videos/roilead_video.mp4"
+                                    src="/videos/roilead.mp4"
                                     className="w-full h-full object-cover"
                                     controls
                                     playsInline

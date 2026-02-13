@@ -10,7 +10,7 @@ const plans = [
     id: "anual",
     name: "Anual",
     description: "Plano completo para o seu negócio",
-    price: "69,90",
+    price: "67,00",
     period: "/ano",
     features: [
       "Leads ilimitados",

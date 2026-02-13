@@ -3,6 +3,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 serve(async (req: Request) => {
   try {
+    // 🔒 SECURANÇA: CRÍTICO
+    // Verifica se a requisição tem o segredo configurado (no header ou na query string)
+    // Se você não configurou isso na Hubla, configure agora!
+    const secret = Deno.env.get("HUBLA_WEBHOOK_SECRET")
+    if (secret) {
+      const tokenHeader = req.headers.get("x-hubla-token")
+      const url = new URL(req.url)
+      const tokenQuery = url.searchParams.get("token")
+
+      if (tokenHeader !== secret && tokenQuery !== secret) {
+        console.error("⛔ Acesso Negado: Token de webhook inválido.")
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+      }
+    } else {
+      console.warn("⚠️ ALERTA DE SEGURANÇA: HUBLA_WEBHOOK_SECRET não configurado. Qualquer pessoa pode simular pagamentos!")
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -19,7 +36,7 @@ serve(async (req: Request) => {
 
     console.log(`⚡ Evento Recebido: ${eventType}`)
 
-    // --- FUNÇÃO DE BUSCA DE DADOS (ROBUSTA) ---
+    // --- FUNÇÃO DE BUSCA DE DADOS (ROBUSTA & SEGURA) ---
     const getCustomerData = (data: any) => {
       const invoice = data.invoice || {}
       // Tenta achar o objeto de usuário em vários lugares possíveis do payload
@@ -40,6 +57,10 @@ serve(async (req: Request) => {
       return { email, firstName, fullName, phone, invoice, user }
     }
 
+    // --- FUNÇÃO PARA MASCARAR DADOS SENSÍVEIS (LOGS) ---
+    const maskEmail = (email: string) => email ? email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : "N/A"
+    const maskPhone = (phone: string) => phone ? phone.slice(-4).padStart(phone.length, '*') : "N/A"
+
     // ====================================================
     // GRUPO 1: VENDA APROVADA / ASSINATURA ATIVA
     // ====================================================
@@ -56,7 +77,7 @@ serve(async (req: Request) => {
       // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
 
-      console.log(`💰 Aprovado roiLead: ${fullName} | ${email} | R$ ${amount}`)
+      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${amount}`)
 
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
@@ -70,6 +91,7 @@ serve(async (req: Request) => {
         if (userProfile) userId = userProfile.id
 
         // Upsert na tabela subscriptions
+        // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
         const { error: dbError } = await supabase.from("subscriptions").upsert({
           user_id: userId,
           email: email,
@@ -81,21 +103,25 @@ serve(async (req: Request) => {
           subscription_status: "active",
           external_reference_id: externalId,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'external_reference_id' }) // Tentei manter external_reference_id como chave, se falhar mude para email (mas o user disse que external é unique)
+        }, { onConflict: 'external_reference_id' })
 
         if (dbError) {
-          // Fallback: se der erro de unique constraint no external_id, tenta pelo email se a lógica do Carrin+ for essa
-          console.error("⚠️ Erro no upsert (tentando fallback):", dbError.message)
-          await supabase.from("subscriptions").upsert({
-            email: email,
-            full_name: fullName,
-            phone_number: phone,
-            plan_name: planName,
-            amount_paid: amount,
-            payment_status: "paid",
-            subscription_status: "active",
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'email' })
+          console.error("❌ Erro no upsert (Subscriptions):", dbError.message)
+          // Tenta fallback por email SOMENTE se o erro for diferente de constraint violation no external_id
+          if (!dbError.message.includes("subscriptions_external_reference_id_key")) {
+            console.log("⚠️ Tentando fallback upsert por email...")
+            await supabase.from("subscriptions").upsert({
+              email: email,
+              full_name: fullName,
+              phone_number: phone,
+              plan_name: planName,
+              amount_paid: amount,
+              payment_status: "paid",
+              subscription_status: "active",
+              external_reference_id: externalId, // Tenta salvar msm assim
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'email' })
+          }
         } else {
           console.log("✅ Banco atualizado: Assinatura ATIVA")
         }
@@ -128,7 +154,7 @@ serve(async (req: Request) => {
 
       const { email, firstName, phone } = getCustomerData(eventData)
 
-      console.log(`🚫 Cancelando acesso roiLead de: ${email} (Tel: ${phone})`)
+      console.log(`🚫 Cancelando acesso roiLead de: ${maskEmail(email)}`)
 
       if (email) {
         const payStatus = eventType === 'invoice.refunded' ? 'refunded' : 'canceled'

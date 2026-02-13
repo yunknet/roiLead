@@ -38,7 +38,7 @@ const plans = [
     id: "anual",
     name: "Anual",
     description: "Plano completo para o seu negócio",
-    price: "69,90",
+    price: "67,00",
     period: "/ano",
     features: [
       "Leads ilimitados",
@@ -111,8 +111,6 @@ const Dashboard = () => {
         const meta = user.user_metadata || {};
         const email = user.email || "";
 
-        console.log("DEBUG: User Metadata:", meta);
-
         // 1. Fetch Profile
         let { data: profile } = await supabase
           .from('profiles')
@@ -120,7 +118,7 @@ const Dashboard = () => {
           .eq('id', user.id)
           .single();
 
-        console.log("DEBUG: Fetched Profile:", profile);
+
 
         // Extrai nome do Google/Metadados se disponível
         const googleName = meta.full_name || meta.name || "";

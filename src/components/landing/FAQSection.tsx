@@ -8,7 +8,7 @@ import {
 const faqs = [
   {
     question: "Como funciona a busca de leads?",
-    answer: "Você envia o pedido no WhatsApp do roiLead e ele busca. Exemplos de referência: \"quero 3 empresas de engenharia em Belo Horizonte\", \"Quero 3 empresas ativas de 'sistemas de informação', localizada em São Paulo, Guarulhos, Belo Horizonte e Campinas. Desejo que esteja aberta entre 24/08/2021 e 24/08/2024, com capital social entre 20 mil e 500 mil, com e-mail e telefone (fixo ou celular).\", \"3 empresas de supermercado em Niterói\". Nossa IA encontra leads qualificados com base nos seus critérios e retorna os contatos diretamente no chat.",
+    answer: "É muito simples: envie uma mensagem no WhatsApp descrevendo o que precisa e nossa IA faz o resto. Você pode pedir algo direto como '3 construtoras em Curitiba' ou ser bem específico: 'Empresas de TI em São Paulo, abertas há menos de 2 anos com capital acima de 50 mil'. Em segundos, você recebe os contatos prontos para prospectar.",
   },
   {
     question: "De onde vêm os dados dos leads?",
@@ -24,7 +24,7 @@ const faqs = [
   },
   {
     question: "Posso exportar os leads para uma planilha Excel?",
-    answer: "Ainda não, mas em breve atualização.",
+    answer: "Sim! Você pode exportar seus leads gerados diretamente para uma planilha Excel através do painel do usuário.",
   },
 ];
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import {
   Settings,
   LogOut,
@@ -13,10 +14,14 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
-  FileText
+  FileText,
+  Download,
+  Filter,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -25,6 +30,8 @@ const menuItems = [
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
+
+
 
 const plans = [
   {
@@ -40,7 +47,7 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-      "Agente IA personalizado",
+
       "Acesso imediato"
     ],
     popular: true,
@@ -73,7 +80,22 @@ const Dashboard = () => {
   const [tempLastName, setTempLastName] = useState("");
 
   const [loading, setLoading] = useState(true);
+
   const [leadRequests, setLeadRequests] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filtro de requisições baseado no termo de busca
+  const filteredRequests = leadRequests.filter((req) => {
+    if (!searchQuery.trim()) return true;
+
+    // Normaliza strings para comparação (remove acentos e lowercase)
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const details = JSON.stringify(req.request_details || "").toLowerCase();
+    const term = normalize(searchQuery);
+
+    return normalize(details).includes(term);
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -445,13 +467,27 @@ const Dashboard = () => {
         <div className="flex-1 p-4 sm:p-6 overflow-auto">
           {activeMenu === "search" && (
             <div className="space-y-6">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
-                <p className="text-muted-foreground">
-                  {hasActiveSubscription
-                    ? "Veja o registro de todas as suas solicitações de leads."
-                    : "Assine um plano para realizar pesquisas e ver seu histórico."}
-                </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
+                  <p className="text-muted-foreground">
+                    {hasActiveSubscription
+                      ? "Veja o registro de todas as suas solicitações de leads."
+                      : "Assine um plano para realizar pesquisas e ver seu histórico."}
+                  </p>
+                </div>
+
+                {hasActiveSubscription && (
+                  <div className="w-full sm:w-[320px] relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pesquisar no histórico..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                )}
               </div>
 
               {!hasActiveSubscription ? (
@@ -470,19 +506,23 @@ const Dashboard = () => {
                     Ver Planos
                   </Button>
                 </div>
-              ) : leadRequests.length === 0 ? (
+              ) : filteredRequests.length === 0 ? (
                 <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
                     <FileText className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">Nenhuma pesquisa encontrada</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-3">
+                    {searchQuery ? "Nenhuma pesquisa encontrada" : "Nenhuma pesquisa encontrada"}
+                  </h3>
                   <p className="text-muted-foreground max-w-md">
-                    Você ainda não realizou nenhuma pesquisa com o roiLead.
+                    {searchQuery
+                      ? `Não encontramos resultados para "${searchQuery}".`
+                      : "Você ainda não realizou nenhuma pesquisa com o roiLead."}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {leadRequests.map((req) => (
+                  {filteredRequests.map((req) => (
                     <RequestCard key={req.id} request={req} />
                   ))}
                 </div>
@@ -534,10 +574,10 @@ const Dashboard = () => {
                       className="w-full"
                       variant={plan.popular ? "default" : "outline"}
                       onClick={() => handleSubscribe(plan.id)}
-                      disabled={loadingPlan === plan.id}
+                      disabled={loadingPlan === plan.id || hasActiveSubscription}
                     >
                       {loadingPlan === plan.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                      {loadingPlan === plan.id ? "Processando..." : "Assinar " + plan.name}
+                      {loadingPlan === plan.id ? "Processando..." : hasActiveSubscription ? "Assinado" : "Assinar " + plan.name}
                     </Button>
                   </div>
                 ))}
@@ -725,6 +765,43 @@ const RequestCard = ({ request }: { request: any }) => {
     console.error("Error extracting leads data:", err);
   }
 
+  const handleExport = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita expandir o card ao clicar no botão
+    if (leads.length === 0) {
+      toast.error("Não há leads para exportar nesta requisição.");
+      return;
+    }
+
+    try {
+      // Formata os dados para exportação
+      const exportData = leads.map(lead => ({
+        "Nome": lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "N/A",
+        "CNPJ": lead.cnpj || lead.CNPJ || "",
+        "Telefone": lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || "",
+        "Email": lead.contato_email?.[0]?.email || lead.Email || "",
+        "Cidade": lead.endereco?.municipio || lead.Cidade || "",
+        "UF": lead.endereco?.uf || lead.UF || "",
+        "Logradouro": lead.endereco?.logradouro || "",
+        "Bairro": lead.endereco?.bairro || "",
+        "Porte": lead.porte_empresa?.descricao || lead.Porte || "",
+        "Atividade Principal": lead.atividade_principal?.descricao || ""
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Leads");
+
+      // Nome do arquivo com data e identificador
+      const fileName = `leads_roilead_${request.id.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      XLSX.writeFile(wb, fileName);
+      toast.success(`Exportado ${leads.length} leads com sucesso!`);
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      toast.error("Erro ao gerar arquivo Excel.");
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:border-primary/50">
       <div
@@ -738,12 +815,34 @@ const RequestCard = ({ request }: { request: any }) => {
           </h4>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-4">
+        <div className="flex items-center justify-between sm:justify-end gap-3">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
               {leads.length} Leads
             </span>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="h-8 gap-2 hidden sm:flex"
+            title="Exportar para Excel"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="sr-only sm:not-sr-only">Excel</span>
+          </Button>
+
+          {/* Botão Mobile Only para Download */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleExport}
+            className="h-8 w-8 sm:hidden text-muted-foreground"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+
           {expanded ? (
             <ChevronUp className="w-5 h-5 text-muted-foreground" />
           ) : (

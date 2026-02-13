@@ -19,7 +19,7 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-      "Agente IA personalizado",
+
       "Acesso imediato"
     ],
     popular: true,

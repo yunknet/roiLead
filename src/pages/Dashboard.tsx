@@ -12,8 +12,11 @@ import {
   Check,
   Loader2,
   Lock,
+  Trash2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Download,
   Filter,
@@ -24,6 +27,7 @@ import { Input } from "@/components/ui/input";
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
@@ -96,6 +100,19 @@ const Dashboard = () => {
 
     return normalize(details).includes(term);
   });
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
+
+  // Resetar para página 1 quando a busca muda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -519,12 +536,45 @@ const Dashboard = () => {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredRequests.map((req) => (
-                    <RequestCard key={req.id} request={req} />
-                  ))}
-                </div>
-              )}
+                <>
+                  <div className="space-y-4">
+                    {paginatedRequests.map((req) => (
+                      <RequestCard key={req.id} request={req} onDelete={() => {
+                        setLeadRequests(current => current.filter(r => r.id !== req.id));
+                      }} />
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-8 py-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="gap-1"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </Button>
+                      <span className="text-sm font-medium px-4">
+                        Página {currentPage} de {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="gap-1"
+                      >
+                        Próximo
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )
+              }
             </div>
           )}
 
@@ -706,8 +756,11 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-const RequestCard = ({ request }: { request: any }) => {
+const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => void }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [page, setPage] = useState(1);
 
   // Format Date
   const date = new Date(request.created_at).toLocaleDateString('pt-BR', {
@@ -763,6 +816,15 @@ const RequestCard = ({ request }: { request: any }) => {
     console.error("Error extracting leads data:", err);
   }
 
+  // Paginação dos Leads no Card
+  useEffect(() => {
+    setPage(1);
+  }, [request.id]);
+
+  const ITEMS_PER_PAGE = 6;
+  const totalPages = Math.ceil(leads.length / ITEMS_PER_PAGE);
+  const paginatedLeads = leads.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   const handleExport = (e: React.MouseEvent) => {
     e.stopPropagation(); // Evita expandir o card ao clicar no botão
     if (leads.length === 0) {
@@ -800,95 +862,182 @@ const RequestCard = ({ request }: { request: any }) => {
     }
   };
 
-  return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:border-primary/50">
-      <div
-        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-accent/5"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-muted-foreground">{date}</span>
-          <h4 className="font-semibold text-foreground text-sm sm:text-base line-clamp-1" title={queryText}>
-            {queryText}
-          </h4>
-        </div>
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
 
-        <div className="flex items-center justify-between sm:justify-end gap-3">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
-              {leads.length} Leads
-            </span>
+    if (!confirm("Tem certeza que deseja excluir este histórico?")) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('lead_requests')
+        .delete()
+        .eq('id', request.id);
+
+      if (error) throw error;
+
+      toast.success("Histórico excluído com sucesso");
+      if (onDelete) onDelete();
+    } catch (error) {
+      console.error("Erro detalhado ao excluir:", error);
+      toast.error(`Erro ao excluir: ${(error as any).message || "Verifique suas permissões ou console"}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (isDeleting) return null;
+
+  return (
+    <>
+      <div className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:border-primary/50">
+        <div
+          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-accent/5"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{date}</span>
+            <h4 className="font-semibold text-foreground text-sm sm:text-base line-clamp-1" title={queryText}>
+              {queryText}
+            </h4>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="h-8 gap-2 hidden sm:flex"
-            title="Exportar para Excel"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="sr-only sm:not-sr-only">Excel</span>
-          </Button>
+          <div className="flex items-center justify-between sm:justify-end gap-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                {leads.length} Leads
+              </span>
+            </div>
 
-          {/* Botão Mobile Only para Download */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleExport}
-            className="h-8 w-8 sm:hidden text-muted-foreground"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              className="h-8 gap-2 hidden sm:flex"
+              title="Exportar para Excel"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="sr-only sm:not-sr-only">Excel</span>
+            </Button>
 
-          {expanded ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+              title="Excluir histórico"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+
+            {/* Botão Mobile Only para Download */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleExport}
+              className="h-8 w-8 sm:hidden text-muted-foreground"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+
+            {expanded ? (
+              <ChevronUp className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            )}
+          </div>
         </div>
+
+        {expanded && (
+          <div className="border-t border-border bg-muted/30 p-4 animate-in slide-in-from-top-2">
+            {leads.length > 0 ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+                  {paginatedLeads.map((lead, idx) => {
+                    // Mapeamento inteligente de propriedades (snake_case novo vs CamelCase antigo)
+                    const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
+                    const porte = lead.porte_empresa?.descricao || lead.Porte || "N/A";
+                    const cnpj = lead.cnpj || lead.CNPJ || "";
+
+                    const cidade = lead.endereco?.municipio || lead.Cidade || "";
+                    const uf = lead.endereco?.uf || lead.UF || "";
+
+                    const telefone = lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || "N/A";
+                    const email = lead.contato_email?.[0]?.email || lead.Email || "N/A";
+
+                    return (
+                      <div key={idx} className="bg-background border border-border rounded-md p-3 text-sm space-y-2 shadow-sm relative group">
+                        <div className="flex justify-between items-start gap-2">
+                          <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedLead(lead);
+                            }}
+                            className="shrink-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200"
+                          >
+                            Visualizar Completo
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-1 text-muted-foreground">
+                          <div className="mb-1">
+                            <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground whitespace-nowrap inline-block">
+                              {porte}
+                            </span>
+                          </div>
+
+                          <p className="truncate"><span className="font-medium text-foreground">CNPJ:</span> {cnpj}</p>
+                          <p className="truncate"><span className="font-medium text-foreground">Local:</span> {cidade}/{uf}</p>
+                          <p className="truncate"><span className="font-medium text-foreground">Tel:</span> {telefone}</p>
+                          <p className="truncate" title={email}><span className="font-medium text-foreground">Email:</span> {email}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-border/50">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="gap-1 h-8 text-xs"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Anterior
+                    </Button>
+                    <span className="text-xs font-medium px-2 text-muted-foreground">
+                      {page} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="gap-1 h-8 text-xs"
+                    >
+                      Próximo
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado detalhado disponível ou formato desconhecido.</p>
+            )}
+          </div>
+        )}
       </div>
 
-      {expanded && (
-        <div className="border-t border-border bg-muted/30 p-4 animate-in slide-in-from-top-2">
-          {leads.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-              {leads.map((lead, idx) => {
-                // Mapeamento inteligente de propriedades (snake_case novo vs CamelCase antigo)
-                const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
-                const porte = lead.porte_empresa?.descricao || lead.Porte || "N/A";
-                const cnpj = lead.cnpj || lead.CNPJ || "";
-
-                const cidade = lead.endereco?.municipio || lead.Cidade || "";
-                const uf = lead.endereco?.uf || lead.UF || "";
-
-                const telefone = lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || "N/A";
-                const email = lead.contato_email?.[0]?.email || lead.Email || "N/A";
-
-                return (
-                  <div key={idx} className="bg-background border border-border rounded-md p-3 text-sm space-y-2 shadow-sm">
-                    <div className="flex justify-between items-start gap-2">
-                      <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
-                      <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground whitespace-nowrap">
-                        {porte}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-1 text-muted-foreground">
-                      <p className="truncate"><span className="font-medium text-foreground">CNPJ:</span> {cnpj}</p>
-                      <p className="truncate"><span className="font-medium text-foreground">Local:</span> {cidade}/{uf}</p>
-                      <p className="truncate"><span className="font-medium text-foreground">Tel:</span> {telefone}</p>
-                      <p className="truncate" title={email}><span className="font-medium text-foreground">Email:</span> {email}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado detalhado disponível ou formato desconhecido.</p>
-          )}
-        </div>
-      )}
-    </div>
+      <LeadDetailsModal
+        isOpen={!!selectedLead}
+        onClose={() => setSelectedLead(null)}
+        lead={selectedLead}
+      />
+    </>
   );
 };

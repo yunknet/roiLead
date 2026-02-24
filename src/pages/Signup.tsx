@@ -150,7 +150,7 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Side - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden">
+      <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden dark">
         <div className="absolute inset-0 bg-hero-pattern" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />
 
@@ -158,7 +158,7 @@ const Signup = () => {
           <div className="mb-8 animate-float select-none">
             <div className="flex items-center text-7xl font-extrabold tracking-tighter justify-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
               <span className="text-[#99FF00]">roi</span>
-              <span className="text-[#FFFFFF]">Lead</span>
+              <span className="text-white">Lead</span>
             </div>
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-4">

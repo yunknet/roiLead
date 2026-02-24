@@ -20,7 +20,8 @@ import {
   FileText,
   Download,
   Filter,
-  Search
+  Search,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ const Dashboard = () => {
 
   // Subscription State
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [subscriptionCreatedAt, setSubscriptionCreatedAt] = useState<string | null>(null);
 
   // Editing state
   const [phone, setPhone] = useState("");
@@ -222,13 +224,15 @@ const Dashboard = () => {
         // This is the source of truth for "Plano Contratado"
         const { data: subData } = await supabase
           .from('subscriptions')
-          .select('subscription_status')
+          .select('subscription_status, created_at')
           .eq('email', email)
-          .eq('subscription_status', 'active')
           .eq('subscription_status', 'active')
           .maybeSingle();
 
         setHasActiveSubscription(!!subData);
+        if (subData?.created_at) {
+          setSubscriptionCreatedAt(subData.created_at);
+        }
 
         // 3. Fetch Lead Requests (History)
         // Sanitiza o telefone para busca (apenas números)
@@ -380,6 +384,16 @@ const Dashboard = () => {
       return;
     }
     window.open("https://wa.me/3897426436?text=Oi+roiLead+🤖❤️", "_blank");
+  };
+
+  const calculateDaysLeft = (createdAt: string) => {
+    const start = new Date(createdAt);
+    const end = new Date(start);
+    end.setFullYear(start.getFullYear() + 1); // Plano Anual
+    const today = new Date();
+    const diff = end.getTime() - today.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
   };
 
   const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";
@@ -592,6 +606,19 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
               </div>
 
+              {hasActiveSubscription && subscriptionCreatedAt && (
+                <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col items-center justify-center text-center animate-fade-in mx-auto">
+                  <div className="flex items-center gap-2 text-primary mb-2">
+                    <Clock className="w-5 h-5" />
+                    <span className="font-semibold uppercase tracking-wider text-xs">Tempo de Assinatura</span>
+                  </div>
+                  <div className="text-4xl font-black text-foreground mb-1">
+                    {calculateDaysLeft(subscriptionCreatedAt)} <span className="text-lg font-bold">dias</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">restantes no seu plano anual</p>
+                </div>
+              )}
+
               <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
                 {plans.map((plan) => (
                   <div
@@ -737,10 +764,10 @@ const Dashboard = () => {
                           {hasActiveSubscription ? "Plano Premium" : "Plano Gratuito"}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hasActiveSubscription
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-primary/20 text-primary"
                           : "bg-secondary text-secondary-foreground"
                           }`}>
-                          {hasActiveSubscription ? "Ativo" : "Inativo"}
+                          {hasActiveSubscription ? `${subscriptionCreatedAt ? calculateDaysLeft(subscriptionCreatedAt) : 0} dias restantes` : "Inativo"}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">

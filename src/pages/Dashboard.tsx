@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 
 const menuItems = [
@@ -410,7 +411,10 @@ const Dashboard = () => {
         {/* Logo */}
         <div className="p-4 border-b border-sidebar-border flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-sidebar-foreground">roi<span className="text-primary">Lead</span></span>
+            <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <span className="text-[#99FF00]">roi</span>
+              <span className="text-sidebar-foreground">Lead</span>
+            </div>
           </Link>
           <button
             className="lg:hidden text-sidebar-foreground"
@@ -472,10 +476,13 @@ const Dashboard = () => {
               Bem-vindo, <span className="text-primary">{userProfile?.firstName}</span>!
             </h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
         </header>
 
         {/* Dashboard Content */}

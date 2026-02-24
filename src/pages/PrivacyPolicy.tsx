@@ -9,7 +9,10 @@ const PrivacyPolicy = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+              <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <span className="text-[#99FF00]">roi</span>
+                <span className="text-foreground">Lead</span>
+              </div>
             </Link>
             <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -28,7 +31,7 @@ const PrivacyPolicy = () => {
 
         <div className="prose prose-invert max-w-none space-y-8">
           <p className="text-muted-foreground leading-relaxed">
-            Esta Política de Privacidade descreve como o site roiLead (roilead.ynksystems.com) coleta, utiliza, armazena e protege as informações dos usuários que utilizam nossos serviços.
+            Esta Política de Privacidade descreve como o site roiLead (www.roilead.com.br) coleta, utiliza, armazena e protege as informações dos usuários que utilizam nossos serviços.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             Ao utilizar os serviços do roiLead, você concorda com as práticas descritas nesta Política de Privacidade.
@@ -117,7 +120,7 @@ const PrivacyPolicy = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">7. Alterações nesta Política de Privacidade</h2>
-            <p className="text-muted-foreground">Esta Política de Privacidade pode ser atualizada periodicamente. Alterações relevantes serão publicadas no site oficial roilead.ynksystems.com, com a data de atualização revisada.</p>
+            <p className="text-muted-foreground">Esta Política de Privacidade pode ser atualizada periodicamente. Alterações relevantes serão publicadas no site oficial www.roilead.com.br, com a data de atualização revisada.</p>
           </section>
 
           <section>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ModeToggle } from "@/components/ModeToggle";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +33,10 @@ const Navbar = () => {
             className="flex items-center"
             onClick={() => window.scrollTo(0, 0)}
           >
-            <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+            <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <span className="text-[#99FF00]">roi</span>
+              <span className="text-foreground">Lead</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -46,11 +50,14 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
-            <Link to={session ? "/dashboard" : "/login"}>
-              <Button variant="hero" size="sm">
-                {session ? "Dashboard" : "Entrar"}
-              </Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <ModeToggle />
+              <Link to={session ? "/dashboard" : "/login"}>
+                <Button variant="hero" size="sm">
+                  {session ? "Dashboard" : "Entrar"}
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}

@@ -13,7 +13,10 @@ const Footer = () => {
               className="flex items-center gap-2 mb-4"
               onClick={() => window.scrollTo(0, 0)}
             >
-              <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+              <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <span className="text-[#99FF00]">roi</span>
+                <span className="text-foreground">Lead</span>
+              </div>
             </Link>
             <p className="text-muted-foreground text-sm max-w-xs mb-4">
               Geração de leads inteligente via WhatsApp. Encontre empresas por região e nicho em segundos.

@@ -83,7 +83,10 @@ const Login = () => {
           </Link>
 
           <div className="flex items-center gap-2 mb-8">
-            <span className="text-2xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+            <div className="flex items-center text-3xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <span className="text-[#99FF00]">roi</span>
+              <span className="text-foreground">Lead</span>
+            </div>
           </div>
 
           {/* Header */}
@@ -177,7 +180,10 @@ const Login = () => {
 
         <div className="relative z-10 text-center max-w-md">
           <div className="mb-8 animate-float select-none">
-            <span className="text-6xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+            <div className="flex items-center text-7xl font-extrabold tracking-tighter justify-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <span className="text-[#99FF00]">roi</span>
+              <span className="text-[#FFFFFF]">Lead</span>
+            </div>
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-4">
             Leads qualificados em segundos

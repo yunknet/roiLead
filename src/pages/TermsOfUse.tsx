@@ -9,7 +9,10 @@ const TermsOfUse = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-foreground">roi<span className="text-primary">Lead</span></span>
+              <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                <span className="text-[#99FF00]">roi</span>
+                <span className="text-foreground">Lead</span>
+              </div>
             </Link>
             <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -27,7 +30,7 @@ const TermsOfUse = () => {
 
         <div className="prose prose-invert max-w-none space-y-8">
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Termos de Uso do roiLead (roilead.ynksystems.com)</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Termos de Uso do roiLead (www.roilead.com.br)</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               O roiLead é uma plataforma de inteligência voltada à geração automatizada de leads para empresas, utilizando tecnologia de automação e integração com WhatsApp. Estes Termos de Uso têm como objetivo explicar, de forma clara e transparente, como funcionam nossos serviços e quais são os direitos e responsabilidades dos usuários ao utilizarem a plataforma.
             </p>
@@ -42,7 +45,7 @@ const TermsOfUse = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Definições</h2>
             <ul className="list-disc list-inside text-muted-foreground space-y-2">
-              <li><strong className="text-foreground">roiLead:</strong> Refere-se à plataforma acessível pelo domínio roilead.ynksystems.com, incluindo seus proprietários, mantenedores, sucessores e prestadores de serviços vinculados.</li>
+              <li><strong className="text-foreground">roiLead:</strong> Refere-se à plataforma acessível pelo domínio www.roilead.com.br, incluindo seus proprietários, mantenedores, sucessores e prestadores de serviços vinculados.</li>
               <li><strong className="text-foreground">Usuário:</strong> Pessoa física ou jurídica que se cadastra ou utiliza os serviços do roiLead.</li>
               <li><strong className="text-foreground">Serviços:</strong> Funcionalidades oferecidas pelo roiLead, incluindo geração automatizada de leads, envio de mensagens via WhatsApp, gestão de contatos e acesso às integrações da plataforma.</li>
               <li><strong className="text-foreground">Conta de Usuário:</strong> Registro criado pelo usuário para acesso aos serviços do roiLead.</li>

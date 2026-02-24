@@ -109,9 +109,9 @@ const ForgotPassword = () => {
                     </Link>
 
                     <div className="flex items-center gap-2 mb-8">
-                        <div className="flex items-center text-3xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                            <span className="text-[#99FF00]">roi</span>
-                            <span className="text-foreground">Lead</span>
+                        <div className="flex items-center text-3xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
+                            <span style={{ color: '#81BB3D' }}>roi</span>
+                            <span className="text-[#2D3E50] dark:text-white">Lead</span>
                         </div>
                     </div>
 
@@ -280,8 +280,8 @@ const ForgotPassword = () => {
 
                 <div className="relative z-10 text-center max-w-md">
                     <div className="mb-8 animate-float select-none">
-                        <div className="flex items-center text-7xl font-extrabold tracking-tighter justify-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                            <span className="text-[#99FF00]">roi</span>
+                        <div className="flex items-center text-7xl font-normal tracking-tighter justify-center" style={{ fontFamily: "'Varela Round', sans-serif" }}>
+                            <span style={{ color: '#81BB3D' }}>roi</span>
                             <span className="text-white">Lead</span>
                         </div>
                     </div>

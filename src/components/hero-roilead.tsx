@@ -114,7 +114,10 @@ export function HeroRoiLead() {
                                         <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                                             <span className="text-[10px] text-primary-foreground font-bold">AI</span>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">roiLead</span>
+                                        <span className="text-[10px] text-muted-foreground" style={{ fontFamily: "'Varela Round', sans-serif" }}>
+                                            <span style={{ color: '#81BB3D' }}>roi</span>
+                                            <span>Lead</span>
+                                        </span>
                                     </div>
 
                                     <p className="text-sm text-muted-foreground">Encontrei 5 empresas correspondentes:</p>

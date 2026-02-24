@@ -153,7 +153,6 @@ const Dashboard = () => {
 
         // SELF-HEALING & SYNC: Create or Update Profile
         if (!profile) {
-          console.log("Profile missing for user, creating now...", user.id);
 
           const newProfile = {
             id: user.id,
@@ -178,7 +177,6 @@ const Dashboard = () => {
           }
         } else if (!profile.first_name && (googleFirstName || meta.first_name)) {
           // SYNC: Se o perfil existe mas não tem nome, e temos nome nos metadados (Google), atualiza agora.
-          console.log("Syncing profile with Google metadata...");
 
           const updates = {
             first_name: meta.first_name || googleFirstName,
@@ -425,8 +423,8 @@ const Dashboard = () => {
         {/* Logo */}
         <div className="p-4 border-b border-sidebar-border flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              <span className="text-[#99FF00]">roi</span>
+            <div className="flex items-center text-2xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
+              <span style={{ color: '#81BB3D' }}>roi</span>
               <span className="text-sidebar-foreground">Lead</span>
             </div>
           </Link>

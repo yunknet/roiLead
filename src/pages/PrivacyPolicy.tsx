@@ -9,9 +9,9 @@ const PrivacyPolicy = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex items-center text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                <span className="text-[#99FF00]">roi</span>
-                <span className="text-foreground">Lead</span>
+              <div className="flex items-center text-2xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
+                <span style={{ color: '#81BB3D' }}>roi</span>
+                <span className="text-[#2D3E50] dark:text-white">Lead</span>
               </div>
             </Link>
             <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">

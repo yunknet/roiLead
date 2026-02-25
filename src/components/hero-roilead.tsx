@@ -1,7 +1,6 @@
 "use client";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import { ArrowRight, Search, Shield, Zap } from "lucide-react";
 
 export function HeroRoiLead() {
@@ -33,16 +32,15 @@ export function HeroRoiLead() {
 
                             {/* CTA Buttons */}
                             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up px-4">
-                                <Link to="/signup">
-                                    <Button
-                                        variant="hero"
-                                        size="xl"
-                                        className="group w-full sm:w-auto"
-                                    >
-                                        Começar Agora
-                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                    </Button>
-                                </Link>
+                                <Button
+                                    variant="hero"
+                                    size="xl"
+                                    className="group w-full sm:w-auto"
+                                    onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+                                >
+                                    Começar Agora
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </Button>
                                 <Button
                                     variant="heroOutline"
                                     size="xl"

@@ -20,8 +20,8 @@ export function HeroRoiLead() {
 
                             {/* Headline */}
                             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">
-                                Encontre leads qualificados em{" "}
-                                <span className="text-gradient">segundos</span>
+                                A maneira mais fácil de encontrar seu próximo{" "}
+                                <span className="text-gradient">cliente</span>
                             </h1>
 
                             {/* Subheadline */}

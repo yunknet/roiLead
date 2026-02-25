@@ -347,7 +347,7 @@ const Dashboard = () => {
         body: {
           plan: planId,
           userId: user.id,
-          email: userProfile?.email
+          email: userProfile?.email || user.email
         }
       });
 

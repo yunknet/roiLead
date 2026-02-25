@@ -20,8 +20,9 @@ export function HeroRoiLead() {
 
                             {/* Headline */}
                             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">
-                                A maneira mais fácil de encontrar seu próximo{" "}
-                                <span className="text-gradient">cliente</span>
+                                A maneira mais fácil <br className="hidden sm:block" />
+                                de encontrar seu{" "}
+                                <span className="text-gradient">próximo</span> cliente
                             </h1>
 
                             {/* Subheadline */}

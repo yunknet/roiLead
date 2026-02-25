@@ -23,21 +23,23 @@ serve(async (req) => {
     const paymentUrl = new URL(hublaLink)
     paymentUrl.searchParams.append("utm_source", "site_roiLead")
 
+    let email = ""
     // Tenta pegar o email (prioritário)
     try {
       const body = await req.json()
       if (body.email) {
-        paymentUrl.searchParams.append("email", body.email)
-        console.log("📧 E-mail injetado no checkout:", body.email)
+        email = body.email
+        paymentUrl.searchParams.append("email", email)
+        console.log("📧 E-mail injetado no checkout:", email)
       }
     } catch (e) {
       // Ignora se não vier json
     }
 
     // Função simples de máscara para logs
-    const maskEmail = (email: string) => email ? email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : "N/A"
+    const maskEmail = (e: string) => e ? e.replace(/(.{2})(.*)(@.*)/, "$1***$3") : "N/A"
 
-    console.log("🚀 URL Gerada com Sucesso para:", maskEmail(body.email))
+    console.log("🚀 URL Gerada com Sucesso para:", maskEmail(email))
 
     // --- A CORREÇÃO ESTÁ AQUI EMBAIXO ---
     // Voltamos o nome da chave para 'payment_url' para seu site reconhecer

@@ -346,7 +346,8 @@ const Dashboard = () => {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           plan: planId,
-          userId: user.id
+          userId: user.id,
+          email: userProfile?.email
         }
       });
 

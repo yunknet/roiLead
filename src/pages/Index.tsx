@@ -5,6 +5,7 @@ import VideoSection from "@/components/landing/VideoSection";
 import { RoiLeadFeatures } from "@/components/roilead-features";
 import PricingSection from "@/components/landing/PricingSection";
 import FAQSection from "@/components/landing/FAQSection";
+import { Testimonials } from "@/components/testimonials";
 import Footer from "@/components/landing/Footer";
 
 const Index = () => {
@@ -16,6 +17,7 @@ const Index = () => {
       <RoiLeadFeatures />
       <PricingSection />
       <FAQSection />
+      <Testimonials />
       <Footer />
     </div>
   );

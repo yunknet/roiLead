@@ -61,7 +61,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-6 pb-4 border-b">
+                <DialogHeader className="p-6 pr-16 sm:pr-6 pb-4 border-b">
                     <div className="flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -69,27 +69,27 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                                     <DialogTitle className="text-xl font-bold leading-tight">
                                         {lead.razao_social || lead.nome_fantasia || "Detalhes da Empresa"}
                                     </DialogTitle>
-                                    {lead.matriz_filial && (
-                                        <Badge variant="outline" className="text-[10px] uppercase">
-                                            {lead.matriz_filial}
-                                        </Badge>
-                                    )}
                                 </div>
                                 {lead.nome_fantasia && lead.nome_fantasia !== lead.razao_social && (
                                     <p className="text-sm text-muted-foreground mt-1">
                                         {lead.nome_fantasia}
                                     </p>
                                 )}
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <Badge className={`${getStatusColor(lead.situacao_cadastral?.situacao_atual)} border-0`}>
-                                    {lead.situacao_cadastral?.situacao_atual || "STATUS DESCONHECIDO"}
-                                </Badge>
-                                {lead.bloqueado && (
-                                    <Badge variant="destructive" className="text-[10px]">
-                                        BLOQUEADO
+                                <div className="flex flex-wrap items-center gap-2 mt-4">
+                                    {lead.matriz_filial && (
+                                        <Badge variant="outline" className="text-[10px] uppercase">
+                                            {lead.matriz_filial}
+                                        </Badge>
+                                    )}
+                                    <Badge className={`${getStatusColor(lead.situacao_cadastral?.situacao_atual)} border-0`}>
+                                        {lead.situacao_cadastral?.situacao_atual || "STATUS DESCONHECIDO"}
                                     </Badge>
-                                )}
+                                    {lead.bloqueado && (
+                                        <Badge variant="destructive" className="text-[10px]">
+                                            BLOQUEADO
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

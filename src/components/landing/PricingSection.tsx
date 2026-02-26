@@ -37,12 +37,12 @@ const PricingSection = () => {
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
+            Receba 30 leads empresariais <span className="text-gradient">qualificados</span> em 7 dias ou seu dinheiro de volta
+          </h2>
           <span className="text-primary text-sm font-semibold uppercase tracking-wider">
             Preços
           </span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
-            Invista em leads que convertem
-          </h2>
         </div>
 
         {/* Pricing Cards */}

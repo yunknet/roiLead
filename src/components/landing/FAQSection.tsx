@@ -26,6 +26,10 @@ const faqs = [
     question: "Posso exportar os leads para uma planilha Excel?",
     answer: "Sim! Você pode exportar seus leads gerados diretamente para uma planilha Excel através do painel do usuário.",
   },
+  {
+    question: "Os leads são entregues para as mesmas pessoas?",
+    answer: "A resposta é curta: Praticamente impossível.\n\nO roiLead trabalha com mineração de dados em tempo real sobre uma base de milhões de empresas. Para que duas pessoas recebessem exatamente a mesma lista, elas precisariam:\n\nFiltros Idênticos: Solicitar exatamente o mesmo nicho (ex: materiais de construção).\n\nLocalização Restrita: Escolher a mesma cidade pequena (ex: 10 mil habitantes) no interior.\n\nMomento Exato: Fazer o pedido no mesmo intervalo de tempo.\n\nComo o nosso sistema processa milhares de combinações de filtros (CNAE, Capital Social, Data de Abertura e Bairro), a probabilidade de uma sobreposição de listas é desprezível. Além disso, no nosso módulo de distribuição por tráfego, o sistema de fila garante que cada lead seja \"pescado\" por apenas um consultor, tornando o contato 100% exclusivo.",
+  },
 ];
 
 const FAQSection = () => {
@@ -57,7 +61,7 @@ const FAQSection = () => {
                 <AccordionTrigger className="text-left font-medium text-foreground hover:no-underline py-5">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-5">
+                <AccordionContent className="text-muted-foreground pb-5 whitespace-pre-line">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

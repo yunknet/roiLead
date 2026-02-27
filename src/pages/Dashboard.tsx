@@ -111,7 +111,7 @@ const Dashboard = () => {
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -410,7 +410,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
@@ -466,7 +466,7 @@ const Dashboard = () => {
         </nav>
 
         {/* User Menu Footer */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border mb-12">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center">
               <span className="text-sm font-medium text-sidebar-foreground">{userInitials}</span>
@@ -590,33 +590,51 @@ const Dashboard = () => {
                           ))}
                         </div>
 
-                        {totalPages > 1 && (
-                          <div className="flex items-center justify-center gap-2 mt-8 py-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                              disabled={currentPage === 1}
-                              className="gap-1"
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 py-4 relative">
+                          {totalPages > 1 && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="gap-1 border-border/60"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                              </Button>
+                              <span className="text-sm font-medium px-4 text-muted-foreground whitespace-nowrap">
+                                Página {currentPage} de {totalPages}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="gap-1 border-border/60"
+                              >
+                                Próximo
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="sm:absolute sm:right-0 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar:</span>
+                            <select
+                              className="h-8 text-xs rounded-md border border-border bg-card px-2 outline-none focus:ring-1 focus:ring-primary/30"
+                              value={itemsPerPage}
+                              onChange={(e) => {
+                                setItemsPerPage(Number(e.target.value));
+                                setCurrentPage(1);
+                              }}
                             >
-                              <ChevronLeft className="h-4 w-4" />
-                              Anterior
-                            </Button>
-                            <span className="text-sm font-medium px-4">
-                              Página {currentPage} de {totalPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                              disabled={currentPage === totalPages}
-                              className="gap-1"
-                            >
-                              Próximo
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
+                              <option value={10}>10 leads</option>
+                              <option value={50}>50 leads</option>
+                              <option value={200}>200 leads</option>
+                            </select>
                           </div>
-                        )}
+                        </div>
                       </>
                     )
                     }
@@ -1046,7 +1064,17 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
                         <div className="flex justify-between items-start gap-2">
                           <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-1.5 shrink-0 items-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLead(lead);
+                              }}
+                              className="w-full text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200 whitespace-nowrap"
+                            >
+                              Visualizar Completo
+                            </button>
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1054,21 +1082,11 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
                                   onCallLead({ ...lead, telefone, nome_fantasia: nome });
                                 }
                               }}
-                              className="shrink-0 text-[10px] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white px-2 py-1 rounded font-medium transition-colors border border-[#25D366]/20 flex items-center gap-1"
+                              className="w-full text-[10px] bg-[#2ecc71] text-black hover:bg-[#27ae60] px-2 py-1 rounded font-bold transition-colors flex items-center justify-center gap-1 shadow-sm whitespace-nowrap"
                               title="Chamar no WhatsApp"
                             >
                               <MessageCircle className="w-3 h-3" />
                               Chamar
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedLead(lead);
-                              }}
-                              className="shrink-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200"
-                            >
-                              Visualizar Completo
                             </button>
                           </div>
                         </div>

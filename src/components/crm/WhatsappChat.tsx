@@ -553,6 +553,9 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                                         {msg.media_url && msg.type === 'image' && (
                                             <img src={msg.media_url} alt="Media" className="max-w-[150px] rounded-lg mb-2" />
                                         )}
+                                        {msg.media_url && (msg.type === 'audio' || msg.type === 'ptt') && (
+                                            <audio src={msg.media_url} controls className="max-w-full h-8 mt-1 filter brightness-90 contrast-125" />
+                                        )}
                                         {msg.message}
                                     </div>
                                 </div>

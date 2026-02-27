@@ -21,7 +21,8 @@ import {
   Download,
   Filter,
   Search,
-  Clock
+  Clock,
+  Kanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,12 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
+import { KanbanBoard } from "@/components/crm/KanbanBoard";
+import { WhatsappChat } from "@/components/crm/WhatsappChat";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
+  { icon: Kanban, label: "CRM", id: "crm" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -65,6 +69,7 @@ const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("search");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [whatsappInitialLead, setWhatsappInitialLead] = useState<any>(null);
 
   // User Profile state
   const [userProfile, setUserProfile] = useState<{
@@ -499,107 +504,139 @@ const Dashboard = () => {
         </header>
 
         {/* Dashboard Content */}
-        <div className="flex-1 p-4 sm:p-6 overflow-auto">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {activeMenu === "search" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex flex-col gap-2">
-                  <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
-                  <p className="text-muted-foreground">
-                    {hasActiveSubscription
-                      ? "Veja o registro de todas as suas solicitações de leads."
-                      : "Assine um plano para realizar pesquisas e ver seu histórico."}
-                  </p>
-                </div>
+            <div className="flex flex-1 h-full min-h-0">
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex flex-col gap-2">
+                      <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
+                      <p className="text-muted-foreground">
+                        {hasActiveSubscription
+                          ? "Veja o registro de todas as suas solicitações de leads."
+                          : "Assine um plano para realizar pesquisas e ver seu histórico."}
+                      </p>
+                    </div>
 
-                {hasActiveSubscription && (
-                  <div className="w-full sm:w-[320px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Pesquisar no histórico..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {!hasActiveSubscription ? (
-                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <Lock className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
-                  <p className="text-muted-foreground max-w-md mb-8">
-                    Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.
-                  </p>
-                  <Button
-                    size="lg"
-                    onClick={() => setActiveMenu("subscription")}
-                  >
-                    Ver Planos
-                  </Button>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <FileText className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">
-                    {searchQuery ? "Nenhuma pesquisa encontrada" : "Nenhuma pesquisa encontrada"}
-                  </h3>
-                  <p className="text-muted-foreground max-w-md">
-                    {searchQuery
-                      ? `Não encontramos resultados para "${searchQuery}".`
-                      : "Você ainda não realizou nenhuma pesquisa com o roiLead."}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {paginatedRequests.map((req) => (
-                      <RequestCard key={req.id} request={req} onDelete={() => {
-                        setLeadRequests(current => current.filter(r => r.id !== req.id));
-                      }} />
-                    ))}
+                    {hasActiveSubscription && (
+                      <div className="w-full sm:w-[320px] relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Pesquisar no histórico..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-8 py-4">
+                  {!hasActiveSubscription ? (
+                    <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
+                      <p className="text-muted-foreground max-w-md mb-8">
+                        Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.
+                      </p>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="gap-1"
+                        size="lg"
+                        onClick={() => setActiveMenu("subscription")}
                       >
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                      </Button>
-                      <span className="text-sm font-medium px-4">
-                        Página {currentPage} de {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="gap-1"
-                      >
-                        Próximo
-                        <ChevronRight className="h-4 w-4" />
+                        Ver Planos
                       </Button>
                     </div>
-                  )}
-                </>
-              )
-              }
+                  ) : filteredRequests.length === 0 ? (
+                    <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                        <FileText className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-foreground mb-3">
+                        {searchQuery ? "Nenhuma pesquisa encontrada" : "Nenhuma pesquisa encontrada"}
+                      </h3>
+                      <p className="text-muted-foreground max-w-md">
+                        {searchQuery
+                          ? `Não encontramos resultados para "${searchQuery}".`
+                          : "Você ainda não realizou nenhuma pesquisa com o roiLead."}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        {paginatedRequests.map((req) => (
+                          <RequestCard key={req.id} request={req} onDelete={() => {
+                            setLeadRequests(current => current.filter(r => r.id !== req.id));
+                          }} onCallLead={(lead) => {
+                            const rawPhone = lead.telefone || lead.Telefone || lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || "";
+                            const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
+                            let cleanPhone = rawPhone.replace(/\D/g, "");
+                            if (!cleanPhone) {
+                              toast.error("Número de telefone não encontrado para este lead.");
+                              return;
+                            }
+                            if (cleanPhone.length <= 11) {
+                              cleanPhone = `55${cleanPhone}`;
+                            }
+                            setWhatsappInitialLead({
+                              title: nome,
+                              company: nome,
+                              phone: cleanPhone
+                            });
+                            toast.success("Abrindo conversa...");
+                          }} />
+                        ))}
+                      </div>
+
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-8 py-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="gap-1"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Anterior
+                          </Button>
+                          <span className="text-sm font-medium px-4">
+                            Página {currentPage} de {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="gap-1"
+                          >
+                            Próximo
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )
+                  }
+                </div>
+              </div>
+              {hasActiveSubscription && (
+                <div className="w-[350px] lg:w-[25%] xl:w-[20%] hidden lg:block border-l border-border h-full bg-card shrink-0 overflow-hidden">
+                  <WhatsappChat initialContact={whatsappInitialLead} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeMenu === "crm" && (
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+              <KanbanBoard />
             </div>
           )}
 
           {activeMenu === "subscription" && (
-            <div className="space-y-6">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
               <div className="flex flex-col gap-2">
                 <h2 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h2>
                 <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
@@ -667,7 +704,7 @@ const Dashboard = () => {
           )}
 
           {activeMenu === "settings" && (
-            <div className="space-y-6">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
               <div className="flex flex-col gap-2 items-center text-center">
                 <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
                 <p className="text-muted-foreground">Gerencie seus dados e preferências.</p>
@@ -789,7 +826,7 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => void }) => {
+const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete?: () => void, onCallLead?: (lead: any) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
@@ -1003,15 +1040,31 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
                         <div className="flex justify-between items-start gap-2">
                           <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedLead(lead);
-                            }}
-                            className="shrink-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200"
-                          >
-                            Visualizar Completo
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onCallLead) {
+                                  onCallLead({ ...lead, telefone, nome_fantasia: nome });
+                                }
+                              }}
+                              className="shrink-0 text-[10px] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white px-2 py-1 rounded font-medium transition-colors border border-[#25D366]/20 flex items-center gap-1"
+                              title="Chamar no WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              Chamar
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLead(lead);
+                              }}
+                              className="shrink-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200"
+                            >
+                              Visualizar Completo
+                            </button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-1 text-muted-foreground">

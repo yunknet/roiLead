@@ -105,6 +105,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [editNameValue, setEditNameValue] = useState('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Monitor initialContact prop to start new external chats
     useEffect(() => {
@@ -171,7 +172,9 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     }, [activeLead]);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
     }, [messages]);
 
     const fetchLeads = async () => {
@@ -497,7 +500,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             )}
 
             {/* CONTENT */}
-            <div className="flex-1 overflow-y-auto w-full relative">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full relative scroll-smooth">
                 {status === 'loading' && (
                     <div className="absolute inset-0 flex items-center justify-center p-4">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />

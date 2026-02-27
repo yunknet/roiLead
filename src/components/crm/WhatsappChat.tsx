@@ -164,11 +164,19 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     }, [status, qrCode]);
 
     useEffect(() => {
+        let interval: NodeJS.Timeout;
         if (activeLead) {
             fetchMessages(activeLead.phone);
             setEditNameValue(activeLead.title);
             setIsEditingName(false);
+
+            interval = setInterval(() => {
+                fetchMessages(activeLead.phone, true);
+            }, 5000);
         }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [activeLead]);
 
     useEffect(() => {
@@ -192,7 +200,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         }
     };
 
-    const fetchMessages = async (phone: string) => {
+    const fetchMessages = async (phone: string, isSilent = false) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -204,7 +212,10 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             .order('created_at', { ascending: true });
 
         if (!error && data) {
-            setMessages(data);
+            setMessages(prev => {
+                if (isSilent && prev.length === data.length) return prev;
+                return data;
+            });
         }
     };
 

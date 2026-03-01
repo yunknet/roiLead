@@ -153,7 +153,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                                 </div>
                                 {lead.situacao_especial?.descricao && (
                                     <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-lg space-y-1 md:col-span-2">
-                                        <span className="text-xs text-yellow-700 block font-semibold flex items-center gap-1">
+                                        <span className="text-xs text-yellow-700 font-semibold flex items-center gap-1">
                                             <AlertTriangle className="w-3 h-3" /> Situação Especial
                                         </span>
                                         <span className="font-medium text-yellow-900">

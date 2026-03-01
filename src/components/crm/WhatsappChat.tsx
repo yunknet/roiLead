@@ -93,6 +93,9 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [inputText, setInputText] = useState('');
     const [loadingAction, setLoadingAction] = useState(false);
 
+    // Unread Notifications State
+    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
     // New Chat State
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newChatDDI, setNewChatDDI] = useState('+55');
@@ -103,6 +106,14 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     // Editor State
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState('');
+
+    const activeLeadRef = useRef<any>(null);
+    useEffect(() => {
+        activeLeadRef.current = activeLead;
+    }, [activeLead]);
+
+    const processedIdsRef = useRef<Set<string>>(new Set());
+    const lastPolledRef = useRef<string>(new Date().toISOString());
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -123,17 +134,52 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, handleNewMessage)
             .subscribe();
 
+        // Polling de fallback caso o banco não tenha realtime configurado
+        const pollInterval = setInterval(async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('*')
+                .eq('user_id', user.id)
+                .gt('created_at', lastPolledRef.current)
+                .order('created_at', { ascending: true });
+
+            if (!error && data && data.length > 0) {
+                // Atualiza o ref de último momento em que verificamos de acordo com timestamp do cliente
+                // Para evitar furos de rede, usamos max do created_at na lista
+                const maxDate = new Date(Math.max(...data.map(m => new Date(m.created_at).getTime())));
+                lastPolledRef.current = maxDate.toISOString();
+
+                data.forEach(msg => handleNewMessage({ new: msg }));
+            }
+        }, 5000);
+
         return () => {
+            clearInterval(pollInterval);
             supabase.removeChannel(messagesSubscription);
         };
     }, []);
 
     const handleNewMessage = (payload: any) => {
         const newMsg = payload.new;
+        if (processedIdsRef.current.has(newMsg.id)) return;
+        processedIdsRef.current.add(newMsg.id);
+
         setMessages(prev => {
             if (prev.find(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
         });
+
+        const isCurrentLead = activeLeadRef.current && activeLeadRef.current.phone === newMsg.contact_phone;
+        if (!isCurrentLead && newMsg.sender !== 'me') {
+            setUnreadCounts(prev => ({
+                ...prev,
+                [newMsg.contact_phone]: (prev[newMsg.contact_phone] || 0) + 1
+            }));
+        }
+
         fetchLeads(); // Refresh leads for latest message
     };
 
@@ -545,9 +591,19 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                         ) : (
                             leads.map(lead => (
                                 <div key={lead.id}
-                                    className="p-3 border-b border-border/50 hover:bg-accent/50 cursor-pointer flex flex-col gap-1 transition-colors"
-                                    onClick={() => setActiveLead(lead)}>
-                                    <div className="font-medium text-sm text-foreground truncate">{lead.title}</div>
+                                    className="p-3 border-b border-border/50 hover:bg-accent/50 cursor-pointer flex flex-col gap-1 transition-colors relative"
+                                    onClick={() => {
+                                        setActiveLead(lead);
+                                        setUnreadCounts(prev => ({ ...prev, [lead.phone]: 0 }));
+                                    }}>
+                                    <div className="flex justify-between items-start gap-2">
+                                        <div className="font-medium text-sm text-foreground truncate">{lead.title}</div>
+                                        {unreadCounts[lead.phone] && unreadCounts[lead.phone] > 0 ? (
+                                            <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center flex items-center justify-center">
+                                                {unreadCounts[lead.phone]}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                     <div className="text-xs text-muted-foreground">{lead.phone}</div>
                                 </div>
                             ))

@@ -836,7 +836,7 @@ const Dashboard = () => {
 
           {/* Persistent WhatsApp Chat for Search Tab */}
           {hasActiveSubscription && (
-            <div className={`w-[350px] lg:w-[25%] xl:w-[20%] border-l border-border h-full bg-card shrink-0 flex-col overflow-hidden ${activeMenu === "search" ? "hidden lg:flex" : "hidden"}`}>
+            <div className={`w-[380px] lg:w-[28%] xl:w-[22%] border-l border-border h-full bg-card shrink-0 flex-col overflow-hidden ${activeMenu === "search" ? "hidden lg:flex" : "hidden"}`}>
               <div className="flex-1 flex flex-col max-h-[85vh]">
                 <WhatsappChat initialContact={whatsappInitialLead} />
               </div>

@@ -135,12 +135,12 @@ serve(async (req: Request) => {
         }
       }
 
-      // Envia WhatsApp do roiLead
+      // Envia WhatsApp do roiLead (v2.1)
       if (eventType === 'invoice.payment_succeeded' && phone && evoUrl && evoInstance) {
         const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?
 Diferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:
-📍 Local: Estado, Cidade, Bairro ou DDD.
-🏢 Perfil: Capital Social, Data de Abertura, Matriz/Filial.
+📍 Local: Estado, Cidade.
+🏢 Perfil: Capital Social, Data de Abertura.
 ⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.
 📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.
 
@@ -149,10 +149,10 @@ Diferente de buscas simples, aqui você tem filtros de precisão. Você pode sol
 
 ⚠️ IMPORTANTE:
 Como a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.
-👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha.
+👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).
 
 Vamos começar? Me diga: qual segmento e cidade você quer atacar hoje?
-(Obs: Busco até 30 empresas por vez para não travar seu celular com mensagens grandes). 👇`
+(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
         await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
       }
     }

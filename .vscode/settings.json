@@ -3,5 +3,6 @@
     "deno.enablePaths": [
         "supabase/functions"
     ],
-    "deno.unstable": []
+    "deno.unstable": [],
+    "css.lint.unknownAtRules": "ignore"
 }

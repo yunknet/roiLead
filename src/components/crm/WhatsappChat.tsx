@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const DDIS = [
     { code: '+93', country: 'Afeganistão' }, { code: '+27', country: 'África do Sul' }, { code: '+355', country: 'Albânia' },
@@ -154,6 +155,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     // Editor State
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState('');
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const activeLeadRef = useRef<any>(null);
     useEffect(() => {
@@ -366,8 +368,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         }
     };
 
-    const logoutInstance = async () => {
-        if (!confirm('Desconectar WhatsApp?')) return;
+    const confirmLogout = async () => {
         setLoadingAction(true);
         try {
             const { error } = await supabase.functions.invoke('whatsapp', {
@@ -381,7 +382,12 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             console.error(error);
         } finally {
             setLoadingAction(false);
+            setShowLogoutConfirm(false);
         }
+    };
+
+    const logoutInstance = () => {
+        setShowLogoutConfirm(true);
     };
 
     const startChatWithLead = async (phone: string, title: string, company?: string, requestDetails?: string) => {
@@ -759,6 +765,28 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     </form>
                 </div>
             )}
+
+            {/* Modal Profissional de Confirmação de Logout do WhatsApp */}
+            <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <LogOut className="w-5 h-5" /> Confirmar Desconexão
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Tem certeza que deseja desconectar e fechar a sessão atual do WhatsApp na plataforma? Você precisará ler um novo QR Code caso queira se conectar novamente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                        <Button variant="outline" onClick={() => setShowLogoutConfirm(false)} disabled={loadingAction}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={confirmLogout} disabled={loadingAction}>
+                            {loadingAction ? "Desconectando..." : "Sim, desconectar"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

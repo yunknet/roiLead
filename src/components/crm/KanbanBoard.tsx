@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { LeadProfileModal } from './LeadProfileModal';
 
 const COLUMNS = [
@@ -17,6 +18,8 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<any>(null);
+    const [leadToDelete, setLeadToDelete] = useState<any>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchLeads();
@@ -73,10 +76,16 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         }
     };
 
-    const handleDeleteLead = async (e: React.MouseEvent, leadId: string) => {
+    const handleDeleteLead = (e: React.MouseEvent, lead: any) => {
         e.stopPropagation(); // Evita abrir o modal
-        if (!confirm("Tem certeza que deseja remover este lead do CRM?")) return;
+        setLeadToDelete(lead);
+    };
 
+    const confirmDeleteLead = async () => {
+        if (!leadToDelete) return;
+        setIsDeleting(true);
+
+        const leadId = leadToDelete.id;
         const originalLeads = [...leads];
         setLeads(leads.filter(l => l.id !== leadId));
 
@@ -91,6 +100,8 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         } else {
             toast.success('Lead removido!');
         }
+        setIsDeleting(false);
+        setLeadToDelete(null);
     };
 
     const handleDragStart = (e: React.DragEvent, leadId: string) => {
@@ -157,7 +168,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-6 w-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                                onClick={(e) => handleDeleteLead(e, lead.id)}
+                                                onClick={(e) => handleDeleteLead(e, lead)}
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </Button>
@@ -217,6 +228,28 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                     }}
                 />
             )}
+
+            {/* Modal Profissional de Confirmação de Remoção do Card */}
+            <Dialog open={!!leadToDelete} onOpenChange={(open) => !open && setLeadToDelete(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Confirmar Exclusão
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Tem certeza que deseja apagar o lead <strong>{leadToDelete?.title}</strong> do seu funil?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                        <Button variant="outline" onClick={() => setLeadToDelete(null)} disabled={isDeleting}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDeleteLead} disabled={isDeleting}>
+                            {isDeleting ? "Removendo..." : "Sim, excluir lead"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

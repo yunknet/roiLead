@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -891,6 +892,7 @@ export default Dashboard;
 const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete?: () => void, onCallLead?: (lead: any) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [page, setPage] = useState(1);
 
@@ -994,11 +996,7 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (!confirm("Tem certeza que deseja excluir este histórico?")) return;
-
+  const confirmDelete = async () => {
     setIsDeleting(true);
     try {
       const { error } = await supabase
@@ -1010,12 +1008,18 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
 
       toast.success("Histórico excluído com sucesso");
       if (onDelete) onDelete();
+      setShowDeleteConfirm(false);
     } catch (error) {
       console.error("Erro detalhado ao excluir:", error);
       toast.error(`Erro ao excluir: ${(error as any).message || "Verifique suas permissões ou console"}`);
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
   };
 
   if (isDeleting) return null;
@@ -1186,6 +1190,28 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
         onClose={() => setSelectedLead(null)}
         lead={selectedLead}
       />
+
+      {/* Modal Profissional de Confirmação de Exclusão de Histórico */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> Confirmar Exclusão
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Tem certeza que deseja excluir permanentemente o histórico da pesquisa <strong>{queryText}</strong>? Esta ação não pode ser desfeita e os leads atrelados a ela serão perdidos.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? "Excluindo..." : "Sim, excluir histórico"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Building2, MessageCircle, FileText, Phone, Save, Edit2, Check, X, Trash2 } from 'lucide-react';
@@ -21,8 +21,10 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const [leadValue, setLeadValue] = useState('');
+    const [showEditValue, setShowEditValue] = useState(false);
     const [isEditingValue, setIsEditingValue] = useState(false);
 
     useEffect(() => {
@@ -69,18 +71,16 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 .eq('id', lead.id);
 
             if (error) throw error;
-            setIsEditingValue(false);
+            setShowEditValue(false);
             if (onUpdateValue) onUpdateValue(lead.id, numValue);
-            toast.success("Valor atualizado!");
+            toast.success("Valor atualizado com sucesso!");
         } catch (error) {
             console.error(error);
             toast.error("Erro ao salvar o valor.");
         }
     };
 
-    const handleDeleteLead = async () => {
-        if (!confirm("Tem certeza que deseja remover este lead do CRM? Esta ação não pode ser desfeita.")) return;
-
+    const confirmDeleteLead = async () => {
         setIsDeleting(true);
         try {
             const { error } = await supabase
@@ -90,12 +90,13 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
 
             if (error) throw error;
 
-            toast.success("Lead removido com sucesso!");
+            toast.success("Lead removido permanentemente!");
             if (onDeleteLead) onDeleteLead(lead.id);
+            setShowDeleteConfirm(false);
             onClose();
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao remover lead.");
+            toast.error("Erro ao remover o sistema não processou sua solicitação.");
         } finally {
             setIsDeleting(false);
         }
@@ -159,33 +160,13 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                     <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
                                         <span className="text-muted-foreground">Valor Estimado:</span>
                                         <div className="flex items-center gap-2">
-                                            {isEditingValue ? (
-                                                <>
-                                                    <Input
-                                                        value={leadValue}
-                                                        onChange={(e) => setLeadValue(e.target.value)}
-                                                        className="h-7 text-sm w-[120px]"
-                                                        type="number"
-                                                        step="0.01"
-                                                    />
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-100" onClick={handleSaveValue}>
-                                                        <Check className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-100" onClick={() => {
-                                                        setIsEditingValue(false);
-                                                        setLeadValue(lead.value?.toString() || '0');
-                                                    }}>
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="text-green-600 font-bold">R$ {lead.value || "0"}</span>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => setIsEditingValue(true)}>
-                                                        <Edit2 className="w-3 h-3" />
-                                                    </Button>
-                                                </>
-                                            )}
+                                            <span className="text-green-600 font-bold">R$ {lead.value || "0"}</span>
+                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => {
+                                                setLeadValue(lead.value?.toString() || '0');
+                                                setShowEditValue(true);
+                                            }}>
+                                                <Edit2 className="w-3 h-3" />
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -218,8 +199,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 <div className="p-4 border-t bg-muted/10 flex justify-between gap-2">
                     <Button
                         variant="ghost"
-                        onClick={handleDeleteLead}
-                        disabled={isDeleting}
+                        onClick={() => setShowDeleteConfirm(true)}
                         className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-2"
                     >
                         <Trash2 className="w-4 h-4" />
@@ -239,6 +219,64 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                     </div>
                 </div>
             </DialogContent>
+
+            {/* Modal Profissional de Confirmação de Remoção */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Confirmar Exclusão
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Tem certeza que deseja apagar o lead <strong>{lead.title}</strong> do CRM permanentemente? Todos os históricos e anotações atreladas a esse lead serão perdidos.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                        <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDeleteLead} disabled={isDeleting}>
+                            {isDeleting ? "Excluindo..." : "Sim, excluir lead"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Profissional de Atualização de Valor */}
+            <Dialog open={showEditValue} onOpenChange={setShowEditValue}>
+                <DialogContent className="sm:max-w-[350px]">
+                    <DialogHeader>
+                        <DialogTitle>Atualizar Valor Estimado</DialogTitle>
+                        <DialogDescription>
+                            Defina o valor monetário estimado para esta negociação.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">R$</span>
+                            <Input
+                                value={leadValue}
+                                onChange={(e) => setLeadValue(e.target.value)}
+                                className="pl-9 h-12 text-lg font-semibold"
+                                type="number"
+                                step="any"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowEditValue(false);
+                            setLeadValue(lead.value?.toString() || '0');
+                        }}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleSaveValue} className="bg-green-600 hover:bg-green-700 text-white">
+                            Salvar Valor
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 }

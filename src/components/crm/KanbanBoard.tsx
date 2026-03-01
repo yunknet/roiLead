@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Phone, Briefcase, Calendar, ChevronRight } from 'lucide-react';
+import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { LeadProfileModal } from './LeadProfileModal';
 
 const COLUMNS = [
@@ -72,6 +73,26 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         }
     };
 
+    const handleDeleteLead = async (e: React.MouseEvent, leadId: string) => {
+        e.stopPropagation(); // Evita abrir o modal
+        if (!confirm("Tem certeza que deseja remover este lead do CRM?")) return;
+
+        const originalLeads = [...leads];
+        setLeads(leads.filter(l => l.id !== leadId));
+
+        const { error } = await supabase
+            .from('crm_leads')
+            .delete()
+            .eq('id', leadId);
+
+        if (error) {
+            toast.error('Erro ao remover lead');
+            setLeads(originalLeads); // Revert
+        } else {
+            toast.success('Lead removido!');
+        }
+    };
+
     const handleDragStart = (e: React.DragEvent, leadId: string) => {
         e.dataTransfer.setData('leadId', leadId);
     };
@@ -128,11 +149,33 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, lead.id)}
                                         onClick={() => setSelectedLead(lead)}
-                                        className="bg-card p-3 rounded-lg border border-border shadow-sm shadow-black/5 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
+                                        className="bg-card p-3 rounded-lg border border-border shadow-sm shadow-black/5 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors group relative"
                                     >
-                                        <h4 className="font-semibold text-sm truncate" title={lead.title}>{lead.title}</h4>
-                                        {lead.company && lead.company !== "WhatsApp" && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Briefcase className="w-3 h-3" /> {lead.company}</p>}
-                                        <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                                        <div className="flex justify-between items-start gap-2">
+                                            <h4 className="font-semibold text-sm truncate flex-1" title={lead.title}>{lead.title}</h4>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                                onClick={(e) => handleDeleteLead(e, lead.id)}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                        {lead.request_details && (
+                                            <div className="mt-2 mb-1 flex items-center">
+                                                <span className="text-[10px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 truncate" title={lead.request_details}>
+                                                    <Tag className="w-3 h-3 shrink-0" /> <span className="truncate">{lead.request_details}</span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {lead.company && lead.company !== "WhatsApp" && (
+                                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                                <Briefcase className="w-3 h-3 shrink-0" />
+                                                <span className="truncate" title={`Sócios: ${lead.company}`}>Sócios: {lead.company}</span>
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                                             <Phone className="w-3 h-3" /> {lead.phone}
                                         </p>
                                         <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground border-t pt-2">
@@ -140,7 +183,9 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                                 <Calendar className="w-3 h-3" />
                                                 {new Date(lead.updated_at).toLocaleDateString()}
                                             </span>
-                                            {lead.value > 0 && <span className="font-semibold text-primary">R$ {lead.value}</span>}
+                                            <span className={`font-semibold ${lead.value > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                                R$ {lead.value > 0 ? Number(lead.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'}
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
@@ -163,6 +208,12 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                     onCallLead={onCallLead}
                     onUpdateNotes={(id, notes) => {
                         setLeads(leads.map(l => l.id === id ? { ...l, notes } : l));
+                    }}
+                    onUpdateValue={(id, value) => {
+                        setLeads(leads.map(l => l.id === id ? { ...l, value } : l));
+                    }}
+                    onDeleteLead={(id) => {
+                        setLeads(leads.filter(l => l.id !== id));
                     }}
                 />
             )}

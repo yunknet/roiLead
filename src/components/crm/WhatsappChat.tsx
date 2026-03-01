@@ -169,7 +169,12 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     // Monitor initialContact prop to start new external chats
     useEffect(() => {
         if (initialContact && status === 'connected') {
-            startChatWithLead(initialContact.phone, initialContact.title || initialContact.company || 'Novo Contato');
+            startChatWithLead(
+                initialContact.phone,
+                initialContact.title || initialContact.company || 'Novo Contato',
+                initialContact.company,
+                initialContact.requestDetails
+            );
         }
     }, [initialContact, status]);
 
@@ -379,7 +384,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         }
     };
 
-    const startChatWithLead = async (phone: string, title: string) => {
+    const startChatWithLead = async (phone: string, title: string, company?: string, requestDetails?: string) => {
         if (!phone) return;
 
         let existingLead = leads.find(l => l.phone === phone);
@@ -404,7 +409,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     user_id: user.id,
                     title: title || phone,
                     phone: phone,
-                    company: "WhatsApp",
+                    company: company || "WhatsApp",
+                    request_details: requestDetails || null,
                     status: 'new',
                     value: 0
                 }).select().single();

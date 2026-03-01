@@ -111,7 +111,7 @@ const Dashboard = () => {
 
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
-  const handleOpenWhatsApp = (phone: string, title?: string, company?: string) => {
+  const handleOpenWhatsApp = (phone: string, title?: string, company?: string, requestDetails?: string) => {
     let cleanPhone = phone.replace(/\D/g, "");
     if (!cleanPhone) {
       toast.error("Número de telefone não encontrado.");
@@ -127,7 +127,7 @@ const Dashboard = () => {
       window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
       toast.success("Abrindo o aplicativo do WhatsApp...");
     } else {
-      setWhatsappInitialLead({ phone: cleanPhone, title: title || cleanPhone, company: company || title || cleanPhone });
+      setWhatsappInitialLead({ phone: cleanPhone, title: title || cleanPhone, company: company || title || cleanPhone, requestDetails });
       setIsChatMinimized(false);
       toast.success("Abrindo conversa...");
     }
@@ -596,7 +596,12 @@ const Dashboard = () => {
                             }} onCallLead={(lead) => {
                               const rawPhone = lead.telefone || lead.Telefone || lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || "";
                               const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
-                              handleOpenWhatsApp(rawPhone, nome, nome);
+                              let sociosStr = "Não informado";
+                              if (lead.quadro_societario && Array.isArray(lead.quadro_societario) && lead.quadro_societario.length > 0) {
+                                sociosStr = lead.quadro_societario.map((s: any) => s.nome).filter(Boolean).join(", ");
+                              }
+                              const reqDetails = req.request_details || "Busca Direta";
+                              handleOpenWhatsApp(rawPhone, nome, sociosStr, reqDetails);
                             }} />
                           ))}
                         </div>

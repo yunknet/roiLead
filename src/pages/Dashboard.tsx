@@ -111,6 +111,28 @@ const Dashboard = () => {
 
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
+  const handleOpenWhatsApp = (phone: string, title?: string, company?: string) => {
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (!cleanPhone) {
+      toast.error("Número de telefone não encontrado.");
+      return;
+    }
+    if (cleanPhone.length <= 11) {
+      cleanPhone = `55${cleanPhone}`;
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
+
+    if (isMobile) {
+      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
+      toast.success("Abrindo o aplicativo do WhatsApp...");
+    } else {
+      setWhatsappInitialLead({ phone: cleanPhone, title: title || cleanPhone, company: company || title || cleanPhone });
+      setIsChatMinimized(false);
+      toast.success("Abrindo conversa...");
+    }
+  };
+
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -574,20 +596,7 @@ const Dashboard = () => {
                             }} onCallLead={(lead) => {
                               const rawPhone = lead.telefone || lead.Telefone || lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || "";
                               const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
-                              let cleanPhone = rawPhone.replace(/\D/g, "");
-                              if (!cleanPhone) {
-                                toast.error("Número de telefone não encontrado para este lead.");
-                                return;
-                              }
-                              if (cleanPhone.length <= 11) {
-                                cleanPhone = `55${cleanPhone}`;
-                              }
-                              setWhatsappInitialLead({
-                                title: nome,
-                                company: nome,
-                                phone: cleanPhone
-                              });
-                              toast.success("Abrindo conversa...");
+                              handleOpenWhatsApp(rawPhone, nome, nome);
                             }} />
                           ))}
                         </div>
@@ -647,11 +656,7 @@ const Dashboard = () => {
 
             {activeMenu === "crm" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <KanbanBoard onCallLead={(phone, title) => {
-                  setWhatsappInitialLead({ phone, title, company: title });
-                  setIsChatMinimized(false);
-                  toast.success("Abrindo conversa...");
-                }} />
+                <KanbanBoard onCallLead={handleOpenWhatsApp} />
               </div>
             )}
 

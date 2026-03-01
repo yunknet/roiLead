@@ -842,7 +842,7 @@ const Dashboard = () => {
 
           {/* Persistent WhatsApp Chat for Search and CRM Tabs */}
           {hasActiveSubscription && (activeMenu === "search" || activeMenu === "crm") && (
-            <div className={`transition-all duration-300 ease-in-out border-l border-border bg-card shrink-0 flex-col overflow-hidden hidden lg:flex relative ${isChatMinimized ? "w-[60px]" : "w-[380px] lg:w-[28%] xl:w-[22%]"
+            <div className={`transition-all duration-300 ease-in-out border-l border-border bg-card shrink-0 flex-col overflow-hidden hidden lg:flex relative ${isChatMinimized ? "w-[60px]" : "w-[450px] lg:w-[32%] xl:w-[28%]"
               } h-full`}>
               <div className="absolute top-2 right-2 z-10 bg-background rounded-md border border-border">
                 <Button

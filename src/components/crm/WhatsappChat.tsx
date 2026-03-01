@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X } from 'lucide-react';
+import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -95,6 +95,54 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
 
     // Unread Notifications State
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+    // Media & Emoji Features
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const EMOJIS = ["😀", "😂", "🥰", "😎", "🤔", "🙌", "👍", "🙏", "🔥", "❤️", "✅", "🎉", "👀", "💰", "💪", "💡", "⚠️", "❌", "🤝", "🚀"];
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("O arquivo deve ter no máximo 5MB");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64String = reader.result as string;
+
+            // Mock de visualização local e imediata sem ferir o DB
+            const mockMsg = {
+                id: Date.now().toString(),
+                message: file.name,
+                media_url: base64String,
+                type: file.type.startsWith('image/') ? 'image' : 'document',
+                sender: 'me',
+                status: 'sending'
+            };
+            setMessages(prev => [...prev, mockMsg]);
+
+            try {
+                // Tenta enviar para a Edge Function de mídia
+                const { error } = await supabase.functions.invoke('whatsapp', {
+                    body: { action: 'send_media', number: activeLead.phone, media_base64: base64String, file_name: file.name }
+                });
+                if (error) throw error;
+                toast.success("Arquivo enviado pelo WhatsApp!");
+            } catch (error) {
+                console.error(error);
+                toast.error("A integração de arquivos pelo servidor falhou.");
+                setMessages(prev => prev.filter(m => m.id !== mockMsg.id)); // Remove o mock
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Clear input value so same file can be selected again
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
 
     // New Chat State
     const [isAddingNew, setIsAddingNew] = useState(false);
@@ -638,8 +686,61 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
 
             {/* INPUT SCENE */}
             {status === 'connected' && activeLead && (
-                <div className="p-3 bg-muted/20 border-t border-border">
+                <div className="p-3 bg-muted/20 border-t border-border relative">
+                    {/* Emoji Picker Popover */}
+                    {showEmojiPicker && (
+                        <div className="absolute bottom-full left-4 mb-2 bg-background border border-border rounded-lg shadow-xl p-2 w-[220px] z-50">
+                            <div className="flex justify-between items-center mb-2 px-1">
+                                <span className="text-xs font-semibold text-muted-foreground">Emojis</span>
+                                <button onClick={() => setShowEmojiPicker(false)} className="text-muted-foreground hover:text-foreground">
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-5 gap-2">
+                                {EMOJIS.map(emoji => (
+                                    <button
+                                        type="button"
+                                        key={emoji}
+                                        className="hover:bg-accent rounded text-lg flex items-center justify-center p-1 transition-colors"
+                                        onClick={() => {
+                                            setInputText(prev => prev + emoji);
+                                            setShowEmojiPicker(false);
+                                        }}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <form onSubmit={sendMessage} className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        >
+                            <Smile className="w-5 h-5" />
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            className="hidden"
+                            accept="image/*, .pdf, .doc, .docx"
+                        />
+
                         <Input
                             value={inputText}
                             onChange={e => setInputText(e.target.value)}

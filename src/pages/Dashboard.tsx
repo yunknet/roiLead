@@ -109,6 +109,8 @@ const Dashboard = () => {
     return normalize(details).includes(term);
   });
 
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
+
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -645,7 +647,11 @@ const Dashboard = () => {
 
             {activeMenu === "crm" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <KanbanBoard />
+                <KanbanBoard onCallLead={(phone, title) => {
+                  setWhatsappInitialLead({ phone, title, company: title });
+                  setIsChatMinimized(false);
+                  toast.success("Abrindo conversa...");
+                }} />
               </div>
             )}
 
@@ -834,12 +840,34 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Persistent WhatsApp Chat for Search Tab */}
-          {hasActiveSubscription && (
-            <div className={`w-[380px] lg:w-[28%] xl:w-[22%] border-l border-border h-full bg-card shrink-0 flex-col overflow-hidden ${activeMenu === "search" ? "hidden lg:flex" : "hidden"}`}>
-              <div className="flex-1 flex flex-col max-h-[85vh]">
-                <WhatsappChat initialContact={whatsappInitialLead} />
+          {/* Persistent WhatsApp Chat for Search and CRM Tabs */}
+          {hasActiveSubscription && (activeMenu === "search" || activeMenu === "crm") && (
+            <div className={`transition-all duration-300 ease-in-out border-l border-border bg-card shrink-0 flex-col overflow-hidden hidden lg:flex relative ${isChatMinimized ? "w-[60px]" : "w-[380px] lg:w-[28%] xl:w-[22%]"
+              } h-full`}>
+              <div className="absolute top-2 right-2 z-10 bg-background rounded-md border border-border">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-6 h-6 m-1 text-muted-foreground"
+                  onClick={() => setIsChatMinimized(!isChatMinimized)}
+                  title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
+                >
+                  {isChatMinimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </Button>
               </div>
+
+              {!isChatMinimized ? (
+                <div className="flex-1 flex flex-col pt-10 h-full">
+                  <WhatsappChat initialContact={whatsappInitialLead} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center pt-10 h-full w-full">
+                  <MessageCircle className="w-8 h-8 text-primary opacity-50 mb-2 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => setIsChatMinimized(false)} />
+                  <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }} className="text-xs font-bold text-muted-foreground mt-4 tracking-widest leading-none">
+                    WHATSAPP
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

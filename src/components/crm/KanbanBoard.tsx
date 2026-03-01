@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2, Phone, Briefcase, Calendar, ChevronRight } from 'lucide-react';
+import { LeadProfileModal } from './LeadProfileModal';
 
 const COLUMNS = [
     { id: 'new', title: 'Novos', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
@@ -11,9 +12,10 @@ const COLUMNS = [
     { id: 'lost', title: 'Perdidos', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
 ];
 
-export function KanbanBoard() {
+export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title?: string) => void }) {
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedLead, setSelectedLead] = useState<any>(null);
 
     useEffect(() => {
         fetchLeads();
@@ -31,7 +33,24 @@ export function KanbanBoard() {
             .order('updated_at', { ascending: false });
 
         if (!error && data) {
-            setLeads(data);
+            const now = Date.now();
+            let hasUpdates = false;
+
+            const updatedLeads = data.map(l => {
+                // Se um lead ficar parado por mais de 24h, move-o para 'lost' (exceto se já estiver em won/lost)
+                if (l.status && l.status !== 'won' && l.status !== 'lost') {
+                    const timeDiffHours = (now - new Date(l.updated_at).getTime()) / (1000 * 60 * 60);
+                    if (timeDiffHours >= 24) {
+                        hasUpdates = true;
+                        // Trigger async DB update without awaiting so users don't wait
+                        supabase.from('crm_leads').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', l.id).then();
+                        return { ...l, status: 'lost' };
+                    }
+                }
+                return l;
+            });
+
+            setLeads(updatedLeads);
         } else {
             toast.error('Erro ao carregar leads do CRM');
         }
@@ -108,6 +127,7 @@ export function KanbanBoard() {
                                         key={lead.id}
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, lead.id)}
+                                        onClick={() => setSelectedLead(lead)}
                                         className="bg-card p-3 rounded-lg border border-border shadow-sm shadow-black/5 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
                                     >
                                         <h4 className="font-semibold text-sm truncate" title={lead.title}>{lead.title}</h4>
@@ -135,6 +155,17 @@ export function KanbanBoard() {
                     )
                 })}
             </div>
+            {selectedLead && (
+                <LeadProfileModal
+                    isOpen={!!selectedLead}
+                    onClose={() => setSelectedLead(null)}
+                    lead={selectedLead}
+                    onCallLead={onCallLead}
+                    onUpdateNotes={(id, notes) => {
+                        setLeads(leads.map(l => l.id === id ? { ...l, notes } : l));
+                    }}
+                />
+            )}
         </div>
     );
 }

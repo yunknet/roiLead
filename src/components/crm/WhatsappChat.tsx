@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip } from 'lucide-react';
+import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -90,9 +90,30 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [qrCode, setQrCode] = useState('');
     const [leads, setLeads] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
-    const [activeLead, setActiveLead] = useState<any>(null);
+    const [activeLead, setActiveLead] = useState<any>(() => {
+        const saved = sessionStorage.getItem('whatsapp_activeLead');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        if (activeLead) {
+            sessionStorage.setItem('whatsapp_activeLead', JSON.stringify(activeLead));
+        } else {
+            sessionStorage.removeItem('whatsapp_activeLead');
+        }
+    }, [activeLead]);
     const [inputText, setInputText] = useState('');
+    const [searchContactTerm, setSearchContactTerm] = useState('');
     const [loadingAction, setLoadingAction] = useState(false);
+    const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
+    const [showDeleteClientConfirm, setShowDeleteClientConfirm] = useState(false);
 
     // Unread Notifications State
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -170,13 +191,17 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
 
     // Monitor initialContact prop to start new external chats
     useEffect(() => {
-        if (initialContact && status === 'connected') {
-            startChatWithLead(
-                initialContact.phone,
-                initialContact.title || initialContact.company || 'Novo Contato',
-                initialContact.company,
-                initialContact.requestDetails
-            );
+        if (initialContact && initialContact.timestamp && status === 'connected') {
+            const lastHandled = sessionStorage.getItem('whatsapp_last_handled_contact_time');
+            if (lastHandled !== initialContact.timestamp.toString()) {
+                sessionStorage.setItem('whatsapp_last_handled_contact_time', initialContact.timestamp.toString());
+                startChatWithLead(
+                    initialContact.phone,
+                    initialContact.title || initialContact.company || 'Novo Contato',
+                    initialContact.company,
+                    initialContact.requestDetails
+                );
+            }
         }
     }, [initialContact, status]);
 
@@ -222,12 +247,15 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         if (processedIdsRef.current.has(newMsg.id)) return;
         processedIdsRef.current.add(newMsg.id);
 
-        setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-        });
-
         const isCurrentLead = activeLeadRef.current && activeLeadRef.current.phone === newMsg.contact_phone;
+
+        if (isCurrentLead) {
+            setMessages(prev => {
+                if (prev.find(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+            });
+        }
+
         if (!isCurrentLead && newMsg.sender !== 'me') {
             setUnreadCounts(prev => ({
                 ...prev,
@@ -363,6 +391,68 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         } catch (error) {
             console.error(error);
             toast.error('Erro ao conectar WhatsApp');
+        } finally {
+            setLoadingAction(false);
+        }
+    };
+
+    const confirmDeleteClient = async () => {
+        if (!activeLead) return;
+        setLoadingAction(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Usuário não autenticado");
+
+            const { error: errorMessages } = await supabase
+                .from('chat_messages')
+                .delete()
+                .eq('contact_phone', activeLead.phone)
+                .eq('user_id', user.id);
+
+            if (errorMessages) throw errorMessages;
+
+            const { error } = await supabase
+                .from('crm_leads')
+                .delete()
+                .eq('id', activeLead.id)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            toast.success("Cliente e histórico excluídos com sucesso.");
+            setActiveLead(null);
+            setMessages([]);
+            fetchLeads();
+            setShowDeleteClientConfirm(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao excluir cliente.");
+        } finally {
+            setLoadingAction(false);
+        }
+    };
+
+    const confirmDeleteChat = async () => {
+        if (!activeLead) return;
+        setLoadingAction(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Usuário não autenticado");
+
+            const { error } = await supabase
+                .from('chat_messages')
+                .delete()
+                .eq('contact_phone', activeLead.phone)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            toast.success("Histórico da conversa excluído com sucesso.");
+            setMessages([]);
+            setShowDeleteChatConfirm(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao excluir histórico da conversa.");
         } finally {
             setLoadingAction(false);
         }
@@ -506,8 +596,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     return (
         <div className="flex flex-col h-full bg-card shadow-sm border-l border-border relative overflow-hidden">
             {/* HEADER */}
-            <div className="flex items-center justify-between p-3 border-b border-border bg-muted/20">
-                {activeLead ? (
+            {activeLead ? (
+                <div className="flex items-center justify-between p-3 border-b border-border bg-muted/20">
                     <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
                         <Button variant="ghost" size="icon" className="w-6 h-6 shrink-0" onClick={() => setActiveLead(null)}>
                             <ChevronLeft className="w-4 h-4" />
@@ -539,35 +629,65 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                             </div>
                         )}
                     </div>
-                ) : (
-                    <div className="flex items-center gap-2 text-primary font-semibold text-sm">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>WhatsApp</span>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        {status === 'loading' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         {status === 'connected' && (
-                            <Button variant="ghost" size="icon" className="w-6 h-6 text-muted-foreground ml-1" onClick={() => setIsAddingNew(!isAddingNew)} title="Nova Conversa">
-                                <Plus className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="w-6 h-6 text-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => setShowDeleteClientConfirm(true)} title="Deletar Cliente">
+                                    <UserMinus className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="w-6 h-6 text-orange-500 hover:bg-orange-500/10 hover:text-orange-600" onClick={() => setShowDeleteChatConfirm(true)} title="Limpar Mensagens">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <div className="w-2 h-2 rounded-full bg-green-500" title="Conectado" />
+                            </div>
+                        )}
+                        {status === 'disconnected' && (
+                            <div className="w-2 h-2 rounded-full bg-red-500" title="Desconectado" />
                         )}
                     </div>
-                )}
-
-                <div className="flex items-center gap-2 shrink-0">
-                    {status === 'loading' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                    {status === 'connected' && (
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500" title="Conectado" />
-                            {!activeLead && (
-                                <Button variant="ghost" size="icon" className="w-6 h-6 text-muted-foreground" onClick={logoutInstance} disabled={loadingAction} title="Desconectar">
-                                    <LogOut className="w-3 h-3" />
+                </div>
+            ) : (
+                <div className="flex flex-col p-3 border-b border-border bg-muted/20 gap-3">
+                    <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                            <MessageSquare className="w-4 h-4" />
+                            <span>WhatsApp</span>
+                            {status === 'connected' && (
+                                <Button variant="ghost" size="icon" className="w-6 h-6 text-muted-foreground ml-1" onClick={() => setIsAddingNew(!isAddingNew)} title="Nova Conversa">
+                                    <Plus className="w-4 h-4" />
                                 </Button>
                             )}
                         </div>
-                    )}
-                    {status === 'disconnected' && (
-                        <div className="w-2 h-2 rounded-full bg-red-500" title="Desconectado" />
+                        <div className="flex items-center gap-2 shrink-0">
+                            {status === 'loading' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                            {status === 'connected' && (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500" title="Conectado" />
+                                    <Button variant="ghost" size="icon" className="w-6 h-6 text-muted-foreground" onClick={logoutInstance} disabled={loadingAction} title="Desconectar">
+                                        <LogOut className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            )}
+                            {status === 'disconnected' && (
+                                <div className="w-2 h-2 rounded-full bg-red-500" title="Desconectado" />
+                            )}
+                        </div>
+                    </div>
+                    {status === 'connected' && (
+                        <div className="relative w-full">
+                            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                            <Input
+                                placeholder="Pesquisar conversa rápida..."
+                                value={searchContactTerm}
+                                onChange={(e) => setSearchContactTerm(e.target.value)}
+                                className="pl-9 h-8 text-xs bg-background border-border/50 focus-visible:ring-1"
+                            />
+                        </div>
                     )}
                 </div>
-            </div>
+            )}
 
             {/* NEW CHAT INLINE FORM */}
             {isAddingNew && !activeLead && status === 'connected' && (
@@ -644,32 +764,35 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     </div>
                 )}
 
-                {status === 'connected' && !activeLead && !isAddingNew && (
-                    <div className="flex flex-col">
-                        {leads.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma conversa encontrada.</div>
-                        ) : (
-                            leads.map(lead => (
-                                <div key={lead.id}
-                                    className="p-3 border-b border-border/50 hover:bg-accent/50 cursor-pointer flex flex-col gap-1 transition-colors relative"
-                                    onClick={() => {
-                                        setActiveLead(lead);
-                                        setUnreadCounts(prev => ({ ...prev, [lead.phone]: 0 }));
-                                    }}>
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className="font-medium text-sm text-foreground truncate">{lead.title}</div>
-                                        {unreadCounts[lead.phone] && unreadCounts[lead.phone] > 0 ? (
-                                            <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center flex items-center justify-center">
-                                                {unreadCounts[lead.phone]}
-                                            </span>
-                                        ) : null}
+                {status === 'connected' && !activeLead && !isAddingNew && (() => {
+                    const filteredLeads = leads.filter(l => !searchContactTerm.trim() || String(l.title || '').toLowerCase().includes(searchContactTerm.toLowerCase()) || String(l.phone || '').includes(searchContactTerm));
+                    return (
+                        <div className="flex flex-col">
+                            {filteredLeads.length === 0 ? (
+                                <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma conversa encontrada.</div>
+                            ) : (
+                                filteredLeads.map(lead => (
+                                    <div key={lead.id}
+                                        className="p-3 border-b border-border/50 hover:bg-accent/50 cursor-pointer flex flex-col gap-1 transition-colors relative"
+                                        onClick={() => {
+                                            setActiveLead(lead);
+                                            setUnreadCounts(prev => ({ ...prev, [lead.phone]: 0 }));
+                                        }}>
+                                        <div className="flex justify-between items-start gap-2">
+                                            <div className="font-medium text-sm text-foreground truncate">{lead.title}</div>
+                                            {unreadCounts[lead.phone] && unreadCounts[lead.phone] > 0 ? (
+                                                <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center flex items-center justify-center">
+                                                    {unreadCounts[lead.phone]}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">{lead.phone}</div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">{lead.phone}</div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
+                                ))
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {status === 'connected' && activeLead && (
                     <div className="flex flex-col p-3 space-y-3 min-h-full">
@@ -697,74 +820,120 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             </div>
 
             {/* INPUT SCENE */}
-            {status === 'connected' && activeLead && (
-                <div className="p-3 bg-muted/20 border-t border-border relative">
-                    {/* Emoji Picker Popover */}
-                    {showEmojiPicker && (
-                        <div className="absolute bottom-full left-4 mb-2 bg-background border border-border rounded-lg shadow-xl p-2 w-[220px] z-50">
-                            <div className="flex justify-between items-center mb-2 px-1">
-                                <span className="text-xs font-semibold text-muted-foreground">Emojis</span>
-                                <button onClick={() => setShowEmojiPicker(false)} className="text-muted-foreground hover:text-foreground">
-                                    <X className="w-3 h-3" />
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-5 gap-2">
-                                {EMOJIS.map(emoji => (
-                                    <button
-                                        type="button"
-                                        key={emoji}
-                                        className="hover:bg-accent rounded text-lg flex items-center justify-center p-1 transition-colors"
-                                        onClick={() => {
-                                            setInputText(prev => prev + emoji);
-                                            setShowEmojiPicker(false);
-                                        }}
-                                    >
-                                        {emoji}
+            {
+                status === 'connected' && activeLead && (
+                    <div className="p-3 bg-muted/20 border-t border-border relative">
+                        {/* Emoji Picker Popover */}
+                        {showEmojiPicker && (
+                            <div className="absolute bottom-full left-4 mb-2 bg-background border border-border rounded-lg shadow-xl p-2 w-[220px] z-50">
+                                <div className="flex justify-between items-center mb-2 px-1">
+                                    <span className="text-xs font-semibold text-muted-foreground">Emojis</span>
+                                    <button onClick={() => setShowEmojiPicker(false)} className="text-muted-foreground hover:text-foreground">
+                                        <X className="w-3 h-3" />
                                     </button>
-                                ))}
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {EMOJIS.map(emoji => (
+                                        <button
+                                            type="button"
+                                            key={emoji}
+                                            className="hover:bg-accent rounded text-lg flex items-center justify-center p-1 transition-colors"
+                                            onClick={() => {
+                                                setInputText(prev => prev + emoji);
+                                                setShowEmojiPicker(false);
+                                            }}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    <form onSubmit={sendMessage} className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        >
-                            <Smile className="w-5 h-5" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <Paperclip className="w-5 h-5" />
-                        </Button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            accept="image/*, .pdf, .doc, .docx"
-                        />
+                        <form onSubmit={sendMessage} className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            >
+                                <Smile className="w-5 h-5" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="w-9 h-9 shrink-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <Paperclip className="w-5 h-5" />
+                            </Button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileSelect}
+                                className="hidden"
+                                accept="image/*, .pdf, .doc, .docx"
+                            />
 
-                        <Input
-                            value={inputText}
-                            onChange={e => setInputText(e.target.value)}
-                            className="h-9 text-sm rounded-full flex-1"
-                            placeholder="Mensagem..."
-                        />
-                        <Button type="submit" size="icon" className="w-9 h-9 rounded-full shrink-0 disabled:opacity-50" disabled={!inputText.trim()}>
-                            <Send className="w-4 h-4" />
+                            <Input
+                                value={inputText}
+                                onChange={e => setInputText(e.target.value)}
+                                className="h-9 text-sm rounded-full flex-1"
+                                placeholder="Mensagem..."
+                            />
+                            <Button type="submit" size="icon" className="w-9 h-9 rounded-full shrink-0 disabled:opacity-50" disabled={!inputText.trim()}>
+                                <Send className="w-4 h-4" />
+                            </Button>
+                        </form>
+                    </div>
+                )
+            }
+
+            {/* Modal Profissional de Confirmação de Exclusão de Chat */}
+            <Dialog open={showDeleteChatConfirm} onOpenChange={setShowDeleteChatConfirm}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-orange-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Confirmar Limpeza de Mensagens
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Tem certeza que deseja apagar todo o histórico de mensagens desta conversa? Os dados do contato continuarão no CRM, mas o histórico do chat será permanentemente perdido.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                        <Button variant="outline" onClick={() => setShowDeleteChatConfirm(false)} disabled={loadingAction}>
+                            Cancelar
                         </Button>
-                    </form>
-                </div>
-            )}
+                        <Button variant="destructive" onClick={confirmDeleteChat} disabled={loadingAction} className="bg-orange-500 hover:bg-orange-600">
+                            {loadingAction ? "Limpando..." : "Sim, limpar mensagens"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Profissional de Confirmação de Exclusão de Cliente */}
+            <Dialog open={showDeleteClientConfirm} onOpenChange={setShowDeleteClientConfirm}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <UserMinus className="w-5 h-5" /> Confirmar Exclusão do Cliente
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Tem certeza que deseja excluir as mensagens e remover permanentemente este cliente do CRM? Esta ação não pode ser desfeita.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                        <Button variant="outline" onClick={() => setShowDeleteClientConfirm(false)} disabled={loadingAction}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDeleteClient} disabled={loadingAction}>
+                            {loadingAction ? "Excluindo..." : "Sim, excluir cliente"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal Profissional de Confirmação de Logout do WhatsApp */}
             <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
@@ -787,6 +956,6 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

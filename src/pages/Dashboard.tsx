@@ -128,7 +128,13 @@ const Dashboard = () => {
       window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
       toast.success("Abrindo o aplicativo do WhatsApp...");
     } else {
-      setWhatsappInitialLead({ phone: cleanPhone, title: title || cleanPhone, company: company || title || cleanPhone, requestDetails });
+      setWhatsappInitialLead({
+        phone: cleanPhone,
+        title: title || cleanPhone,
+        company: company || title || cleanPhone,
+        requestDetails,
+        timestamp: Date.now()
+      });
       setIsChatMinimized(false);
       toast.success("Abrindo conversa...");
     }

@@ -10,7 +10,7 @@ const COLUMNS = [
     { id: 'new', title: 'Novos', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
     { id: 'contacted', title: 'Contatados', color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
     { id: 'negotiating', title: 'Em Negociação', color: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
-    { id: 'won', title: 'Ganhos', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
+    { id: 'won', title: 'Fechados', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
     { id: 'lost', title: 'Perdidos', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
 ];
 

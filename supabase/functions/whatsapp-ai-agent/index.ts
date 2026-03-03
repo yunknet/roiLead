@@ -6,7 +6,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
-const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
+const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_GLOBAL_KEY') || Deno.env.get('EVOLUTION_API_KEY');
 
 serve(async (req) => {
   // Configuração de CORS padrão do Supabase
@@ -22,6 +22,7 @@ serve(async (req) => {
 
   try {
     const payload = await req.json()
+    console.log('-> Incoming Webhook from Evolution API:', payload.event, 'Instance:', payload.instance);
 
     // 1. FILTRAR EVENTO DA EVOLUTION API (Queremos apenas mensagens recebidas)
     // Geralmente o evento é "messages.upsert" e tem "fromMe": false
@@ -36,50 +37,63 @@ serve(async (req) => {
 
     // IGNORAR GRUPOS (Se o ID do chat contiver '@g.us', é um grupo)
     if (remoteJid && remoteJid.includes('@g.us')) {
+      console.log('Ignore: Mensagem de grupo');
       return new Response(JSON.stringify({ status: 'ignored', reason: 'group message' }), { status: 200 });
     }
 
     // Se a mensagem foi enviada pelo próprio usuário (vendedor), não fazemos nada (o Handover humano já desliga a IA no frontend)
     if (fromMe || !remoteJid || !messageData) {
+      console.log('Ignore: fromMe=', fromMe, 'remoteJid=', remoteJid);
       return new Response(JSON.stringify({ status: 'ignored', reason: 'from me or empty' }), { status: 200 })
     }
 
     // Extrair o texto da mensagem (depende do tipo de mensagem enviada no WhatsApp)
     const incomingText = messageData.conversation || messageData.extendedTextMessage?.text;
     if (!incomingText) {
+      console.log('Ignore: Not a text message. Data:', JSON.stringify(messageData));
       return new Response(JSON.stringify({ status: 'ignored', reason: 'not text message' }), { status: 200 })
     }
+
+    console.log(`Recebendo mensagem de ${remoteJid}: "${incomingText}" na instancia ${instanceName}`);
 
     const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
 
     // 2. CONECTAR AO BANCO
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Precisamos achar o dono desta instância. Vamos assumir que na tabela profiles tem a coluna evolution_instance
-    // Como POC, vou fazer uma busca no profiles onde EvolutionInstance = instanceName
-    // Nota: Adapte essa busca para o campo exato onde você guarda qual usuário é dono da instância 'xyz'
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('evolution_instance', instanceName)
-      .single();
+    // Pulo do gato: A imagem mostrou que sua instância chama "user_UUID". Vamos extrair direto o ID do usuário!
+    let userId = instanceName;
+    if (instanceName.startsWith('user_')) {
+      userId = instanceName.replace('user_', '');
+      console.log('Usuario identificado pelo nome da instancia:', userId);
+    } else {
+      // Tentar achar pelo DB se o nome nao for o padrão
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('evolution_instance', instanceName)
+        .single();
 
-    if (!profile) {
-      return new Response(JSON.stringify({ error: 'Instance not linked to user' }), { status: 400 });
+      if (!profile) {
+        console.log('Erro: Usuario nao encontrado para a instancia', instanceName);
+        return new Response(JSON.stringify({ status: 'ignored', error: 'Instance not linked to user' }), { status: 200 });
+      }
+      userId = profile.id;
     }
 
-    const userId = profile.id;
-
     // 3. CONSULTAR REGRAS DA IA DESTE USUÁRIO
-    const { data: agentConfig } = await supabase
+    const { data: agentConfig, error: agentErr } = await supabase
       .from('ai_agents')
       .select('is_active, system_prompt')
       .eq('user_id', userId)
       .single();
 
-    if (!agentConfig || !agentConfig.is_active || !agentConfig.system_prompt) {
+    if (agentErr || !agentConfig || !agentConfig.is_active || !agentConfig.system_prompt) {
+      console.log('Ignore: IA desligada, não configurada ou erro', agentErr?.message);
       return new Response(JSON.stringify({ status: 'ignored', reason: 'agent is off or not configured' }), { status: 200 });
     }
+
+    console.log('IA está LIGADA para o usuario', userId);
 
     // 4. VERIFICAR SE A IA ESTÁ PAUSADA PARA ESTE LEAD ESPECÍFICO (Handover)
     const { data: lead } = await supabase
@@ -131,8 +145,10 @@ serve(async (req) => {
       throw new Error("Missing GEMINI_API_KEY");
     }
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // Substitua o 'gemini-1.5-flash' pelo 'gemini-2.5-flash'
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+    console.log('-> Chamando Gemini 2.5 Flash (v1beta)...');
     // Configurar o Payload para o formato V1Beta do Gemini
     const geminiBody = {
       system_instruction: {
@@ -140,18 +156,33 @@ serve(async (req) => {
       },
       contents: geminiHistory,
       generationConfig: {
-        temperature: 0.7, // 0 a 2 (Criatividade. 0.7 é ideal para vendas, evita alucinações absurdas)
-        maxOutputTokens: 250 // Evita respostas textões
+        temperature: 0.7,
+        maxOutputTokens: 250
       }
     };
 
-    const geminiReq = await fetch(geminiEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiBody)
-    });
+    let geminiReq;
+    let geminiRawResp = "";
 
-    const geminiResp = await geminiReq.json();
+    try {
+      geminiReq = await fetch(geminiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geminiBody)
+      });
+      console.log('Fetch completed. Status:', geminiReq.status);
+      geminiRawResp = await geminiReq.text();
+    } catch (err: any) {
+      console.error("CRITICAL ERROR during Gemini Fetch:", err.message, err.stack);
+      return new Response(JSON.stringify({ error: 'Fetch to Gemini crashed', details: err.message }), { status: 500 });
+    }
+    let geminiResp;
+    try {
+      geminiResp = JSON.parse(geminiRawResp);
+    } catch (e) {
+      console.error("Gemini Parse Error: A resposta do Google não foi um JSON válido:", geminiRawResp);
+      return new Response(JSON.stringify({ error: 'Gemini parse failed' }), { status: 500 });
+    }
 
     if (!geminiReq.ok) {
       console.error("Gemini API Error:", geminiResp);

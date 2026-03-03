@@ -22,7 +22,8 @@ import {
   Filter,
   Search,
   Clock,
-  Kanban
+  Kanban,
+  Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +35,12 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { WhatsappChat } from "@/components/crm/WhatsappChat";
+import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
+  { icon: Bot, label: "Agente IA", id: "agent" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -669,6 +672,12 @@ const Dashboard = () => {
             {activeMenu === "crm" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
                 <KanbanBoard onCallLead={handleOpenWhatsApp} />
+              </div>
+            )}
+
+            {activeMenu === "agent" && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                <AIAgentSettings />
               </div>
             )}
 

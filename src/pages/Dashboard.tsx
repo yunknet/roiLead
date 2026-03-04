@@ -376,6 +376,33 @@ const Dashboard = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success("Senha alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao alterar senha. Tente deslogar e logar novamente.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleSubscribe = async (planId: string) => {
     setLoadingPlan(planId);
     try {

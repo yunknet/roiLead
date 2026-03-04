@@ -95,6 +95,11 @@ const Dashboard = () => {
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
 
+  // Password Change State
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const [leadRequests, setLeadRequests] = useState<any[]>([]);

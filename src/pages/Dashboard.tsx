@@ -71,6 +71,8 @@ const Dashboard = () => {
     firstName: string;
     lastName: string;
     email: string;
+    phone_number?: string;
+    last_phone_update?: string;
   } | null>(null);
 
   // Subscription State
@@ -205,6 +207,8 @@ const Dashboard = () => {
             firstName: profile.first_name || "Usuário",
             lastName: profile.last_name || "",
             email: email,
+            phone_number: profile.phone_number,
+            last_phone_update: profile.last_phone_update,
           });
           setTempFirstName(profile.first_name || "");
           setTempLastName(profile.last_name || "");
@@ -317,20 +321,48 @@ const Dashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      if (userProfile?.last_phone_update) {
+        const lastUpdate = new Date(userProfile.last_phone_update);
+        const now = new Date();
+        const diffTime = now.getTime() - lastUpdate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        if (diffDays < 15) {
+          const diasRestantes = Math.ceil(15 - diffDays);
+          toast.error(`Você só pode alterar o telefone novamente em ${diasRestantes} dia(s).`);
+          return;
+        }
+      }
+
+      const currentDate = new Date().toISOString();
+
       const { error } = await supabase
         .from('profiles')
         .update({
           phone_number: phone,
-          updated_at: new Date().toISOString()
+          last_phone_update: currentDate,
+          updated_at: currentDate
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
+      // Sincroniza também na tabela subscriptions para garantir integridade
+      await supabase
+        .from('subscriptions')
+        .update({
+          phone_number: phone
+        })
+        .eq('user_id', user.id);
+
       toast.success("Telefone atualizado com sucesso!");
       setIsEditingPhone(false);
       // Atualiza estado local
-      setUserProfile(prev => prev ? ({ ...prev, phone_number: phone }) : null);
+      setUserProfile(prev => prev ? ({
+        ...prev,
+        phone_number: phone,
+        last_phone_update: currentDate
+      }) : null);
 
     } catch (err: any) {
       toast.error("Erro ao atualizar telefone: " + err.message);

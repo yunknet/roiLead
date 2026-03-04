@@ -834,6 +834,43 @@ const Dashboard = () => {
                     </div>
                   </div>
 
+                  {/* Alterar Senha */}
+                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                      <Lock className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium text-foreground">Segurança</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">Nova Senha</label>
+                        <Input
+                          type="password"
+                          placeholder="Mínimo 6 caracteres"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">Confirmar Nova Senha</label>
+                        <Input
+                          type="password"
+                          placeholder="Confirme a nova senha"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleChangePassword}
+                        disabled={isChangingPassword || !newPassword || !confirmPassword}
+                        variant="default"
+                        className="w-full sm:w-auto mt-4"
+                      >
+                        {isChangingPassword ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                        Alterar Senha
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="p-6 rounded-xl bg-card border border-border space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
                       <CreditCard className="w-5 h-5 text-primary" />

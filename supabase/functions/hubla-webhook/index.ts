@@ -26,7 +26,7 @@ serve(async (req: Request) => {
     )
 
     const evoUrl = Deno.env.get("EVOLUTION_API_URL")
-    const evoKey = Deno.env.get("EVOLUTION_API_KEY")
+    const evoKey = Deno.env.get("EVOLUTION_GLOBAL_KEY") || Deno.env.get("EVOLUTION_API_KEY")
     const evoInstance = Deno.env.get("EVOLUTION_INSTANCE")
 
     // 1. Pega o Payload
@@ -79,16 +79,38 @@ serve(async (req: Request) => {
 
       console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${amount}`)
 
+      let isNewUser = false
+
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
         let userId = null
+        const defaultPassword = "12345" // User requested simple password
+
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('id')
           .eq('email', email)
           .single()
 
-        if (userProfile) userId = userProfile.id
+        if (userProfile) {
+          userId = userProfile.id
+        } else {
+          console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
+          isNewUser = true
+
+          const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
+            email: email,
+            password: defaultPassword,
+            email_confirm: true,
+            user_metadata: { first_name: firstName, phone: phone }
+          })
+
+          if (authErr) {
+            console.error("❌ Erro ao criar auth.user:", authErr)
+          } else if (newUserReq.user) {
+            userId = newUserReq.user.id
+          }
+        }
 
         // Upsert na tabela subscriptions
         // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
@@ -107,53 +129,70 @@ serve(async (req: Request) => {
 
         if (dbError) {
           console.error("❌ Erro no upsert (Subscriptions):", dbError.message)
-          // Tenta fallback por email SOMENTE se o erro for diferente de constraint violation no external_id
-          if (!dbError.message.includes("subscriptions_external_reference_id_key")) {
-            console.log("⚠️ Tentando fallback upsert por email...")
-            await supabase.from("subscriptions").upsert({
-              email: email,
-              full_name: fullName,
-              phone_number: phone,
-              plan_name: planName,
-              amount_paid: amount,
-              payment_status: "paid",
-              subscription_status: "active",
-              external_reference_id: externalId, // Tenta salvar msm assim
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'email' })
-          }
+          // Se falhou por chave duplicada (provavelmente o email já existia num external_id antigo)
+          // Em vez de upsert com onConflict por email (que pode dar ruim se a constraint tiver outro nome), 
+          // a gente apenas FAZ UM UPDATE explícito para o email.
+          console.log("⚠️ Tentando fallback via update simples por email...")
+          const { error: updateErr } = await supabase.from("subscriptions").update({
+            user_id: userId,
+            full_name: fullName,
+            phone_number: phone,
+            plan_name: planName,
+            amount_paid: amount,
+            payment_status: "paid",
+            subscription_status: "active",
+            external_reference_id: externalId,
+            updated_at: new Date().toISOString()
+          }).eq('email', email)
+
+          if (updateErr) console.error("❌ Erro final no update por email:", updateErr.message)
+          else console.log("✅ Banco atualizado por e-mail: Assinatura ATIVA")
         } else {
           console.log("✅ Banco atualizado: Assinatura ATIVA")
         }
 
         // Atualiza status no Profile tbm para garantir o acesso imediato
         if (userId) {
-          await supabase.from('profiles').update({
+          const { error: profileErr } = await supabase.from('profiles').update({
             payment_status: 'PAID',
             access_status: 'PAID_USER'
           }).eq('id', userId)
+
+          if (profileErr) {
+            // Caso não exista, ele faz um upsert de segurança
+            await supabase.from('profiles').upsert({
+              id: userId,
+              email: email,
+              full_name: fullName,
+              phone_number: phone,
+              payment_status: 'PAID',
+              access_status: 'PAID_USER'
+            }, { onConflict: 'id' })
+          }
         }
       }
 
       // Envia WhatsApp do roiLead (v2.1)
       if (eventType === 'invoice.payment_succeeded' && phone && evoUrl && evoInstance) {
-        const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?
-Diferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:
-📍 Local: Estado, Cidade.
-🏢 Perfil: Capital Social, Data de Abertura.
-⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.
-📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.
+        if (isNewUser) {
+          // Mensagem de Boas Vindas + Acesso
+          const msg1 = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:${email} e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
 
-💡 COMO PEDIR (Exemplo):
-"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."
+          // Mensagem de Instruções de Uso
+          const msg2 = `O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
 
-⚠️ IMPORTANTE:
-Como a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.
-👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).
+          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg1)
 
-Vamos começar? Me diga: qual segmento e cidade você quer atacar hoje?
-(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
-        await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+          // Pausa de 1,5 segundos para evitar que as mensagens cheguem fora de ordem no celular
+          await new Promise(resolve => setTimeout(resolve, 1500))
+
+          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg2)
+
+        } else {
+          // Usuários que já tinham conta (Veteranos) recebem a mensagem padrão antiga de uma vez
+          const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
+          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+        }
       }
     }
 

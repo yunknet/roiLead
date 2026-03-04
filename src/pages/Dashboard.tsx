@@ -86,6 +86,11 @@ const Dashboard = () => {
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
 
+  // Password Change State
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const [leadRequests, setLeadRequests] = useState<any[]>([]);
@@ -367,6 +372,33 @@ const Dashboard = () => {
       toast.error("Erro ao processar assinatura: " + (error.message || "Erro desconhecido"));
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success("Senha alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao alterar senha. Tente deslogar e logar novamente.");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -748,6 +780,40 @@ const Dashboard = () => {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Bloco de Alterar Senha */}
+                <div className="p-6 rounded-xl bg-card border border-border space-y-6">
+                  <div className="flex items-center gap-3 border-b border-border pb-4">
+                    <Lock className="w-5 h-5 text-primary" />
+                    <h3 className="font-medium text-foreground">Alterar Senha</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Proteja sua conta utilizando uma senha forte com letras e números.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        type="password"
+                        placeholder="Nova Senha"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <Input
+                        type="password"
+                        placeholder="Confirmar Nova Senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleChangePassword}
+                      disabled={!newPassword || !confirmPassword || isChangingPassword}
+                    >
+                      {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      {isChangingPassword ? "Alterando..." : "Salvar Nova Senha"}
+                    </Button>
                   </div>
                 </div>
 

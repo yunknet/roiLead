@@ -38,8 +38,9 @@ const PricingSection = () => {
       });
 
       if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
+      const paymentUrl = data?.payment_url || data?.url;
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
       }
     } catch (error) {
       console.error('Checkout error:', error);

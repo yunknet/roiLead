@@ -177,8 +177,7 @@ serve(async (req: Request) => {
         // Atualiza status no Profile tbm para garantir o acesso imediato
         if (userId) {
           const { error: profileErr } = await supabase.from('profiles').update({
-            payment_status: 'PAID',
-            access_status: 'PAID_USER'
+            payment_status: 'PAID'
           }).eq('id', userId)
 
           if (profileErr) {
@@ -189,7 +188,7 @@ serve(async (req: Request) => {
               full_name: fullName,
               phone_number: phone,
               payment_status: 'PAID',
-              access_status: 'PAID_USER'
+              access_status: 'NEW'
             }, { onConflict: 'id' })
           }
         }

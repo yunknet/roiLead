@@ -132,9 +132,10 @@ serve(async (req: Request) => {
           // Se falhou por chave duplicada (provavelmente o email já existia num external_id antigo)
           // Em vez de upsert com onConflict por email (que pode dar ruim se a constraint tiver outro nome), 
           // a gente apenas FAZ UM UPDATE explícito para o email.
-          console.log("⚠️ Tentando fallback via update simples por email...")
-          const { error: updateErr } = await supabase.from("subscriptions").update({
+          console.log("⚠️ Tentando fallback seguro por email...")
+          const subData = {
             user_id: userId,
+            email: email,
             full_name: fullName,
             phone_number: phone,
             plan_name: planName,
@@ -143,10 +144,23 @@ serve(async (req: Request) => {
             subscription_status: "active",
             external_reference_id: externalId,
             updated_at: new Date().toISOString()
-          }).eq('email', email)
+          }
 
-          if (updateErr) console.error("❌ Erro final no update por email:", updateErr.message)
-          else console.log("✅ Banco atualizado por e-mail: Assinatura ATIVA")
+          const { data: existingSub } = await supabase
+            .from("subscriptions")
+            .select("id")
+            .eq("email", email)
+            .maybeSingle()
+
+          if (existingSub) {
+            const { error: updateErr } = await supabase.from("subscriptions").update(subData).eq("id", existingSub.id)
+            if (updateErr) console.error("❌ Erro final no update por email:", updateErr.message)
+            else console.log("✅ Banco atualizado por e-mail (UPDATE): Assinatura ATIVA")
+          } else {
+            const { error: insertErr } = await supabase.from("subscriptions").insert([subData])
+            if (insertErr) console.error("❌ Erro final no insert de fallback:", insertErr.message)
+            else console.log("✅ Banco atualizado (INSERT fallback): Assinatura ATIVA")
+          }
         } else {
           console.log("✅ Banco atualizado: Assinatura ATIVA")
         }

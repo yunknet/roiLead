@@ -83,32 +83,41 @@ serve(async (req: Request) => {
 
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
-        let userId = null
+        let userId: string | null = null
         const defaultPassword = "12345" // User requested simple password
 
+        // Busca de forma elástica, ignorando letras maiúsculas/minúsculas
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('id')
-          .eq('email', email)
-          .single()
+          .ilike('email', email)
+          .maybeSingle()
 
-        if (userProfile) {
+        if (userProfile && userProfile.id) {
           userId = userProfile.id
         } else {
-          console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
-          isNewUser = true
+          // Fallback final: tenta achar no Auth Admin se não tiver perfil
+          const { data: authUsers } = await supabase.auth.admin.listUsers()
+          const existing = authUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
-          const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
-            email: email,
-            password: defaultPassword,
-            email_confirm: true,
-            user_metadata: { first_name: firstName, phone: phone }
-          })
+          if (existing) {
+            userId = existing.id
+          } else {
+            console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
+            isNewUser = true
 
-          if (authErr) {
-            console.error("❌ Erro ao criar auth.user:", authErr)
-          } else if (newUserReq.user) {
-            userId = newUserReq.user.id
+            const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
+              email: email,
+              password: defaultPassword,
+              email_confirm: true,
+              user_metadata: { first_name: firstName, phone: phone }
+            })
+
+            if (authErr) {
+              console.error("❌ Erro ao criar auth.user:", authErr)
+            } else if (newUserReq.user) {
+              userId = newUserReq.user.id
+            }
           }
         }
 

@@ -115,6 +115,13 @@ serve(async (req: Request) => {
 
             if (authErr) {
               console.error("❌ Erro ao criar auth.user:", authErr)
+              // Resolve falha de concorrência (Outro evento pode ter criado no mesmo milissegundo)
+              const { data: authRetry } = await supabase.auth.admin.listUsers()
+              const existingRetry = authRetry?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+              if (existingRetry) {
+                userId = existingRetry.id
+                console.log(`✅ Usuário recuperado após corrida concorrente: ${userId}`)
+              }
             } else if (newUserReq.user) {
               userId = newUserReq.user.id
             }
@@ -123,8 +130,7 @@ serve(async (req: Request) => {
 
         // Upsert na tabela subscriptions
         // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
-        const { error: dbError } = await supabase.from("subscriptions").upsert({
-          user_id: userId,
+        const upsertData: any = {
           email: email,
           full_name: fullName,
           phone_number: phone,
@@ -134,7 +140,10 @@ serve(async (req: Request) => {
           subscription_status: "active",
           external_reference_id: externalId,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'external_reference_id' })
+        }
+        if (userId) upsertData.user_id = userId
+
+        const { error: dbError } = await supabase.from("subscriptions").upsert(upsertData, { onConflict: 'external_reference_id' })
 
         if (dbError) {
           console.error("❌ Erro no upsert (Subscriptions):", dbError.message)
@@ -142,8 +151,7 @@ serve(async (req: Request) => {
           // Em vez de upsert com onConflict por email (que pode dar ruim se a constraint tiver outro nome), 
           // a gente apenas FAZ UM UPDATE explícito para o email.
           console.log("⚠️ Tentando fallback seguro por email...")
-          const subData = {
-            user_id: userId,
+          const subData: any = {
             email: email,
             full_name: fullName,
             phone_number: phone,
@@ -154,11 +162,12 @@ serve(async (req: Request) => {
             external_reference_id: externalId,
             updated_at: new Date().toISOString()
           }
+          if (userId) subData.user_id = userId
 
           const { data: existingSub } = await supabase
             .from("subscriptions")
             .select("id")
-            .eq("email", email)
+            .ilike("email", email)
             .maybeSingle()
 
           if (existingSub) {

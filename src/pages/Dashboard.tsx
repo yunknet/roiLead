@@ -355,14 +355,6 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      // Sincroniza também na tabela subscriptions para garantir integridade
-      await supabase
-        .from('subscriptions')
-        .update({
-          phone_number: phone
-        })
-        .eq('user_id', user.id);
-
       toast.success("Telefone atualizado com sucesso!");
       setIsEditingPhone(false);
       // Atualiza estado local

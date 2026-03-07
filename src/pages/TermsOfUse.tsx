@@ -235,7 +235,7 @@ const TermsOfUse = () => {
           </section>
 
           <p className="text-sm text-muted-foreground italic mt-8 border-t border-border/50 pt-4">
-            Última atualização: 21/12/2025
+            Última atualização: 07/03/2026
           </p>
         </div>
       </main>

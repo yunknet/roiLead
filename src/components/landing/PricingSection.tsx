@@ -34,17 +34,18 @@ const PricingSection = () => {
       setLoadingPlan(plan.name);
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { plan_id: plan.id }
+        body: {} // Enviando vazio, não exigimos email antecipado
       });
 
       if (error) throw error;
-      const paymentUrl = data?.payment_url || data?.url;
-      if (paymentUrl) {
-        window.location.href = paymentUrl;
+      if (data?.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        throw new Error("Link de pagamento não recebido.");
       }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error('Erro ao processar o checkout. Tente novamente.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao gerar checkout: " + (error.message || "Tente novamente."));
     } finally {
       setLoadingPlan(null);
     }

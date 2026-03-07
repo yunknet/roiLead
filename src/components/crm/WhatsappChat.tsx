@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus, Bot, BotOff } from 'lucide-react';
+import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -295,6 +295,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (activeLead) {
+            // Limpa mensagens IMEDIATAMENTE ao trocar de lead para não exibir flash do chat anterior
+            setMessages([]);
             fetchMessages(activeLead.phone);
             setEditNameValue(activeLead.title);
             setIsEditingName(false);
@@ -302,6 +304,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             interval = setInterval(() => {
                 fetchMessages(activeLead.phone, true);
             }, 5000);
+        } else {
+            setMessages([]);
         }
         return () => {
             if (interval) clearInterval(interval);
@@ -325,7 +329,14 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             .order('updated_at', { ascending: false });
 
         if (!error && data) {
-            setLeads(data);
+            // Remove duplicatas de leads caso o webhook tenha lançado várias conversas com o mesmo número
+            const uniqueLeadsMap = new Map();
+            data.forEach(lead => {
+                if (!uniqueLeadsMap.has(lead.phone)) {
+                    uniqueLeadsMap.set(lead.phone, lead);
+                }
+            });
+            setLeads(Array.from(uniqueLeadsMap.values()));
         }
     };
 
@@ -581,17 +592,6 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             if (!insertError && newMsg) {
                 setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), newMsg]);
             }
-
-            if (activeLead.ai_auto_reply !== false) {
-                supabase.from('crm_leads').update({ ai_auto_reply: false }).eq('id', activeLead.id).then(({ error }) => {
-                    if (!error) {
-                        const updated = { ...activeLead, ai_auto_reply: false };
-                        setActiveLead(updated);
-                        setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                        toast.info("IA pausada automaticamente (Mensagem manual)");
-                    }
-                });
-            }
         }
 
         try {
@@ -645,27 +645,6 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                         {status === 'loading' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         {status === 'connected' && (
                             <div className="flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={`w-6 h-6 ${activeLead.ai_auto_reply === false ? 'text-muted-foreground' : 'text-primary hover:bg-primary/10'}`}
-                                    onClick={async () => {
-                                        const newState = !(activeLead.ai_auto_reply !== false);
-                                        const { error } = await supabase
-                                            .from('crm_leads')
-                                            .update({ ai_auto_reply: newState })
-                                            .eq('id', activeLead.id);
-                                        if (!error) {
-                                            const updated = { ...activeLead, ai_auto_reply: newState };
-                                            setActiveLead(updated);
-                                            setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                                            toast.success(newState ? "IA ativada para este contato" : "IA pausada para este contato");
-                                        }
-                                    }}
-                                    title={activeLead.ai_auto_reply === false ? "IA Pausada (Clique para Ativar)" : "IA Ativa (Clique para Pausar)"}
-                                >
-                                    {activeLead.ai_auto_reply === false ? <BotOff className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-                                </Button>
                                 <Button variant="ghost" size="icon" className="w-6 h-6 text-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => setShowDeleteClientConfirm(true)} title="Deletar Cliente">
                                     <UserMinus className="w-3.5 h-3.5" />
                                 </Button>

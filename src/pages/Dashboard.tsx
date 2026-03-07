@@ -22,8 +22,7 @@ import {
   Filter,
   Search,
   Clock,
-  Kanban,
-  Bot
+  Kanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,12 +34,10 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { WhatsappChat } from "@/components/crm/WhatsappChat";
-import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
-  { icon: Bot, label: "Agente IA", id: "agent" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -246,8 +243,6 @@ const Dashboard = () => {
             firstName: profile.first_name || "Usuário",
             lastName: profile.last_name || "",
             email: email,
-            phone_number: profile.phone_number,
-            last_phone_update: profile.last_phone_update,
           });
           setTempFirstName(profile.first_name || "");
           setTempLastName(profile.last_name || "");
@@ -407,33 +402,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      toast.error("As senhas não coincidem!");
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-      if (error) throw error;
-      toast.success("Senha alterada com sucesso!");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (error: any) {
-      console.error(error);
-      toast.error("Erro ao alterar senha. Tente deslogar e logar novamente.");
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
-
   const handleSubscribe = async (planId: string) => {
     setLoadingPlan(planId);
     try {
@@ -469,6 +437,33 @@ const Dashboard = () => {
       toast.error("Erro ao processar assinatura: " + (error.message || "Erro desconhecido"));
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success("Senha alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao alterar senha. Tente deslogar e logar novamente.");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -738,12 +733,6 @@ const Dashboard = () => {
               </div>
             )}
 
-            {activeMenu === "agent" && (
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <AIAgentSettings />
-              </div>
-            )}
-
             {activeMenu === "subscription" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
                 <div className="flex flex-col gap-2">
@@ -897,39 +886,36 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Alterar Senha */}
+                  {/* Bloco de Alterar Senha */}
                   <div className="p-6 rounded-xl bg-card border border-border space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
                       <Lock className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium text-foreground">Segurança</h3>
+                      <h3 className="font-medium text-foreground">Alterar Senha</h3>
                     </div>
                     <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-muted-foreground">Nova Senha</label>
+                      <p className="text-sm text-muted-foreground">
+                        Proteja sua conta utilizando uma senha forte com letras e números.
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <Input
                           type="password"
-                          placeholder="Mínimo 6 caracteres"
+                          placeholder="Nova Senha"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                         />
-                      </div>
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-muted-foreground">Confirmar Nova Senha</label>
                         <Input
                           type="password"
-                          placeholder="Confirme a nova senha"
+                          placeholder="Confirmar Nova Senha"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                         />
                       </div>
                       <Button
                         onClick={handleChangePassword}
-                        disabled={isChangingPassword || !newPassword || !confirmPassword}
-                        variant="default"
-                        className="w-full sm:w-auto mt-4"
+                        disabled={!newPassword || !confirmPassword || isChangingPassword}
                       >
-                        {isChangingPassword ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                        Alterar Senha
+                        {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {isChangingPassword ? "Alterando..." : "Salvar Nova Senha"}
                       </Button>
                     </div>
                   </div>

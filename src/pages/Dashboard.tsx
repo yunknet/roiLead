@@ -220,14 +220,21 @@ const Dashboard = () => {
 
         // 2. Fetch Subscription Status directly from subscriptions table
         // This is the source of truth for "Plano Contratado"
-        const { data: subData } = await supabase
+        const { data: subData, error: subErr } = await supabase
           .from('subscriptions')
           .select('subscription_status, created_at')
-          .eq('email', email)
+          .ilike('email', email)
           .eq('subscription_status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
-        setHasActiveSubscription(!!subData);
+        if (subErr) {
+          console.error("Erro ao buscar assinatura:", subErr.message);
+        }
+
+        const isActivelySubscribed = !!subData || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
+        setHasActiveSubscription(isActivelySubscribed);
         if (subData?.created_at) {
           setSubscriptionCreatedAt(subData.created_at);
         }
@@ -325,7 +332,11 @@ const Dashboard = () => {
       toast.success("Telefone atualizado com sucesso!");
       setIsEditingPhone(false);
       // Atualiza estado local
-      setUserProfile(prev => prev ? ({ ...prev, phone_number: phone }) : null);
+      setUserProfile(prev => prev ? ({
+        ...prev,
+        phone_number: phone,
+        last_phone_update: currentDate
+      }) : null);
 
     } catch (err: any) {
       toast.error("Erro ao atualizar telefone: " + err.message);

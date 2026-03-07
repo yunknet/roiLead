@@ -40,7 +40,16 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             const now = Date.now();
             let hasUpdates = false;
 
-            const updatedLeads = data.map(l => {
+            // Filtro para garantir apenas 1 lead por número caso existam duplicatas no banco
+            const uniqueLeadsMap = new Map();
+            data.forEach(lead => {
+                if (!uniqueLeadsMap.has(lead.phone)) {
+                    uniqueLeadsMap.set(lead.phone, lead);
+                }
+            });
+            const uniqueData = Array.from(uniqueLeadsMap.values());
+
+            const updatedLeads = uniqueData.map(l => {
                 // Se um lead ficar parado por mais de 24h, move-o para 'lost' (exceto se já estiver em won/lost)
                 if (l.status && l.status !== 'won' && l.status !== 'lost') {
                     const timeDiffHours = (now - new Date(l.updated_at).getTime()) / (1000 * 60 * 60);

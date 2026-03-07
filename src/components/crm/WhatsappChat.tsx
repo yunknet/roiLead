@@ -325,7 +325,14 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             .order('updated_at', { ascending: false });
 
         if (!error && data) {
-            setLeads(data);
+            // Remove duplicatas de leads caso o webhook tenha lançado várias conversas com o mesmo número
+            const uniqueLeadsMap = new Map();
+            data.forEach(lead => {
+                if (!uniqueLeadsMap.has(lead.phone)) {
+                    uniqueLeadsMap.set(lead.phone, lead);
+                }
+            });
+            setLeads(Array.from(uniqueLeadsMap.values()));
         }
     };
 

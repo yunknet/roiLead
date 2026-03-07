@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase } from 'lucide-react';
+import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { LeadProfileModal } from './LeadProfileModal';
@@ -189,6 +189,11 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                                 </span>
                                             </div>
                                         )}
+                                        <div className="mb-1 flex items-center">
+                                            <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1 truncate" title={lead.product_tag || 'Produto'}>
+                                                <ShoppingBag className="w-3 h-3 shrink-0" /> <span className="truncate">{lead.product_tag || 'Produto'}</span>
+                                            </span>
+                                        </div>
                                         {lead.company && lead.company !== "WhatsApp" && (
                                             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                                 <Briefcase className="w-3 h-3 shrink-0" />
@@ -231,6 +236,11 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                     }}
                     onUpdateValue={(id, value) => {
                         setLeads(leads.map(l => l.id === id ? { ...l, value } : l));
+                        setSelectedLead((prev: any) => prev ? { ...prev, value } : prev);
+                    }}
+                    onUpdateProduct={(id, product_tag) => {
+                        setLeads(leads.map(l => l.id === id ? { ...l, product_tag } : l));
+                        setSelectedLead((prev: any) => prev ? { ...prev, product_tag } : prev);
                     }}
                     onDeleteLead={(id) => {
                         setLeads(leads.filter(l => l.id !== id));

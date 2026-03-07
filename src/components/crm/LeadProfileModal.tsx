@@ -2,9 +2,23 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Building2, MessageCircle, FileText, Phone, Save, Edit2, Check, X, Trash2 } from 'lucide-react';
+import { Building2, MessageCircle, FileText, Phone, Save, Edit2, Check, X, Trash2, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+
+const PRODUCT_SUGGESTIONS = [
+    "Consórcio",
+    "Plano de Saúde",
+    "Seguro de Vida",
+    "Seguro Auto",
+    "Empréstimo",
+    "Cartão de Crédito",
+    "Investimentos",
+    "Energia Solar",
+    "Marketing Digital",
+    "Mentoria",
+    "Software/SaaS",
+];
 
 interface LeadProfileModalProps {
     lead: any;
@@ -13,25 +27,44 @@ interface LeadProfileModalProps {
     onCallLead?: (phone: string, title?: string) => void;
     onUpdateNotes?: (leadId: string, newNotes: string) => void;
     onUpdateValue?: (leadId: string, newValue: number) => void;
+    onUpdateProduct?: (leadId: string, newProduct: string) => void;
     onDeleteLead?: (leadId: string) => void;
 }
 
-export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNotes, onUpdateValue, onDeleteLead }: LeadProfileModalProps) {
+// Converte centavos para string formatada "R$ X.XXX,XX"
+function formatCurrency(cents: number): string {
+    const value = cents / 100;
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Converte valor numérico (ex: 150.5) para centavos inteiros
+function toCents(value: number): number {
+    return Math.round(value * 100);
+}
+
+export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNotes, onUpdateValue, onUpdateProduct, onDeleteLead }: LeadProfileModalProps) {
     const [activeTab, setActiveTab] = useState<'info' | 'notes'>('info');
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    const [leadValue, setLeadValue] = useState('');
+    // Value editing - em centavos para máscara monetária
+    const [valueCents, setValueCents] = useState(0);
     const [showEditValue, setShowEditValue] = useState(false);
-    const [isEditingValue, setIsEditingValue] = useState(false);
+
+    // Product tag editing
+    const [productTag, setProductTag] = useState('');
+    const [isEditingProduct, setIsEditingProduct] = useState(false);
+    const [productInputValue, setProductInputValue] = useState('');
 
     useEffect(() => {
         if (lead) {
             setNotes(lead.notes || '');
-            setLeadValue(lead.value?.toString() || '0');
-            setIsEditingValue(false);
+            setValueCents(toCents(lead.value || 0));
+            setProductTag(lead.product_tag || '');
+            setProductInputValue(lead.product_tag || '');
+            setIsEditingProduct(false);
         }
     }, [lead]);
 
@@ -39,8 +72,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
 
     const handleSaveNotes = async () => {
         setIsSaving(true);
-        // We simulate saving or actually try to save to the "notes" column if it exists.
-        // Se a coluna não existir no backend de prod, isso pode falhar. Usaremos try/catch.
         try {
             const { error } = await supabase
                 .from('crm_leads')
@@ -49,7 +80,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
 
             if (error) {
                 console.error(error);
-                // Fallback gracefully without throwing so the user's UI doesn't break
                 toast.error("Você precisa aplicar as migrations de dados no servidor antes de salvar notas ou verifique seus logs.");
             } else {
                 toast.success("Anotações salvas com sucesso!");
@@ -62,21 +92,48 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
         }
     };
 
+    // Máscara de moeda: o usuário digita números e o campo formata automaticamente
+    const handleCurrencyInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Remove tudo que não é dígito
+        const raw = e.target.value.replace(/\D/g, '');
+        const cents = parseInt(raw || '0', 10);
+        setValueCents(cents);
+    };
+
     const handleSaveValue = async () => {
-        const numValue = parseFloat(leadValue.replace(',', '.') || '0');
+        const realValue = valueCents / 100;
         try {
             const { error } = await supabase
                 .from('crm_leads')
-                .update({ value: numValue, updated_at: new Date().toISOString() })
+                .update({ value: realValue, updated_at: new Date().toISOString() })
                 .eq('id', lead.id);
 
             if (error) throw error;
             setShowEditValue(false);
-            if (onUpdateValue) onUpdateValue(lead.id, numValue);
-            toast.success("Valor atualizado com sucesso!");
+            if (onUpdateValue) onUpdateValue(lead.id, realValue);
+            toast.success("Valor atualizado!");
         } catch (error) {
             console.error(error);
             toast.error("Erro ao salvar o valor.");
+        }
+    };
+
+    const handleSaveProduct = async () => {
+        const trimmed = productInputValue.trim();
+        try {
+            const { error } = await supabase
+                .from('crm_leads')
+                .update({ product_tag: trimmed, updated_at: new Date().toISOString() })
+                .eq('id', lead.id);
+
+            if (error) throw error;
+            setProductTag(trimmed);
+            setIsEditingProduct(false);
+            if (onUpdateProduct) onUpdateProduct(lead.id, trimmed);
+            toast.success("Produto atualizado!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao salvar o produto.");
         }
     };
 
@@ -109,8 +166,16 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                     <DialogTitle className="text-xl font-bold flex items-center gap-2">
                         {lead.title}
                     </DialogTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 flex-wrap">
                         {lead.request_details && <span className="flex items-center gap-1 bg-green-100 text-green-700 font-medium px-2 py-1 rounded border border-green-200"><Building2 className="w-3 h-3" /> {lead.request_details}</span>}
+                        {/* Etiqueta azul do produto */}
+                        <span
+                            className="flex items-center gap-1 bg-blue-100 text-blue-700 font-medium px-2 py-1 rounded border border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors"
+                            onClick={() => { setIsEditingProduct(true); setProductInputValue(productTag); }}
+                            title="Clique para editar o produto"
+                        >
+                            <ShoppingBag className="w-3 h-3" /> {productTag || 'Produto'}
+                        </span>
                         <span className="flex items-center gap-1 bg-background px-2 py-1 rounded border"><Phone className="w-3 h-3" /> {lead.phone}</span>
                     </div>
                 </DialogHeader>
@@ -147,6 +212,23 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                         <span className="text-muted-foreground">Nicho/Busca:</span>
                                         <span className="font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full inline-block w-max text-xs">{lead.request_details || "-"}</span>
                                     </div>
+
+                                    {/* Produto/Venda - Etiqueta azul editável */}
+                                    <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                                        <span className="text-muted-foreground">Produto:</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full inline-block w-max text-xs">
+                                                {productTag || 'Produto'}
+                                            </span>
+                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => {
+                                                setProductInputValue(productTag);
+                                                setIsEditingProduct(true);
+                                            }}>
+                                                <Edit2 className="w-3 h-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
                                     {lead.company && lead.company !== "WhatsApp" && (
                                         <div className="grid grid-cols-[100px_1fr] gap-2">
                                             <span className="text-muted-foreground">Sócios:</span>
@@ -160,9 +242,9 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                     <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
                                         <span className="text-muted-foreground">Valor Estimado:</span>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-green-600 font-bold">R$ {lead.value || "0"}</span>
+                                            <span className="text-green-600 font-bold">R$ {formatCurrency(toCents(lead.value || 0))}</span>
                                             <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => {
-                                                setLeadValue(lead.value?.toString() || '0');
+                                                setValueCents(toCents(lead.value || 0));
                                                 setShowEditValue(true);
                                             }}>
                                                 <Edit2 className="w-3 h-3" />
@@ -242,7 +324,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Profissional de Atualização de Valor */}
+            {/* Modal de Atualização de Valor com Máscara Monetária */}
             <Dialog open={showEditValue} onOpenChange={setShowEditValue}>
                 <DialogContent className="sm:max-w-[350px]">
                     <DialogHeader>
@@ -255,24 +337,78 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">R$</span>
                             <Input
-                                value={leadValue}
-                                onChange={(e) => setLeadValue(e.target.value)}
-                                className="pl-9 h-12 text-lg font-semibold"
-                                type="number"
-                                step="any"
+                                value={formatCurrency(valueCents)}
+                                onChange={handleCurrencyInput}
+                                className="pl-9 h-12 text-lg font-semibold text-right"
+                                inputMode="numeric"
                                 autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleSaveValue()}
                             />
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">Digite apenas os números. O valor é formatado automaticamente.</p>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => {
                             setShowEditValue(false);
-                            setLeadValue(lead.value?.toString() || '0');
+                            setValueCents(toCents(lead.value || 0));
                         }}>
                             Cancelar
                         </Button>
                         <Button onClick={handleSaveValue} className="bg-green-600 hover:bg-green-700 text-white">
                             Salvar Valor
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal de Edição do Produto */}
+            <Dialog open={isEditingProduct} onOpenChange={setIsEditingProduct}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <ShoppingBag className="w-5 h-5 text-blue-600" /> O que você está vendendo?
+                        </DialogTitle>
+                        <DialogDescription>
+                            Defina o produto ou serviço que você está oferecendo para este lead.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Input
+                            value={productInputValue}
+                            onChange={(e) => setProductInputValue(e.target.value)}
+                            placeholder="Ex: Consórcio, Plano de Saúde, Seguro..."
+                            className="h-11"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleSaveProduct()}
+                        />
+                        <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground font-medium">Sugestões rápidas:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {PRODUCT_SUGGESTIONS.map(suggestion => (
+                                    <button
+                                        key={suggestion}
+                                        type="button"
+                                        onClick={() => setProductInputValue(suggestion)}
+                                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${productInputValue === suggestion
+                                                ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                                : 'bg-muted/50 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                                            }`}
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsEditingProduct(false);
+                            setProductInputValue(productTag);
+                        }}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleSaveProduct} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            Salvar Produto
                         </Button>
                     </DialogFooter>
                 </DialogContent>

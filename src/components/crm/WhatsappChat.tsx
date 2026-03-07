@@ -295,6 +295,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (activeLead) {
+            // Limpa mensagens IMEDIATAMENTE ao trocar de lead para não exibir flash do chat anterior
+            setMessages([]);
             fetchMessages(activeLead.phone);
             setEditNameValue(activeLead.title);
             setIsEditingName(false);
@@ -302,6 +304,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             interval = setInterval(() => {
                 fetchMessages(activeLead.phone, true);
             }, 5000);
+        } else {
+            setMessages([]);
         }
         return () => {
             if (interval) clearInterval(interval);

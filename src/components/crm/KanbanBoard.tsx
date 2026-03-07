@@ -49,13 +49,33 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             });
             const uniqueData = Array.from(uniqueLeadsMap.values());
 
+            // Detecta nome do dono: se 2+ leads compartilham o mesmo título, é o nome do próprio usuário
+            const titleCount: Record<string, number> = {};
+            uniqueData.forEach(lead => {
+                const t = (lead.title || '').trim().toLowerCase();
+                if (t && t !== lead.phone) {
+                    titleCount[t] = (titleCount[t] || 0) + 1;
+                }
+            });
+            const ownerNames = new Set(
+                Object.entries(titleCount)
+                    .filter(([_, count]) => count >= 2)
+                    .map(([title]) => title)
+            );
+
             const updatedLeads = uniqueData.map(l => {
+                // Corrige título se for o nome do dono
+                const titleLower = (l.title || '').trim().toLowerCase();
+                if (ownerNames.has(titleLower)) {
+                    supabase.from('crm_leads').update({ title: l.phone }).eq('id', l.id).then();
+                    l = { ...l, title: l.phone };
+                }
+
                 // Se um lead ficar parado por mais de 24h, move-o para 'lost' (exceto se já estiver em won/lost)
                 if (l.status && l.status !== 'won' && l.status !== 'lost') {
                     const timeDiffHours = (now - new Date(l.updated_at).getTime()) / (1000 * 60 * 60);
                     if (timeDiffHours >= 24) {
                         hasUpdates = true;
-                        // Trigger async DB update without awaiting so users don't wait
                         supabase.from('crm_leads').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', l.id).then();
                         return { ...l, status: 'lost' };
                     }

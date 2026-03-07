@@ -119,7 +119,7 @@ const Dashboard = () => {
 
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
-  const handleOpenWhatsApp = (phone: string, title?: string, company?: string, requestDetails?: string) => {
+  const handleOpenWhatsApp = async (phone: string, title?: string, company?: string, requestDetails?: string) => {
     let cleanPhone = phone.replace(/\D/g, "");
     if (!cleanPhone) {
       toast.error("Número de telefone não encontrado.");
@@ -127,6 +127,34 @@ const Dashboard = () => {
     }
     if (cleanPhone.length <= 11) {
       cleanPhone = `55${cleanPhone}`;
+    }
+
+    // Pré-cria o lead no CRM com o nome correto do cliente
+    // para que, ao receber mensagens via webhook, o nome não seja substituído pelo pushName (nome do remetente)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: existingLead } = await supabase
+          .from('crm_leads')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (!existingLead) {
+          await supabase.from('crm_leads').insert({
+            user_id: user.id,
+            title: title || cleanPhone,
+            phone: cleanPhone,
+            company: company || "WhatsApp",
+            request_details: requestDetails || null,
+            status: 'new',
+            value: 0
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao pré-criar lead no CRM:", err);
     }
 
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;

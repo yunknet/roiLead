@@ -83,39 +83,54 @@ serve(async (req: Request) => {
 
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
-        let userId = null
+        let userId: string | null = null
         const defaultPassword = "12345" // User requested simple password
 
+        // Busca de forma elástica, ignorando letras maiúsculas/minúsculas
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('id')
-          .eq('email', email)
-          .single()
+          .ilike('email', email)
+          .maybeSingle()
 
-        if (userProfile) {
+        if (userProfile && userProfile.id) {
           userId = userProfile.id
         } else {
-          console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
-          isNewUser = true
+          // Fallback final: tenta achar no Auth Admin se não tiver perfil
+          const { data: authUsers } = await supabase.auth.admin.listUsers()
+          const existing = authUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
-          const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
-            email: email,
-            password: defaultPassword,
-            email_confirm: true,
-            user_metadata: { first_name: firstName, phone: phone }
-          })
+          if (existing) {
+            userId = existing.id
+          } else {
+            console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
+            isNewUser = true
 
-          if (authErr) {
-            console.error("❌ Erro ao criar auth.user:", authErr)
-          } else if (newUserReq.user) {
-            userId = newUserReq.user.id
+            const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
+              email: email,
+              password: defaultPassword,
+              email_confirm: true,
+              user_metadata: { first_name: firstName, phone: phone }
+            })
+
+            if (authErr) {
+              console.error("❌ Erro ao criar auth.user:", authErr)
+              // Resolve falha de concorrência (Outro evento pode ter criado no mesmo milissegundo)
+              const { data: authRetry } = await supabase.auth.admin.listUsers()
+              const existingRetry = authRetry?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+              if (existingRetry) {
+                userId = existingRetry.id
+                console.log(`✅ Usuário recuperado após corrida concorrente: ${userId}`)
+              }
+            } else if (newUserReq.user) {
+              userId = newUserReq.user.id
+            }
           }
         }
 
         // Upsert na tabela subscriptions
         // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
-        const { error: dbError } = await supabase.from("subscriptions").upsert({
-          user_id: userId,
+        const upsertData: any = {
           email: email,
           full_name: fullName,
           phone_number: phone,
@@ -125,16 +140,19 @@ serve(async (req: Request) => {
           subscription_status: "active",
           external_reference_id: externalId,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'external_reference_id' })
+        }
+        if (userId) upsertData.user_id = userId
+
+        const { error: dbError } = await supabase.from("subscriptions").upsert(upsertData, { onConflict: 'external_reference_id' })
 
         if (dbError) {
           console.error("❌ Erro no upsert (Subscriptions):", dbError.message)
           // Se falhou por chave duplicada (provavelmente o email já existia num external_id antigo)
           // Em vez de upsert com onConflict por email (que pode dar ruim se a constraint tiver outro nome), 
           // a gente apenas FAZ UM UPDATE explícito para o email.
-          console.log("⚠️ Tentando fallback via update simples por email...")
-          const { error: updateErr } = await supabase.from("subscriptions").update({
-            user_id: userId,
+          console.log("⚠️ Tentando fallback seguro por email...")
+          const subData: any = {
+            email: email,
             full_name: fullName,
             phone_number: phone,
             plan_name: planName,
@@ -143,10 +161,24 @@ serve(async (req: Request) => {
             subscription_status: "active",
             external_reference_id: externalId,
             updated_at: new Date().toISOString()
-          }).eq('email', email)
+          }
+          if (userId) subData.user_id = userId
 
-          if (updateErr) console.error("❌ Erro final no update por email:", updateErr.message)
-          else console.log("✅ Banco atualizado por e-mail: Assinatura ATIVA")
+          const { data: existingSub } = await supabase
+            .from("subscriptions")
+            .select("id")
+            .ilike("email", email)
+            .maybeSingle()
+
+          if (existingSub) {
+            const { error: updateErr } = await supabase.from("subscriptions").update(subData).eq("id", existingSub.id)
+            if (updateErr) console.error("❌ Erro final no update por email:", updateErr.message)
+            else console.log("✅ Banco atualizado por e-mail (UPDATE): Assinatura ATIVA")
+          } else {
+            const { error: insertErr } = await supabase.from("subscriptions").insert([subData])
+            if (insertErr) console.error("❌ Erro final no insert de fallback:", insertErr.message)
+            else console.log("✅ Banco atualizado (INSERT fallback): Assinatura ATIVA")
+          }
         } else {
           console.log("✅ Banco atualizado: Assinatura ATIVA")
         }
@@ -154,8 +186,7 @@ serve(async (req: Request) => {
         // Atualiza status no Profile tbm para garantir o acesso imediato
         if (userId) {
           const { error: profileErr } = await supabase.from('profiles').update({
-            payment_status: 'PAID',
-            access_status: 'PAID_USER'
+            payment_status: 'PAID'
           }).eq('id', userId)
 
           if (profileErr) {
@@ -166,7 +197,7 @@ serve(async (req: Request) => {
               full_name: fullName,
               phone_number: phone,
               payment_status: 'PAID',
-              access_status: 'PAID_USER'
+              access_status: 'NEW'
             }, { onConflict: 'id' })
           }
         }

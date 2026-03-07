@@ -122,6 +122,22 @@ const TermsOfUse = () => {
           </section>
 
           <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Condições de Pagamento</h2>
+            <p className="text-muted-foreground mb-3">
+              Atualmente, o acesso à plataforma roiLead é concedido mediante pagamento único no valor de R$67, garantindo ao usuário a utilização conforme as condições vigentes no momento da contratação.
+            </p>
+            <p className="text-muted-foreground mb-3">
+              No entanto, a roiLead reserva-se o direito de, a qualquer momento, realizar atualizações em seu modelo de negócios, funcionalidades, estrutura de acesso ou política comercial. Em decorrência dessas possíveis atualizações, o formato de cobrança poderá ser alterado para modelo de assinatura recorrente (mensal) ou sofrer reajustes de valores para novos acessos.
+            </p>
+            <p className="text-muted-foreground mb-3">
+              Tais alterações não afetarão automaticamente acessos já concedidos sob as condições anteriormente contratadas, salvo em casos de mudança estrutural relevante na plataforma ou na forma de disponibilização do serviço.
+            </p>
+            <p className="text-muted-foreground mb-4">
+              Ao realizar a contratação, o usuário declara estar ciente e de acordo com estas condições.
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Pagamentos, Planos e Cancelamento</h2>
             <p className="text-muted-foreground mb-3">O acesso ao roiLead está condicionado à contratação de um plano pago, podendo ser mensal ou anual.</p>
             <p className="text-muted-foreground mb-3">Os valores, condições e benefícios de cada plano serão informados no momento da contratação.</p>

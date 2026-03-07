@@ -27,7 +27,7 @@ const PrivacyPolicy = () => {
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
           Política de Privacidade
         </h1>
-        <p className="text-muted-foreground mb-8">Última atualização: 03 de outubro de 2025</p>
+        <p className="text-muted-foreground mb-8">Última atualização: 07/03/2026</p>
 
         <div className="prose prose-invert max-w-none space-y-8">
           <p className="text-muted-foreground leading-relaxed">

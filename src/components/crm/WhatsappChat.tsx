@@ -336,7 +336,41 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     uniqueLeadsMap.set(lead.phone, lead);
                 }
             });
-            setLeads(Array.from(uniqueLeadsMap.values()));
+
+            const uniqueLeads = Array.from(uniqueLeadsMap.values());
+
+            // Detecta o nome do próprio usuário: se 2+ leads com telefone diferente
+            // compartilham o mesmo título, esse título é claramente o nome do dono da conta
+            const titleCount: Record<string, number> = {};
+            uniqueLeads.forEach(lead => {
+                const t = (lead.title || '').trim().toLowerCase();
+                if (t && t !== lead.phone) { // Ignora títulos que já são telefone
+                    titleCount[t] = (titleCount[t] || 0) + 1;
+                }
+            });
+
+            // Títulos que aparecem em 2+ leads diferentes são o nome do dono
+            const ownerNames = new Set(
+                Object.entries(titleCount)
+                    .filter(([_, count]) => count >= 2)
+                    .map(([title]) => title)
+            );
+
+            const fixedLeads = uniqueLeads.map(lead => {
+                const titleLower = (lead.title || '').trim().toLowerCase();
+
+                if (ownerNames.has(titleLower)) {
+                    // Corrige no banco de dados silenciosamente
+                    supabase.from('crm_leads')
+                        .update({ title: lead.phone })
+                        .eq('id', lead.id)
+                        .then();
+                    return { ...lead, title: lead.phone };
+                }
+                return lead;
+            });
+
+            setLeads(fixedLeads);
         }
     };
 
@@ -500,6 +534,16 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
+            // Garantir que o título não seja o nome do próprio usuário (pushName do webhook)
+            const userDisplayName = (user.user_metadata?.full_name || user.user_metadata?.name || '').trim().toLowerCase();
+            const userFirstName = (user.user_metadata?.first_name || userDisplayName.split(' ')[0] || '').trim().toLowerCase();
+            const titleLower = (title || '').trim().toLowerCase();
+
+            let safeTitle = title || phone;
+            if (titleLower && (titleLower === userFirstName || titleLower === userDisplayName)) {
+                safeTitle = phone; // Usa o telefone ao invés do nome do próprio usuário
+            }
+
             // Check DB directly in case state is stale
             const { data: dbLead } = await supabase
                 .from('crm_leads')
@@ -514,7 +558,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                 // Create it
                 const { data: newLead, error } = await supabase.from('crm_leads').insert({
                     user_id: user.id,
-                    title: title || phone,
+                    title: safeTitle,
                     phone: phone,
                     company: company || "WhatsApp",
                     request_details: requestDetails || null,

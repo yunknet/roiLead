@@ -3,7 +3,7 @@
  * Utiliza a Web Crypto API nativa do Deno.
  */
 
-const SALT = 'roilead_e2e_salt_2026';
+const SALT = Deno.env.get('SALT_KEY') || 'roilead_e2e_salt_2026';
 
 async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();

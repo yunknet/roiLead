@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SALT = 'roilead_e2e_salt_2026';
+const SALT = Deno.env.get('SALT_KEY') || 'roilead_e2e_salt_2026';
 
 async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();

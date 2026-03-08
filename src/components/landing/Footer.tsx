@@ -97,11 +97,10 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-muted-foreground text-sm text-center md:text-left">
+        <div className="mt-12 pt-8 border-t border-border flex flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground text-sm text-center">
             © {new Date().getFullYear()} roiLead. Todos os direitos reservados. | 59.954.031/0001-24 - ROI MÍDIA LTDA
           </p>
-
         </div>
       </div>
     </footer>

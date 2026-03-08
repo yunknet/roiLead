@@ -104,7 +104,7 @@ const PrivacyPolicy = () => {
               <li>Corrigir ou atualizar informações cadastrais</li>
               <li>Solicitar a exclusão de sua conta e dados, observadas as obrigações legais de retenção</li>
             </ul>
-            <p className="text-muted-foreground mt-4">As solicitações devem ser feitas através do e-mail: 📧 ynksystems@gmail.com</p>
+            <p className="text-muted-foreground mt-4">As solicitações devem ser feitas através do e-mail: 📧 contato@roilead.com.br</p>
           </section>
 
           <section>
@@ -131,7 +131,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">9. Contato</h2>
             <p className="text-muted-foreground">Em caso de dúvidas, solicitações ou questões relacionadas à privacidade e proteção de dados, entre em contato:</p>
-            <p className="text-primary mt-2">📧 E-mail: ynksystems@gmail.com</p>
+            <p className="text-primary mt-2">📧 E-mail: contato@roilead.com.br</p>
           </section>
         </div>
       </main>

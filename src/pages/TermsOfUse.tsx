@@ -35,7 +35,7 @@ const TermsOfUse = () => {
               O roiLead é uma plataforma de inteligência voltada à geração automatizada de leads para empresas, utilizando tecnologia de automação e integração com WhatsApp. Estes Termos de Uso têm como objetivo explicar, de forma clara e transparente, como funcionam nossos serviços e quais são os direitos e responsabilidades dos usuários ao utilizarem a plataforma.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              Caso tenha qualquer dúvida ou solicitação, entre em contato pelo e-mail: 📧 ynksystems@gmail.com
+              Caso tenha qualquer dúvida ou solicitação, entre em contato pelo e-mail: 📧 contato@roilead.com.br
             </p>
             <p className="text-muted-foreground leading-relaxed">
               Ao utilizar os serviços do roiLead, você concorda integral e incondicionalmente com estes Termos de Uso e com a nossa Política de Privacidade. Caso não concorde com qualquer cláusula, não utilize a plataforma.
@@ -204,7 +204,7 @@ const TermsOfUse = () => {
               <li>Exclusão</li>
               <li>Revogação do consentimento</li>
             </ul>
-            <p className="text-muted-foreground">Solicitações via: 📧 ynksystems@gmail.com</p>
+            <p className="text-muted-foreground">Solicitações via: 📧 contato@roilead.com.br</p>
           </section>
 
           <section>

@@ -104,7 +104,7 @@ const PrivacyPolicy = () => {
               <li>Corrigir ou atualizar informações cadastrais</li>
               <li>Solicitar a exclusão de sua conta e dados, observadas as obrigações legais de retenção</li>
             </ul>
-            <p className="text-muted-foreground mt-4">As solicitações devem ser feitas através do e-mail: 📧 contato@roilead.com.br</p>
+            <p className="text-muted-foreground mt-4">As solicitações devem ser feitas através do e-mail: 📧 ynksystems@gmail.com</p>
           </section>
 
           <section>
@@ -124,14 +124,27 @@ const PrivacyPolicy = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">8. Isenção de Vínculo</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">8. Criptografia de Mensagens</h2>
+            <p className="text-muted-foreground mb-3">As mensagens trocadas pelo usuário através da integração com o WhatsApp são protegidas por criptografia AES-256-GCM de ponta-a-ponta.</p>
+            <p className="text-muted-foreground mb-3">Isso significa que:</p>
+            <ul className="list-disc list-inside text-muted-foreground space-y-2">
+              <li>As mensagens são criptografadas antes de serem armazenadas no banco de dados</li>
+              <li>Somente o próprio usuário, ao acessar sua conta, consegue visualizar o conteúdo das suas mensagens</li>
+              <li>Nem mesmo a equipe do roiLead tem acesso visual ao conteúdo das conversas armazenadas</li>
+              <li>Em caso de vazamento de dados, as mensagens permanecerão ilegíveis para terceiros sem a chave correspondente</li>
+            </ul>
+            <p className="text-muted-foreground mt-4">Esta medida reforça nosso compromisso com a privacidade e a proteção dos dados dos nossos usuários.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">9. Isenção de Vínculo</h2>
             <p className="text-muted-foreground">O roiLead não possui qualquer tipo de vínculo, parceria ou relação com a empresa WHATSAPP, LLC ou Facebook Inc. O roiLead é uma ferramenta de automação.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">9. Contato</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">10. Contato</h2>
             <p className="text-muted-foreground">Em caso de dúvidas, solicitações ou questões relacionadas à privacidade e proteção de dados, entre em contato:</p>
-            <p className="text-primary mt-2">📧 E-mail: contato@roilead.com.br</p>
+            <p className="text-primary mt-2">📧 E-mail: ynksystems@gmail.com</p>
           </section>
         </div>
       </main>

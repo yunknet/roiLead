@@ -5,7 +5,7 @@
  * consiga descriptografar suas mensagens.
  */
 
-const SALT = 'roilead_e2e_salt_2026';
+const SALT = import.meta.env.VITE_SALT_KEY || 'roilead_e2e_salt_2026'; // Fallback apenas para segurança durante transição
 
 // Deriva uma chave AES-256 a partir do user_id
 async function deriveKey(userId: string): Promise<CryptoKey> {

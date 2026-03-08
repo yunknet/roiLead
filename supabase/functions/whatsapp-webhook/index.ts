@@ -93,8 +93,8 @@ serve(async (req) => {
       let rawBase64 = msg.message?.base64 || msg.base64 || msg.message?.audioMessage?.base64 || msg.message?.imageMessage?.base64 || msg.message?.videoMessage?.base64 || data?.base64;
       if (!rawBase64 && msgType !== 'text') {
         try {
-          const evoUrl = Deno.env.get('EVOLUTION_API_URL') || 'https://evoapi.ynksystems.com';
-          const evoKey = Deno.env.get('EVOLUTION_GLOBAL_KEY') || 'nvVTU4qX7fkYtvQ6bfz5wiYEXSP0tTPJ';
+          const evoUrl = Deno.env.get('EVOLUTION_API_URL');
+          const evoKey = Deno.env.get('EVOLUTION_GLOBAL_KEY');
           const mediaRes = await fetch(`${evoUrl}/chat/getBase64FromMediaMessage/${instanceStr}`, {
             method: 'POST',
             headers: {

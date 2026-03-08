@@ -46,7 +46,7 @@ const Footer = () => {
                 Whatsapp
               </a>
               <a
-                href="mailto:ynksystems@gmail.com"
+                href="mailto:contato@roilead.com.br"
                 className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -97,11 +97,10 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-muted-foreground text-sm text-center md:text-left">
-            © {new Date().getFullYear()} roiLead. Todos os direitos reservados.
+        <div className="mt-12 pt-8 border-t border-border flex flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground text-sm text-center">
+            © {new Date().getFullYear()} roiLead. Todos os direitos reservados. | 59.954.031/0001-24 - ROI MÍDIA LTDA
           </p>
-
         </div>
       </div>
     </footer>

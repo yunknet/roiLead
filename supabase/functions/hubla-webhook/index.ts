@@ -203,26 +203,48 @@ serve(async (req: Request) => {
         }
       }
 
-      // Envia WhatsApp do roiLead (v2.1)
-      if (eventType === 'invoice.payment_succeeded' && phone && evoUrl && evoInstance) {
+      // Envia WhatsApp e/ou E-mail do roiLead (v2.1)
+      if (eventType === 'invoice.payment_succeeded') {
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        const senderEmail = "Equipe roiLead <contato@roilead.com.br>"; // Ajuste conforme seu domínio verificado no Resend
+
         if (isNewUser) {
-          // Mensagem de Boas Vindas + Acesso
-          const msg1 = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:${email} e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
+          // 1. Envio do E-mail para Usuário Novo
+          if (email && resendApiKey) {
+            const emailSubject = "Seu acesso ao roiLead chegou! 🚀";
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>12345</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Esse é o Whatsapp Oficial onde você consegue conversar e pedir os Leads: <a href="https://wa.me/5538997426436">https://wa.me/5538997426436</a><br><br>Importante: Pedimos que, assim que entrar no painel, você atualize seus dados de contato. Isso garante que nossas notificações e integrações funcionem perfeitamente para você.<br><br>Se tiver qualquer dificuldade, basta responder a este e-mail.<br><br>Equipe roiLead.`;
+            await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
+          }
 
-          // Mensagem de Instruções de Uso
-          const msg2 = `O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
+          // 2. Envio do WhatsApp para Usuário Novo
+          if (phone && evoUrl && evoInstance && evoKey) {
+            // Mensagem de Boas Vindas + Acesso
+            const msg1 = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:(${email}) e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
 
-          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg1)
+            // Mensagem de Instruções de Uso
+            const msg2 = `O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
 
-          // Pausa de 1,5 segundos para evitar que as mensagens cheguem fora de ordem no celular
-          await new Promise(resolve => setTimeout(resolve, 1500))
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg1)
 
-          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg2)
+            // Pausa de 1,5 segundos para evitar que as mensagens cheguem fora de ordem no celular
+            await new Promise(resolve => setTimeout(resolve, 1500))
+
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg2)
+          }
 
         } else {
-          // Usuários que já tinham conta (Veteranos) recebem a mensagem padrão antiga de uma vez
-          const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
-          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+          // 1. Envio do E-mail para Veterano
+          if (email && resendApiKey) {
+            const emailSubject = "Pagamento Confirmado - roiLead! ✅";
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>Se tiver qualquer dificuldade, basta responder a este e-mail.<br><br>Equipe roiLead.`;
+            await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
+          }
+
+          // 2. Envio do WhatsApp para Veterano
+          if (phone && evoUrl && evoInstance && evoKey) {
+            const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+          }
         }
       }
     }
@@ -304,4 +326,31 @@ async function sendWhatsapp(url: string, key: string, instance: string, phone: s
       console.log("✅ WhatsApp enviado com sucesso.")
     }
   } catch (e) { console.error("❌ Falha na conexão Evolution:", e) }
+}
+
+// Função de Envio de E-mail (Resend)
+async function sendEmail(apiKey: string, from: string, to: string, subject: string, html: string) {
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: from,
+        to: [to],
+        subject: subject,
+        html: html,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Erro Resend:`, await response.text());
+    } else {
+      console.log(`✅ E-mail enviado com sucesso para ${to}`);
+    }
+  } catch (e) {
+    console.error("❌ Falha na conexão com Resend:", e);
+  }
 }

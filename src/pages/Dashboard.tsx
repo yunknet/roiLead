@@ -160,7 +160,7 @@ const Dashboard = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
 
     if (isMobile) {
-      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
       toast.success("Abrindo o aplicativo do WhatsApp...");
     } else {
       setWhatsappInitialLead({
@@ -1169,8 +1169,9 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
 
           <div className="flex items-center justify-between sm:justify-end gap-3">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                {leads.length} Leads
+              <span className="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-primary/10 text-primary min-w-[60px] leading-tight">
+                <span className="text-sm font-black">{leads.length}</span>
+                <span className="text-[10px] font-bold uppercase tracking-tighter">Leads</span>
               </span>
             </div>
 

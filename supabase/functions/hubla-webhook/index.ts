@@ -72,7 +72,9 @@ serve(async (req: Request) => {
       // Se cents > 0 divide por 100, senão tenta pegar de data.amount (number normal)
       const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0)
 
-      const planName = "Anual";
+      // Identifica o plano dinamicamente pelo valor pago
+      // Mensal = 67.00 | Anual = 324.00 (ou algo acima de 100 reais)
+      const planName = amount > 100 ? "Anual" : "Mensal";
 
       // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
@@ -127,6 +129,18 @@ serve(async (req: Request) => {
             }
           }
         }
+<<<<<<< HEAD
+=======
+
+        // Calcula a data de expiração baseada no plano
+        const now = new Date();
+        const expiresAt = new Date(now);
+        if (planName === "Anual") {
+          expiresAt.setFullYear(now.getFullYear() + 1);
+        } else {
+          expiresAt.setDate(now.getDate() + 30);
+        }
+>>>>>>> teste
 
         // Upsert na tabela subscriptions
         // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
@@ -139,7 +153,12 @@ serve(async (req: Request) => {
           payment_status: "paid",
           subscription_status: "active",
           external_reference_id: externalId,
+<<<<<<< HEAD
           updated_at: new Date().toISOString()
+=======
+          expires_at: expiresAt.toISOString(),
+          updated_at: now.toISOString()
+>>>>>>> teste
         }
         if (userId) upsertData.user_id = userId
 
@@ -160,7 +179,12 @@ serve(async (req: Request) => {
             payment_status: "paid",
             subscription_status: "active",
             external_reference_id: externalId,
+<<<<<<< HEAD
             updated_at: new Date().toISOString()
+=======
+            expires_at: expiresAt.toISOString(),
+            updated_at: now.toISOString()
+>>>>>>> teste
           }
           if (userId) subData.user_id = userId
 
@@ -250,43 +274,56 @@ serve(async (req: Request) => {
     }
 
     // ====================================================
-    // GRUPO 2: CANCELAMENTO / REEMBOLSO
+    // GRUPO 2: CANCELAMENTO / REEMBOLSO / EXPIRAÇÃO
     // ====================================================
     else if (
       eventType === 'invoice.refunded' ||
       eventType === 'subscription.canceled' ||
       eventType === 'CanceledSubscription' ||
-      eventType === 'subscription.desactivated'
+      eventType === 'subscription.desactivated' ||
+      eventType === 'subscription.deactivated'
     ) {
 
-      const { email, firstName, phone } = getCustomerData(eventData)
+      const { email, firstName, phone, user: userData } = getCustomerData(eventData)
 
-      console.log(`🚫 Cancelando acesso roiLead de: ${maskEmail(email)}`)
+      console.log(`🚫 Gerenciando encerramento de acesso roiLead para: ${maskEmail(email)} (Motivo: ${eventType})`)
 
       if (email) {
-        const payStatus = eventType === 'invoice.refunded' ? 'refunded' : 'canceled'
+        // Define o status do banco baseado no evento
+        const isExpiration = eventType === 'subscription.deactivated' || eventType === 'subscription.desactivated';
+        const subStatus = isExpiration ? 'expired' : 'canceled';
+        const payStatus = eventType === 'invoice.refunded' ? 'refunded' : (isExpiration ? 'expired' : 'canceled');
 
         const { error } = await supabase
           .from("subscriptions")
           .update({
-            subscription_status: "canceled",
+            subscription_status: subStatus,
             payment_status: payStatus,
             updated_at: new Date().toISOString()
           })
           .eq("email", email)
 
-        if (error) console.error("❌ Erro ao atualizar banco (Cancelamento):", error)
-        else console.log("✅ Banco atualizado: Status CANCELADO")
+        if (error) console.error("❌ Erro ao atualizar banco (Encerramento):", error)
+        else console.log(`✅ Banco atualizado: Status ${subStatus.toUpperCase()}`)
 
-        // Opcional: remover acesso no perfil
+        // Remove acesso no perfil
         await supabase.from('profiles').update({
           payment_status: 'NONE',
           access_status: 'NEW'
         }).eq('email', email)
       }
 
-      if (phone && evoUrl && evoInstance) {
-        const textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente acessando o painel.`
+      if (phone && evoUrl && evoInstance && evoKey) {
+        let textMessage = "";
+
+        if (eventType === 'subscription.deactivated' || eventType === 'subscription.desactivated') {
+          // MENSAGEM DE EXPIRAÇÃO (Tempo acabou)
+          textMessage = `Olá, ${firstName}! 👋\n\nNotei aqui que sua assinatura do *roiLead* chegou ao fim hoje.\n\nEspero que tenha gerado bons negócios nesse período! 🚀\n\nCaso queira continuar encontrando leads qualificados, basta realizar a renovação acessando seu painel: https://roilead.com.br/dashboard\n\nQualquer dúvida, estamos por aqui! 👇`
+        } else {
+          // MENSAGEM DE CANCELAMENTO OU REEMBOLSO
+          textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente acessando o painel.`
+        }
+
         await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
       }
     }

@@ -7,11 +7,29 @@ import { useState } from "react";
 
 const plans = [
   {
+    id: "mensal",
+    name: "Mensal",
+    description: "Ideal para testar a plataforma",
+    price: "67,00",
+    period: "/mês",
+    features: [
+      "Leads ilimitados",
+      "Busca por região e nicho",
+      "WhatsApp conectado",
+      "Filtros avançados",
+      "Histórico ilimitado",
+      "Acesso imediato"
+    ],
+    popular: false,
+  },
+  {
     id: "anual",
     name: "Anual",
-    description: "Plano completo para o seu negócio",
-    price: "67,00",
-    period: "/ano",
+    description: "O melhor custo-benefício.",
+    price: "27,00",
+    period: "/mês",
+    installment: "12x R$ 27,00",
+    savings: "Economia de 60% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
@@ -19,8 +37,8 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-
-      "Acesso imediato"
+      "Acesso imediato",
+      "Bônus 🎁"
     ],
     popular: true,
   },
@@ -61,7 +79,7 @@ const PricingSection = () => {
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
             Receba 30 leads empresariais <span className="text-gradient">qualificados</span> em 7 dias ou seu dinheiro de volta
           </h2>
-          <span className="text-primary text-sm font-semibold uppercase tracking-wider">
+          <span className="text-primary text-base sm:text-lg font-bold uppercase tracking-widest">
             Preços
           </span>
         </div>
@@ -78,8 +96,8 @@ const PricingSection = () => {
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-medium">
-                    Mais Popular
+                  <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                    Mais Vantajoso
                   </span>
                 </div>
               )}
@@ -90,8 +108,16 @@ const PricingSection = () => {
               </div>
 
               <div className="mb-6">
-                <span className="text-4xl font-bold text-foreground">R${plan.price}</span>
-                <span className="text-muted-foreground">{plan.period}</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-foreground">R$ {plan.price}</span>
+                  <span className="text-muted-foreground text-sm">{plan.period}</span>
+                </div>
+                {plan.installment && (
+                  <p className="text-sm font-medium text-foreground mt-1">{plan.installment}</p>
+                )}
+                {plan.savings && (
+                  <p className="text-xs text-primary font-medium mt-2">{plan.savings}</p>
+                )}
               </div>
 
               <ul className="space-y-3 mb-8">

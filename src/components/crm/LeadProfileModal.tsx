@@ -163,9 +163,10 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden flex flex-col gap-0 max-h-[90vh]">
                 <DialogHeader className="p-6 pb-4 border-b bg-muted/20">
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                    <DialogTitle className="text-lg sm:text-xl font-bold text-center sm:text-left leading-tight">
                         {lead.title}
                     </DialogTitle>
+<<<<<<< HEAD
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 flex-wrap">
                         {lead.request_details && <span className="flex items-center gap-1 bg-green-100 text-green-700 font-medium px-2 py-1 rounded border border-green-200"><Building2 className="w-3 h-3" /> {lead.request_details}</span>}
                         {/* Etiqueta azul do produto */}
@@ -177,6 +178,23 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                             <ShoppingBag className="w-3 h-3" /> {productTag || 'Produto'}
                         </span>
                         <span className="flex items-center gap-1 bg-background px-2 py-1 rounded border"><Phone className="w-3 h-3" /> {lead.phone}</span>
+=======
+                    <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground mt-3 flex-wrap">
+                        {lead.request_details && (
+                            <span className="flex items-center gap-1 bg-green-100 text-green-700 font-medium px-2.5 py-1 rounded-full border border-green-200 text-xs shadow-sm">
+                                <Building2 className="w-3 h-3" /> {lead.request_details}
+                            </span>
+                        )}
+                        <span
+                            className="flex items-center gap-1 bg-blue-100 text-blue-700 font-medium px-2.5 py-1 rounded-full border border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors text-xs shadow-sm"
+                            onClick={() => { setIsEditingProduct(true); setProductInputValue(productTag); }}
+                        >
+                            <ShoppingBag className="w-3 h-3" /> {productTag || 'Produto'}
+                        </span>
+                        <span className="flex items-center gap-1 bg-background px-2.5 py-1 rounded-full border text-xs shadow-sm">
+                            <Phone className="w-3 h-3 text-muted-foreground" /> {lead.phone}
+                        </span>
+>>>>>>> teste
                     </div>
                 </DialogHeader>
 
@@ -278,27 +296,27 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                     )}
                 </div>
 
-                <div className="p-4 border-t bg-muted/10 flex justify-between gap-2">
+                <div className="p-4 border-t bg-card flex flex-col gap-3">
                     <Button
-                        variant="ghost"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        {isDeleting ? "Removendo..." : "Remover Lead"}
-                    </Button>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={onClose}>
-                            Fechar
-                        </Button>
-                        <Button onClick={() => {
+                        onClick={() => {
                             if (onCallLead) onCallLead(lead.phone, lead.title);
                             onClose();
-                        }} className="gap-2 bg-green-500 hover:bg-green-600 text-white border-none shadow-md">
-                            <MessageCircle className="w-4 h-4" />
-                            Chamar no WhatsApp
-                        </Button>
-                    </div>
+                        }}
+                        className="w-full h-12 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-lg font-bold text-base gap-3 active:scale-[0.98] transition-all"
+                    >
+                        <MessageCircle className="w-5 h-5 flex-shrink-0" />
+                        Chamar no WhatsApp
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-2 w-full sm:w-fit h-9"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {isDeleting ? "Removendo..." : "Remover Lead"}
+                    </Button>
                 </div>
             </DialogContent>
 
@@ -390,8 +408,13 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                         type="button"
                                         onClick={() => setProductInputValue(suggestion)}
                                         className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${productInputValue === suggestion
+<<<<<<< HEAD
                                                 ? 'bg-blue-100 text-blue-700 border-blue-300'
                                                 : 'bg-muted/50 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+=======
+                                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                            : 'bg-muted/50 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+>>>>>>> teste
                                             }`}
                                     >
                                         {suggestion}

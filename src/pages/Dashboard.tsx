@@ -21,18 +21,24 @@ import {
   Download,
   Filter,
   Search,
-  Clock
+  Clock,
+  Kanban,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
+import { KanbanBoard } from "@/components/crm/KanbanBoard";
+import { WhatsappChat } from "@/components/crm/WhatsappChat";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
+  { icon: Kanban, label: "CRM", id: "crm" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -41,11 +47,29 @@ const menuItems = [
 
 const plans = [
   {
+    id: "mensal",
+    name: "Mensal",
+    description: "Ideal para testar a plataforma",
+    price: "67,00",
+    period: "/mês",
+    features: [
+      "Leads ilimitados",
+      "Busca por região e nicho",
+      "WhatsApp conectado",
+      "Filtros avançados",
+      "Histórico ilimitado",
+      "Acesso imediato"
+    ],
+    popular: false,
+  },
+  {
     id: "anual",
     name: "Anual",
-    description: "Plano completo para o seu negócio",
-    price: "67,00",
-    period: "/ano",
+    description: "O melhor custo-benefício.",
+    price: "27,00",
+    period: "/mês",
+    installment: "12x R$ 27,00",
+    savings: "Economia de 60% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
@@ -53,8 +77,8 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-
-      "Acesso imediato"
+      "Acesso imediato",
+      "Bônus 🎁"
     ],
     popular: true,
   }
@@ -65,17 +89,25 @@ const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("search");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [whatsappInitialLead, setWhatsappInitialLead] = useState<any>(null);
 
   // User Profile state
   const [userProfile, setUserProfile] = useState<{
     firstName: string;
     lastName: string;
     email: string;
+    phone_number?: string;
+    last_phone_update?: string;
   } | null>(null);
 
   // Subscription State
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [subscriptionCreatedAt, setSubscriptionCreatedAt] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [activePlanName, setActivePlanName] = useState<string>("Gratuito");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
   // Editing state
   const [phone, setPhone] = useState("");
@@ -85,6 +117,11 @@ const Dashboard = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
+
+  // Password Change State
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
@@ -104,9 +141,67 @@ const Dashboard = () => {
     return normalize(details).includes(term);
   });
 
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
+
+  const handleOpenWhatsApp = async (phone: string, title?: string, company?: string, requestDetails?: string) => {
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (!cleanPhone) {
+      toast.error("Número de telefone não encontrado.");
+      return;
+    }
+    if (cleanPhone.length <= 11) {
+      cleanPhone = `55${cleanPhone}`;
+    }
+
+    // Pré-cria o lead no CRM com o nome correto do cliente
+    // para que, ao receber mensagens via webhook, o nome não seja substituído pelo pushName (nome do remetente)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: existingLead } = await supabase
+          .from('crm_leads')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (!existingLead) {
+          await supabase.from('crm_leads').insert({
+            user_id: user.id,
+            title: title || cleanPhone,
+            phone: cleanPhone,
+            company: company || "WhatsApp",
+            request_details: requestDetails || null,
+            status: 'new',
+            value: 0
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao pré-criar lead no CRM:", err);
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
+
+    if (isMobile) {
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+      toast.success("Abrindo o aplicativo do WhatsApp...");
+    } else {
+      setWhatsappInitialLead({
+        phone: cleanPhone,
+        title: title || cleanPhone,
+        company: company || title || cleanPhone,
+        requestDetails,
+        timestamp: Date.now()
+      });
+      setIsChatMinimized(false);
+      toast.success("Abrindo conversa...");
+    }
+  };
+
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -162,6 +257,7 @@ const Dashboard = () => {
             last_name: meta.last_name || googleLastName || "",
             access_status: 'NEW',
             payment_status: 'NONE',
+            terms_accepted: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -219,24 +315,52 @@ const Dashboard = () => {
         }
 
         // 2. Fetch Subscription Status directly from subscriptions table
+<<<<<<< HEAD
         // This is the source of truth for "Plano Contratado"
         const { data: subData, error: subErr } = await supabase
           .from('subscriptions')
           .select('subscription_status, created_at')
+=======
+        const { data: subData, error: subErr } = await supabase
+          .from('subscriptions')
+          .select('subscription_status, created_at, expires_at, plan_name')
+>>>>>>> teste
           .ilike('email', email)
           .eq('subscription_status', 'active')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
+<<<<<<< HEAD
+=======
+        if (profile) {
+          setTermsAccepted(!!profile.terms_accepted);
+          if (!profile.terms_accepted) {
+            setShowTermsModal(true);
+          }
+        }
+
+>>>>>>> teste
         if (subErr) {
           console.error("Erro ao buscar assinatura:", subErr.message);
         }
 
+<<<<<<< HEAD
         const isActivelySubscribed = !!subData || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
         setHasActiveSubscription(isActivelySubscribed);
         if (subData?.created_at) {
+=======
+        // Verifica se a assinatura ainda é válida por data
+        const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
+
+        const isActivelySubscribed = (!!subData && isTimeValid) || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
+
+        setHasActiveSubscription(isActivelySubscribed);
+        if (subData) {
+>>>>>>> teste
           setSubscriptionCreatedAt(subData.created_at);
+          setExpiresAt(subData.expires_at);
+          setActivePlanName(subData.plan_name || "Premium");
         }
 
         // 3. Fetch Lead Requests (History)
@@ -319,11 +443,27 @@ const Dashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      if (userProfile?.last_phone_update) {
+        const lastUpdate = new Date(userProfile.last_phone_update);
+        const now = new Date();
+        const diffTime = now.getTime() - lastUpdate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        if (diffDays < 15) {
+          const diasRestantes = Math.ceil(15 - diffDays);
+          toast.error(`Você só pode alterar o telefone novamente em ${diasRestantes} dia(s).`);
+          return;
+        }
+      }
+
+      const currentDate = new Date().toISOString();
+
       const { error } = await supabase
         .from('profiles')
         .update({
           phone_number: phone,
-          updated_at: new Date().toISOString()
+          last_phone_update: currentDate,
+          updated_at: currentDate
         })
         .eq('id', user.id);
 
@@ -381,6 +521,33 @@ const Dashboard = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success("Senha alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao alterar senha. Tente deslogar e logar novamente.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleWhatsAppClick = () => {
     if (!hasActiveSubscription) {
       toast.info("Assinatura Necessária", {
@@ -396,14 +563,39 @@ const Dashboard = () => {
     window.open("https://wa.me/3897426436?text=Oi+roiLead+🤖❤️", "_blank");
   };
 
-  const calculateDaysLeft = (createdAt: string) => {
-    const start = new Date(createdAt);
-    const end = new Date(start);
-    end.setFullYear(start.getFullYear() + 1); // Plano Anual
+  const calculateDaysLeft = (expiryDate: string) => {
+    const end = new Date(expiryDate);
     const today = new Date();
     const diff = end.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     return days > 0 ? days : 0;
+  };
+
+  const handleAcceptTerms = async () => {
+    setIsAcceptingTerms(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não encontrado");
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setTermsAccepted(true);
+      setShowTermsModal(false);
+      toast.success("Termos aceitos com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao aceitar termos:", error);
+      toast.error("Erro ao salvar aceite: " + error.message);
+    } finally {
+      setIsAcceptingTerms(false);
+    }
   };
 
   const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";
@@ -416,7 +608,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
@@ -472,7 +664,7 @@ const Dashboard = () => {
         </nav>
 
         {/* User Menu Footer */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border mb-12">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center">
               <span className="text-sm font-medium text-sidebar-foreground">{userInitials}</span>
@@ -510,286 +702,398 @@ const Dashboard = () => {
         </header>
 
         {/* Dashboard Content */}
-        <div className="flex-1 p-4 sm:p-6 overflow-auto">
-          {activeMenu === "search" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-1 overflow-hidden flex">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {activeMenu === "search" && (
+              <div className="flex flex-1 h-full min-h-0">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex flex-col gap-2">
+                        <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
+                        <p className="text-muted-foreground">
+                          {hasActiveSubscription
+                            ? "Veja o registro de todas as suas solicitações de leads."
+                            : "Assine um plano para realizar pesquisas e ver seu histórico."}
+                        </p>
+                      </div>
+
+                      {hasActiveSubscription && (
+                        <div className="w-full sm:w-[320px] relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Pesquisar no histórico..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {!hasActiveSubscription ? (
+                      <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                          <Lock className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
+                        <p className="text-muted-foreground max-w-md mb-8">
+                          Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.
+                        </p>
+                        <Button
+                          size="lg"
+                          onClick={() => setActiveMenu("subscription")}
+                        >
+                          Ver Planos
+                        </Button>
+                      </div>
+                    ) : filteredRequests.length === 0 ? (
+                      <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                          <FileText className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-foreground mb-3">
+                          {searchQuery ? "Nenhuma pesquisa encontrada" : "Nenhuma pesquisa encontrada"}
+                        </h3>
+                        <p className="text-muted-foreground max-w-md">
+                          {searchQuery
+                            ? `Não encontramos resultados para "${searchQuery}".`
+                            : "Você ainda não realizou nenhuma pesquisa com o roiLead."}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-4">
+                          {paginatedRequests.map((req) => (
+                            <RequestCard key={req.id} request={req} onDelete={() => {
+                              setLeadRequests(current => current.filter(r => r.id !== req.id));
+                            }} onCallLead={(lead) => {
+                              const rawPhone = lead.telefone || lead.Telefone || lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || "";
+                              const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
+                              let sociosStr = "Não informado";
+                              if (lead.quadro_societario && Array.isArray(lead.quadro_societario) && lead.quadro_societario.length > 0) {
+                                sociosStr = lead.quadro_societario.map((s: any) => s.nome).filter(Boolean).join(", ");
+                              }
+                              const reqDetails = req.request_details || "Busca Direta";
+                              handleOpenWhatsApp(rawPhone, nome, sociosStr, reqDetails);
+                            }} />
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 py-4 relative">
+                          {totalPages > 1 && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="gap-1 border-border/60"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                              </Button>
+                              <span className="text-sm font-medium px-4 text-muted-foreground whitespace-nowrap">
+                                Página {currentPage} de {totalPages}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="gap-1 border-border/60"
+                              >
+                                Próximo
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="sm:absolute sm:right-0 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrar:</span>
+                            <select
+                              className="h-8 text-xs rounded-md border border-border bg-card px-2 outline-none focus:ring-1 focus:ring-primary/30"
+                              value={itemsPerPage}
+                              onChange={(e) => {
+                                setItemsPerPage(Number(e.target.value));
+                                setCurrentPage(1);
+                              }}
+                            >
+                              <option value={10}>10 leads</option>
+                              <option value={50}>50 leads</option>
+                              <option value={200}>200 leads</option>
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )
+                    }
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "crm" && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                <KanbanBoard onCallLead={handleOpenWhatsApp} />
+              </div>
+            )}
+
+            {activeMenu === "subscription" && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
-                  <p className="text-muted-foreground">
-                    {hasActiveSubscription
-                      ? "Veja o registro de todas as suas solicitações de leads."
-                      : "Assine um plano para realizar pesquisas e ver seu histórico."}
-                  </p>
+                  <h2 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h2>
+                  <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
                 </div>
 
-                {hasActiveSubscription && (
-                  <div className="w-full sm:w-[320px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Pesquisar no histórico..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
+                {hasActiveSubscription && expiresAt && (
+                  <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col items-center justify-center text-center animate-fade-in mx-auto">
+                    <div className="flex items-center gap-2 text-primary mb-2">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-semibold uppercase tracking-wider text-xs">Tempo de Assinatura</span>
+                    </div>
+                    <div className="text-4xl font-black text-foreground mb-1">
+                      {calculateDaysLeft(expiresAt)} <span className="text-lg font-bold">dias</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">restantes no seu plano {(activePlanName || "anual").toLowerCase()}</p>
                   </div>
                 )}
-              </div>
 
-              {!hasActiveSubscription ? (
-                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <Lock className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
-                  <p className="text-muted-foreground max-w-md mb-8">
-                    Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.
-                  </p>
-                  <Button
-                    size="lg"
-                    onClick={() => setActiveMenu("subscription")}
-                  >
-                    Ver Planos
-                  </Button>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <FileText className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3">
-                    {searchQuery ? "Nenhuma pesquisa encontrada" : "Nenhuma pesquisa encontrada"}
-                  </h3>
-                  <p className="text-muted-foreground max-w-md">
-                    {searchQuery
-                      ? `Não encontramos resultados para "${searchQuery}".`
-                      : "Você ainda não realizou nenhuma pesquisa com o roiLead."}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {paginatedRequests.map((req) => (
-                      <RequestCard key={req.id} request={req} onDelete={() => {
-                        setLeadRequests(current => current.filter(r => r.id !== req.id));
-                      }} />
-                    ))}
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-8 py-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="gap-1"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                      </Button>
-                      <span className="text-sm font-medium px-4">
-                        Página {currentPage} de {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="gap-1"
-                      >
-                        Próximo
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )
-              }
-            </div>
-          )}
-
-          {activeMenu === "subscription" && (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h2>
-                <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
-              </div>
-
-              {hasActiveSubscription && subscriptionCreatedAt && (
-                <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col items-center justify-center text-center animate-fade-in mx-auto">
-                  <div className="flex items-center gap-2 text-primary mb-2">
-                    <Clock className="w-5 h-5" />
-                    <span className="font-semibold uppercase tracking-wider text-xs">Tempo de Assinatura</span>
-                  </div>
-                  <div className="text-4xl font-black text-foreground mb-1">
-                    {calculateDaysLeft(subscriptionCreatedAt)} <span className="text-lg font-bold">dias</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">restantes no seu plano anual</p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`
+                <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`
                       w-full max-w-md relative p-6 rounded-xl border-2 transition-all duration-200 bg-card
                       ${plan.popular ? 'border-primary shadow-md ring-1 ring-primary/20' : 'border-border hover:border-primary/50'}
                     `}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
-                        Popular
-                      </div>
-                    )}
-
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
-                      <p className="text-sm text-muted-foreground">{plan.description}</p>
-                    </div>
-
-                    <div className="mb-6 flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
-                      <span className="text-muted-foreground">{plan.period}</span>
-                    </div>
-
-                    <ul className="space-y-3 mb-8">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <Check className="w-4 h-4 text-primary flex-shrink-0" /> {feature}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Button
-                      className="w-full"
-                      variant={plan.popular ? "default" : "outline"}
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={loadingPlan === plan.id || hasActiveSubscription}
                     >
-                      {loadingPlan === plan.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                      {loadingPlan === plan.id ? "Processando..." : hasActiveSubscription ? "Assinado" : "Assinar " + plan.name}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                      {plan.popular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
+                          Mais Vantajoso
+                        </div>
+                      )}
 
-          {activeMenu === "settings" && (
-            <div className="space-y-6">
-              <div className="flex flex-col gap-2 items-center text-center">
-                <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
-                <p className="text-muted-foreground">Gerencie seus dados e preferências.</p>
-              </div>
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+                      </div>
 
-              <div className="space-y-4 max-w-2xl mx-auto">
-                <div className="p-6 rounded-xl bg-card border border-border space-y-6">
-                  <div className="flex items-center gap-3 border-b border-border pb-4">
-                    <User className="w-5 h-5 text-primary" />
-                    <h3 className="font-medium text-foreground">Dados Pessoais</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-muted-foreground">Nome</label>
-                      <div className="flex gap-2 items-start">
-                        {isEditingName ? (
-                          <div className="flex-1 flex gap-2">
-                            <div className="space-y-1 flex-1">
-                              <Input
-                                placeholder="Nome"
-                                value={tempFirstName}
-                                onChange={(e) => setTempFirstName(e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-1 flex-1">
-                              <Input
-                                placeholder="Sobrenome"
-                                value={tempLastName}
-                                onChange={(e) => setTempLastName(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-2 bg-muted/50 rounded-md text-foreground flex-1">
-                            {fullName}
-                          </div>
+                      <div className="mb-6">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
+                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        </div>
+                        {plan.installment && (
+                          <p className="text-sm font-medium text-foreground mt-1">{plan.installment}</p>
                         )}
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            if (isEditingName) {
-                              handleSaveName();
-                            } else {
-                              setIsEditingName(true);
-                            }
-                          }}
-                        >
-                          {isEditingName ? "Salvar" : "Alterar"}
-                        </Button>
+                        {plan.savings && (
+                          <p className="text-xs text-primary font-medium mt-2">{plan.savings}</p>
+                        )}
                       </div>
+
+                      <ul className="space-y-3 mb-8">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <Check className="w-4 h-4 text-primary flex-shrink-0" /> {feature}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <Button
+                        className="w-full"
+                        variant={plan.popular ? "default" : "outline"}
+                        onClick={() => handleSubscribe(plan.id)}
+                        disabled={loadingPlan === plan.id || hasActiveSubscription}
+                      >
+                        {loadingPlan === plan.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                        {loadingPlan === plan.id ? "Processando..." : hasActiveSubscription ? "Assinado" : "Assinar " + plan.name}
+                      </Button>
                     </div>
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                      <div className="p-2 bg-muted/50 rounded-md text-foreground">
-                        {userProfile?.email}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-muted-foreground">Telefone / WhatsApp</label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          disabled={!isEditingPhone}
-                          className={!isEditingPhone ? "bg-muted/50 border-none" : ""}
-                        />
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            if (isEditingPhone) {
-                              handleSavePhone();
-                            } else {
-                              setIsEditingPhone(true);
-                            }
-                          }}
-                        >
-                          {isEditingPhone ? "Salvar" : "Alterar"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "settings" && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
+                <div className="flex flex-col gap-2 items-center text-center">
+                  <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
+                  <p className="text-muted-foreground">Gerencie seus dados e preferências.</p>
                 </div>
 
-                <div className="p-6 rounded-xl bg-card border border-border space-y-6">
-                  <div className="flex items-center gap-3 border-b border-border pb-4">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <h3 className="font-medium text-foreground">Plano Contratado</h3>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">
-                          {hasActiveSubscription ? "Plano Premium" : "Plano Gratuito"}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hasActiveSubscription
-                          ? "bg-primary/20 text-primary"
-                          : "bg-secondary text-secondary-foreground"
-                          }`}>
-                          {hasActiveSubscription ? `${subscriptionCreatedAt ? calculateDaysLeft(subscriptionCreatedAt) : 0} dias restantes` : "Inativo"}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {hasActiveSubscription ? "Sua assinatura está ativa." : "Assine um plano para liberar os recursos."}
-                      </p>
+                <div className="space-y-4 max-w-2xl mx-auto">
+                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                      <User className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium text-foreground">Dados Pessoais</h3>
                     </div>
-                    <Button variant="outline" onClick={() => setActiveMenu("subscription")}>
-                      {hasActiveSubscription ? "Gerenciar Plano" : "Ver Planos"}
-                    </Button>
+                    <div className="space-y-4">
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">Nome</label>
+                        <div className="flex gap-2 items-start">
+                          {isEditingName ? (
+                            <div className="flex-1 flex gap-2">
+                              <div className="space-y-1 flex-1">
+                                <Input
+                                  placeholder="Nome"
+                                  value={tempFirstName}
+                                  onChange={(e) => setTempFirstName(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1 flex-1">
+                                <Input
+                                  placeholder="Sobrenome"
+                                  value={tempLastName}
+                                  onChange={(e) => setTempLastName(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2 bg-muted/50 rounded-md text-foreground flex-1">
+                              {fullName}
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (isEditingName) {
+                                handleSaveName();
+                              } else {
+                                setIsEditingName(true);
+                              }
+                            }}
+                          >
+                            {isEditingName ? "Salvar" : "Alterar"}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">E-mail</label>
+                        <div className="p-2 bg-muted/50 rounded-md text-foreground">
+                          {userProfile?.email}
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">Telefone / WhatsApp</label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            disabled={!isEditingPhone}
+                            className={!isEditingPhone ? "bg-muted/50 border-none" : ""}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (isEditingPhone) {
+                                handleSavePhone();
+                              } else {
+                                setIsEditingPhone(true);
+                              }
+                            }}
+                          >
+                            {isEditingPhone ? "Salvar" : "Alterar"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bloco de Alterar Senha */}
+                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                      <Lock className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium text-foreground">Alterar Senha</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Proteja sua conta utilizando uma senha forte com letras e números.
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                          type="password"
+                          placeholder="Nova Senha"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                        <Input
+                          type="password"
+                          placeholder="Confirmar Nova Senha"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleChangePassword}
+                        disabled={!newPassword || !confirmPassword || isChangingPassword}
+                      >
+                        {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {isChangingPassword ? "Alterando..." : "Salvar Nova Senha"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                      <CreditCard className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium text-foreground">Plano Contratado</h3>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">
+                            {hasActiveSubscription ? `Plano ${activePlanName}` : "Plano Gratuito"}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hasActiveSubscription
+                            ? "bg-primary/20 text-primary"
+                            : "bg-secondary text-secondary-foreground"
+                            }`}>
+                            {hasActiveSubscription ? `${expiresAt ? calculateDaysLeft(expiresAt) : 0} dias restantes` : "Inativo"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {hasActiveSubscription ? "Sua assinatura está ativa." : "Assine um plano para liberar os recursos."}
+                        </p>
+                      </div>
+                      <Button variant="outline" onClick={() => setActiveMenu("subscription")}>
+                        {hasActiveSubscription ? "Gerenciar Plano" : "Ver Planos"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Persistent WhatsApp Chat for Search and CRM Tabs */}
+          {hasActiveSubscription && (activeMenu === "search" || activeMenu === "crm") && (
+            <div className={`transition-all duration-300 ease-in-out border-l border-border bg-card shrink-0 flex-col overflow-hidden hidden lg:flex relative ${isChatMinimized ? "w-[60px]" : "w-[450px] lg:w-[32%] xl:w-[28%]"
+              } h-full`}>
+              <div className="absolute top-2 right-2 z-10 bg-background rounded-md border border-border">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-6 h-6 m-1 text-muted-foreground"
+                  onClick={() => setIsChatMinimized(!isChatMinimized)}
+                  title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
+                >
+                  {isChatMinimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              {!isChatMinimized ? (
+                <div className="flex-1 flex flex-col pt-10 h-full">
+                  <WhatsappChat initialContact={whatsappInitialLead} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center pt-10 h-full w-full">
+                  <MessageCircle className="w-8 h-8 text-primary opacity-50 mb-2 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => setIsChatMinimized(false)} />
+                  <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }} className="text-xs font-bold text-muted-foreground mt-4 tracking-widest leading-none">
+                    WHATSAPP
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -800,9 +1104,10 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => void }) => {
+const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete?: () => void, onCallLead?: (lead: any) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [page, setPage] = useState(1);
 
@@ -906,11 +1211,7 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (!confirm("Tem certeza que deseja excluir este histórico?")) return;
-
+  const confirmDelete = async () => {
     setIsDeleting(true);
     try {
       const { error } = await supabase
@@ -922,12 +1223,18 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
 
       toast.success("Histórico excluído com sucesso");
       if (onDelete) onDelete();
+      setShowDeleteConfirm(false);
     } catch (error) {
       console.error("Erro detalhado ao excluir:", error);
       toast.error(`Erro ao excluir: ${(error as any).message || "Verifique suas permissões ou console"}`);
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
   };
 
   if (isDeleting) return null;
@@ -948,8 +1255,9 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
 
           <div className="flex items-center justify-between sm:justify-end gap-3">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                {leads.length} Leads
+              <span className="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-primary/10 text-primary min-w-[60px] leading-tight">
+                <span className="text-sm font-black">{leads.length}</span>
+                <span className="text-[10px] font-bold uppercase tracking-tighter">Leads</span>
               </span>
             </div>
 
@@ -1014,15 +1322,31 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
                         <div className="flex justify-between items-start gap-2">
                           <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedLead(lead);
-                            }}
-                            className="shrink-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200"
-                          >
-                            Visualizar Completo
-                          </button>
+                          <div className="flex flex-col gap-1.5 shrink-0 items-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLead(lead);
+                              }}
+                              className="w-full text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200 whitespace-nowrap"
+                            >
+                              Visualizar Completo
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onCallLead) {
+                                  onCallLead({ ...lead, telefone, nome_fantasia: nome });
+                                }
+                              }}
+                              className="w-full text-[10px] bg-[#2ecc71] text-black hover:bg-[#27ae60] px-2 py-1 rounded font-bold transition-colors flex items-center justify-center gap-1 shadow-sm whitespace-nowrap"
+                              title="Chamar no WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              Chamar
+                            </button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-1 text-muted-foreground">
@@ -1082,6 +1406,28 @@ const RequestCard = ({ request, onDelete }: { request: any, onDelete?: () => voi
         onClose={() => setSelectedLead(null)}
         lead={selectedLead}
       />
+
+      {/* Modal Profissional de Confirmação de Exclusão de Histórico */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> Confirmar Exclusão
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Tem certeza que deseja excluir permanentemente o histórico da pesquisa <strong>{queryText}</strong>? Esta ação não pode ser desfeita e os leads atrelados a ela serão perdidos.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? "Excluindo..." : "Sim, excluir histórico"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

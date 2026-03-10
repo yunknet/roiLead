@@ -319,7 +319,6 @@ const Dashboard = () => {
           .from('subscriptions')
           .select('subscription_status, created_at, expires_at, plan_name')
           .ilike('email', email)
-          .eq('subscription_status', 'active')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -338,13 +337,20 @@ const Dashboard = () => {
         // Verifica se a assinatura ainda é válida por data
         const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
 
-        const isActivelySubscribed = (!!subData && isTimeValid) || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
+        // Regras de ativação: Ter uma sub válida ou ter flag manual no profile
+        const isActivelySubscribed = (!!subData && isTimeValid && subData.subscription_status !== 'canceled' && subData.subscription_status !== 'refunded') || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
 
         setHasActiveSubscription(isActivelySubscribed);
+
         if (subData) {
           setSubscriptionCreatedAt(subData.created_at);
-          setExpiresAt(subData.expires_at);
-          setActivePlanName(subData.plan_name || "Premium");
+
+          // Fallback para assinaturas antigas ou sem expires_at
+          const daysToAdd = subData.plan_name?.toLowerCase() === 'mensal' ? 30 : 365;
+          const calculatedFallback = new Date(new Date(subData.created_at).getTime() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+
+          setExpiresAt(subData.expires_at || calculatedFallback);
+          setActivePlanName(subData.plan_name || "Anual");
         }
 
         // 3. Fetch Lead Requests (History)
@@ -891,7 +897,11 @@ const Dashboard = () => {
                         disabled={loadingPlan === plan.id || hasActiveSubscription}
                       >
                         {loadingPlan === plan.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                        {loadingPlan === plan.id ? "Processando..." : hasActiveSubscription ? "Assinado" : "Assinar " + plan.name}
+                        {loadingPlan === plan.id
+                          ? "Processando..."
+                          : (hasActiveSubscription && activePlanName.toLowerCase() === plan.name.toLowerCase())
+                            ? "Assinado"
+                            : "Assinar " + plan.name}
                       </Button>
                     </div>
                   ))}

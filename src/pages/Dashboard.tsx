@@ -107,7 +107,7 @@ const Dashboard = () => {
   const [activePlanName, setActivePlanName] = useState<string>("Gratuito");
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
   // Editing state
   const [phone, setPhone] = useState("");
@@ -257,6 +257,7 @@ const Dashboard = () => {
             last_name: meta.last_name || googleLastName || "",
             access_status: 'NEW',
             payment_status: 'NONE',
+            terms_accepted: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };

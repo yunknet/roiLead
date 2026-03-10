@@ -49,6 +49,33 @@ const Subscription = () => {
     const navigate = useNavigate();
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(searchParams.get("plan"));
     const [loading, setLoading] = useState(false);
+    const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+    const [activePlanName, setActivePlanName] = useState<string>("Gratuito");
+
+    useEffect(() => {
+        const fetchSubscription = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase
+                    .from('subscriptions')
+                    .select('subscription_status, plan_name, expires_at')
+                    .ilike('email', user.email || '')
+                    .eq('subscription_status', 'active')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (data) {
+                    const isTimeValid = data.expires_at ? new Date(data.expires_at) > new Date() : true;
+                    if (isTimeValid) {
+                        setHasActiveSubscription(true);
+                        setActivePlanName(data.plan_name || "Anual");
+                    }
+                }
+            }
+        };
+        fetchSubscription();
+    }, []);
 
     const handleSubscribe = async (planId: string) => {
         setLoading(true);
@@ -151,11 +178,15 @@ const Subscription = () => {
                                 className="w-full"
                                 variant={plan.popular ? "default" : "outline"}
                                 onClick={() => handleSubscribe(plan.id)}
-                                disabled={loading}
+                                disabled={loading || hasActiveSubscription}
                                 size="lg"
                             >
                                 {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                                {loading ? "Processando..." : (selectedPlanId === plan.id ? "Continuar com " + plan.name : "Assinar " + plan.name)}
+                                {loading
+                                    ? "Processando..."
+                                    : (hasActiveSubscription && activePlanName.toLowerCase() === plan.name.toLowerCase())
+                                        ? "Assinado"
+                                        : (selectedPlanId === plan.id ? "Continuar com " + plan.name : "Assinar " + plan.name)}
                             </Button>
                         </div>
                     ))}

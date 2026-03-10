@@ -12,29 +12,26 @@ serve(async (req) => {
   }
 
   try {
-    const hublaLink = Deno.env.get('HUBLA_CHECKOUT_LINK')
+    const body = await req.json().catch(() => ({}));
+    const requestedPlan = (body.plan || "anual").toLowerCase();
 
-    // Debug: Confirma que achou o link
-    console.log("🔗 Buscando HUBLA_CHECKOUT_LINK...", hublaLink ? "Encontrado" : "NÃO ENCONTRADO")
+    // Seleciona a secret correta baseada no plano
+    const secretKey = requestedPlan === 'mensal' ? 'HUBLA_CHECKOUT_MES' : 'HUBLA_CHECKOUT_LINK';
+    const hublaLink = Deno.env.get(secretKey);
+
+    console.log(`🔗 Buscando ${secretKey}...`, hublaLink ? "Encontrado" : "NÃO ENCONTRADO")
 
     if (!hublaLink) {
-      throw new Error('A variável HUBLA_CHECKOUT_LINK não está cadastrada nos Secrets.')
+      throw new Error(`A variável ${secretKey} não está cadastrada nos Secrets.`)
     }
 
     const paymentUrl = new URL(hublaLink)
     paymentUrl.searchParams.append("utm_source", "site_roiLead")
 
-    let email = ""
-    // Tenta pegar o email (prioritário)
-    try {
-      const body = await req.json()
-      if (body.email) {
-        email = body.email
-        paymentUrl.searchParams.append("email", email)
-        console.log("📧 E-mail injetado no checkout:", email)
-      }
-    } catch (e) {
-      // Ignora se não vier json
+    let email = body.email || ""
+    if (email) {
+      paymentUrl.searchParams.append("email", email)
+      console.log("📧 E-mail injetado no checkout:", email)
     }
 
     // Função simples de máscara para logs

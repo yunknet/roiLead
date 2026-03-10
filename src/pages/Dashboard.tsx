@@ -22,7 +22,8 @@ import {
   Filter,
   Search,
   Clock,
-  Kanban
+  Kanban,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,9 @@ const Dashboard = () => {
   const [subscriptionCreatedAt, setSubscriptionCreatedAt] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [activePlanName, setActivePlanName] = useState<string>("Gratuito");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
 
   // Editing state
   const [phone, setPhone] = useState("");
@@ -318,6 +322,13 @@ const Dashboard = () => {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        if (profile) {
+          setTermsAccepted(!!profile.terms_accepted);
+          if (!profile.terms_accepted) {
+            setShowTermsModal(true);
+          }
+        }
 
         if (subErr) {
           console.error("Erro ao buscar assinatura:", subErr.message);
@@ -541,6 +552,33 @@ const Dashboard = () => {
     const diff = end.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     return days > 0 ? days : 0;
+  };
+
+  const handleAcceptTerms = async () => {
+    setIsAcceptingTerms(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não encontrado");
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setTermsAccepted(true);
+      setShowTermsModal(false);
+      toast.success("Termos aceitos com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao aceitar termos:", error);
+      toast.error("Erro ao salvar aceite: " + error.message);
+    } finally {
+      setIsAcceptingTerms(false);
+    }
   };
 
   const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";

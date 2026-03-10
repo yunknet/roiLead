@@ -508,6 +508,8 @@ const Dashboard = () => {
         return;
       }
 
+      console.log("🛒 Iniciando checkout para:", planId);
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           plan: planId,

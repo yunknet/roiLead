@@ -13,16 +13,24 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const requestedPlan = (body.plan || "anual").toLowerCase();
+
+    // Normalização robusta do plano solicitado
+    const requestedPlan = String(body.plan || "anual").toLowerCase().trim();
+
+    console.log("📥 Payload recebido:", JSON.stringify(body));
+    console.log("🎯 Plano Detectado:", requestedPlan);
 
     // Seleciona a secret correta baseada no plano
-    const secretKey = requestedPlan === 'mensal' ? 'HUBLA_CHECKOUT_MES' : 'HUBLA_CHECKOUT_LINK';
+    // Aceita variações comuns para evitar erros
+    const isMensal = requestedPlan === 'mensal' || requestedPlan === 'monthly' || requestedPlan === 'mês';
+    const secretKey = isMensal ? 'HUBLA_CHECKOUT_MES' : 'HUBLA_CHECKOUT_LINK';
+
     const hublaLink = Deno.env.get(secretKey);
 
-    console.log(`🔗 Buscando ${secretKey}...`, hublaLink ? "Encontrado" : "NÃO ENCONTRADO")
+    console.log(`🔗 Buscando Secret: ${secretKey}...`, hublaLink ? "✅ Encontrado" : "❌ NÃO ENCONTRADO")
 
     if (!hublaLink) {
-      throw new Error(`A variável ${secretKey} não está cadastrada nos Secrets.`)
+      throw new Error(`A variável ${secretKey} não está cadastrada nos Secrets do Supabase.`)
     }
 
     const paymentUrl = new URL(hublaLink)

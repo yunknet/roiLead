@@ -2,6 +2,7 @@
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Search, Shield, Zap } from "lucide-react";
+import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 
 export function HeroRoiLead() {
     return (
@@ -11,12 +12,16 @@ export function HeroRoiLead() {
                     <>
                         <div className="max-w-4xl mx-auto text-center mb-12">
                             {/* Badge */}
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border mb-8 animate-fade-in">
+                            <HoverBorderGradient
+                                containerClassName="mb-8 mx-auto"
+                                className="bg-background text-foreground flex items-center gap-2"
+                                as="div"
+                            >
                                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-sm">
                                     Geração de Leads Inteligente via WhatsApp
                                 </span>
-                            </div>
+                            </HoverBorderGradient>
 
                             {/* Headline */}
                             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight animate-slide-up">

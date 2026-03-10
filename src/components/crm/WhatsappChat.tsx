@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+<<<<<<< HEAD
+=======
+import { encryptMessage, decryptMessage } from '@/lib/crypto';
+>>>>>>> teste
 import { toast } from 'sonner';
 import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -242,11 +246,24 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         };
     }, []);
 
+<<<<<<< HEAD
     const handleNewMessage = (payload: any) => {
+=======
+    const handleNewMessage = async (payload: any) => {
+>>>>>>> teste
         const newMsg = payload.new;
         if (processedIdsRef.current.has(newMsg.id)) return;
         processedIdsRef.current.add(newMsg.id);
 
+<<<<<<< HEAD
+=======
+        // Descriptografar a mensagem recebida em tempo real
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && newMsg.message) {
+            newMsg.message = await decryptMessage(newMsg.message, user.id);
+        }
+
+>>>>>>> teste
         const isCurrentLead = activeLeadRef.current && activeLeadRef.current.phone === newMsg.contact_phone;
 
         if (isCurrentLead) {
@@ -386,9 +403,22 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             .order('created_at', { ascending: true });
 
         if (!error && data) {
+<<<<<<< HEAD
             setMessages(prev => {
                 if (isSilent && prev.length === data.length) return prev;
                 return data;
+=======
+            // Descriptografar mensagens
+            const decryptedData = await Promise.all(
+                data.map(async (msg: any) => ({
+                    ...msg,
+                    message: await decryptMessage(msg.message, user.id)
+                }))
+            );
+            setMessages(prev => {
+                if (isSilent && prev.length === decryptedData.length) return prev;
+                return decryptedData;
+>>>>>>> teste
             });
         }
     };
@@ -625,16 +655,29 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
 
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+<<<<<<< HEAD
             const { data: newMsg, error: insertError } = await supabase.from('chat_messages').insert([{
                 user_id: user.id,
                 contact_phone: activeLead.phone,
                 message: tempText,
+=======
+            const encryptedText = await encryptMessage(tempText, user.id);
+            const { data: newMsg, error: insertError } = await supabase.from('chat_messages').insert([{
+                user_id: user.id,
+                contact_phone: activeLead.phone,
+                message: encryptedText,
+>>>>>>> teste
                 sender: 'me',
                 status: 'sending'
             }]).select().single();
 
             if (!insertError && newMsg) {
+<<<<<<< HEAD
                 setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), newMsg]);
+=======
+                // Mostrar texto descriptografado na UI
+                setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, message: tempText }]);
+>>>>>>> teste
             }
         }
 

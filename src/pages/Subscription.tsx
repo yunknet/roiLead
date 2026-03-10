@@ -7,11 +7,29 @@ import { toast } from "sonner";
 
 const plans = [
     {
+        id: "mensal",
+        name: "Mensal",
+        description: "Ideal para testar a plataforma",
+        price: "67,00",
+        period: "/mês",
+        features: [
+            "Leads ilimitados",
+            "Busca por região e nicho",
+            "WhatsApp conectado",
+            "Filtros avançados",
+            "Histórico ilimitado",
+            "Acesso imediato"
+        ],
+        popular: false,
+    },
+    {
         id: "anual",
         name: "Anual",
-        description: "Plano completo para o seu negócio",
-        price: "69,90",
-        period: "/ano",
+        description: "O melhor custo-benefício.",
+        price: "27,00",
+        period: "/mês",
+        installment: "12x R$ 27,00",
+        savings: "Economia de 60% — Plano completo com desconto exclusivo",
         features: [
             "Leads ilimitados",
             "Busca por região e nicho",
@@ -19,8 +37,8 @@ const plans = [
             "Filtros avançados",
             "Suporte prioritário",
             "Histórico ilimitado",
-
-            "Acesso imediato"
+            "Acesso imediato",
+            "Bônus 🎁"
         ],
         popular: true,
     }
@@ -99,7 +117,7 @@ const Subscription = () => {
                         >
                             {plan.popular && (
                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
-                                    Popular
+                                    Mais Vantajoso
                                 </div>
                             )}
 
@@ -108,9 +126,17 @@ const Subscription = () => {
                                 <p className="text-sm text-muted-foreground">{plan.description}</p>
                             </div>
 
-                            <div className="mb-6 flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
-                                <span className="text-muted-foreground">{plan.period}</span>
+                            <div className="mb-6">
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
+                                    <span className="text-muted-foreground text-sm">{plan.period}</span>
+                                </div>
+                                {plan.installment && (
+                                    <p className="text-sm font-medium text-foreground mt-1">{plan.installment}</p>
+                                ) || null}
+                                {plan.savings && (
+                                    <p className="text-xs text-primary font-medium mt-2">{plan.savings}</p>
+                                ) || null}
                             </div>
 
                             <ul className="space-y-3 mb-8">

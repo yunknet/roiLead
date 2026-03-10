@@ -22,7 +22,12 @@ import {
   Filter,
   Search,
   Clock,
+<<<<<<< HEAD
   Kanban
+=======
+  Kanban,
+  ShieldCheck
+>>>>>>> teste
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +51,29 @@ const menuItems = [
 
 const plans = [
   {
+    id: "mensal",
+    name: "Mensal",
+    description: "Ideal para testar a plataforma",
+    price: "67,00",
+    period: "/mês",
+    features: [
+      "Leads ilimitados",
+      "Busca por região e nicho",
+      "WhatsApp conectado",
+      "Filtros avançados",
+      "Histórico ilimitado",
+      "Acesso imediato"
+    ],
+    popular: false,
+  },
+  {
     id: "anual",
     name: "Anual",
-    description: "Plano completo para o seu negócio",
-    price: "67,00",
-    period: "/ano",
+    description: "O melhor custo-benefício.",
+    price: "27,00",
+    period: "/mês",
+    installment: "12x R$ 27,00",
+    savings: "Economia de 60% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
@@ -58,8 +81,8 @@ const plans = [
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",
-
-      "Acesso imediato"
+      "Acesso imediato",
+      "Bônus 🎁"
     ],
     popular: true,
   }
@@ -84,6 +107,11 @@ const Dashboard = () => {
   // Subscription State
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [subscriptionCreatedAt, setSubscriptionCreatedAt] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [activePlanName, setActivePlanName] = useState<string>("Gratuito");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
   // Editing state
   const [phone, setPhone] = useState("");
@@ -160,7 +188,11 @@ const Dashboard = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
 
     if (isMobile) {
+<<<<<<< HEAD
       window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
+=======
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+>>>>>>> teste
       toast.success("Abrindo o aplicativo do WhatsApp...");
     } else {
       setWhatsappInitialLead({
@@ -233,6 +265,7 @@ const Dashboard = () => {
             last_name: meta.last_name || googleLastName || "",
             access_status: 'NEW',
             payment_status: 'NONE',
+            terms_accepted: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -290,24 +323,52 @@ const Dashboard = () => {
         }
 
         // 2. Fetch Subscription Status directly from subscriptions table
+<<<<<<< HEAD
         // This is the source of truth for "Plano Contratado"
         const { data: subData, error: subErr } = await supabase
           .from('subscriptions')
           .select('subscription_status, created_at')
+=======
+        const { data: subData, error: subErr } = await supabase
+          .from('subscriptions')
+          .select('subscription_status, created_at, expires_at, plan_name')
+>>>>>>> teste
           .ilike('email', email)
           .eq('subscription_status', 'active')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
+<<<<<<< HEAD
+=======
+        if (profile) {
+          setTermsAccepted(!!profile.terms_accepted);
+          if (!profile.terms_accepted) {
+            setShowTermsModal(true);
+          }
+        }
+
+>>>>>>> teste
         if (subErr) {
           console.error("Erro ao buscar assinatura:", subErr.message);
         }
 
+<<<<<<< HEAD
         const isActivelySubscribed = !!subData || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
         setHasActiveSubscription(isActivelySubscribed);
         if (subData?.created_at) {
+=======
+        // Verifica se a assinatura ainda é válida por data
+        const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
+
+        const isActivelySubscribed = (!!subData && isTimeValid) || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
+
+        setHasActiveSubscription(isActivelySubscribed);
+        if (subData) {
+>>>>>>> teste
           setSubscriptionCreatedAt(subData.created_at);
+          setExpiresAt(subData.expires_at);
+          setActivePlanName(subData.plan_name || "Premium");
         }
 
         // 3. Fetch Lead Requests (History)
@@ -510,14 +571,39 @@ const Dashboard = () => {
     window.open("https://wa.me/3897426436?text=Oi+roiLead+🤖❤️", "_blank");
   };
 
-  const calculateDaysLeft = (createdAt: string) => {
-    const start = new Date(createdAt);
-    const end = new Date(start);
-    end.setFullYear(start.getFullYear() + 1); // Plano Anual
+  const calculateDaysLeft = (expiryDate: string) => {
+    const end = new Date(expiryDate);
     const today = new Date();
     const diff = end.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     return days > 0 ? days : 0;
+  };
+
+  const handleAcceptTerms = async () => {
+    setIsAcceptingTerms(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não encontrado");
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setTermsAccepted(true);
+      setShowTermsModal(false);
+      toast.success("Termos aceitos com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao aceitar termos:", error);
+      toast.error("Erro ao salvar aceite: " + error.message);
+    } finally {
+      setIsAcceptingTerms(false);
+    }
   };
 
   const fullName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : "Carregando...";
@@ -768,16 +854,26 @@ const Dashboard = () => {
                   <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
                 </div>
 
+<<<<<<< HEAD
                 {hasActiveSubscription && subscriptionCreatedAt && (
+=======
+                {hasActiveSubscription && expiresAt && (
+>>>>>>> teste
                   <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col items-center justify-center text-center animate-fade-in mx-auto">
                     <div className="flex items-center gap-2 text-primary mb-2">
                       <Clock className="w-5 h-5" />
                       <span className="font-semibold uppercase tracking-wider text-xs">Tempo de Assinatura</span>
                     </div>
                     <div className="text-4xl font-black text-foreground mb-1">
+<<<<<<< HEAD
                       {calculateDaysLeft(subscriptionCreatedAt)} <span className="text-lg font-bold">dias</span>
                     </div>
                     <p className="text-sm text-muted-foreground">restantes no seu plano anual</p>
+=======
+                      {calculateDaysLeft(expiresAt)} <span className="text-lg font-bold">dias</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">restantes no seu plano {(activePlanName || "anual").toLowerCase()}</p>
+>>>>>>> teste
                   </div>
                 )}
 
@@ -792,7 +888,11 @@ const Dashboard = () => {
                     >
                       {plan.popular && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
+<<<<<<< HEAD
                           Popular
+=======
+                          Mais Vantajoso
+>>>>>>> teste
                         </div>
                       )}
 
@@ -801,9 +901,23 @@ const Dashboard = () => {
                         <p className="text-sm text-muted-foreground">{plan.description}</p>
                       </div>
 
+<<<<<<< HEAD
                       <div className="mb-6 flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
                         <span className="text-muted-foreground">{plan.period}</span>
+=======
+                      <div className="mb-6">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
+                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        </div>
+                        {plan.installment && (
+                          <p className="text-sm font-medium text-foreground mt-1">{plan.installment}</p>
+                        )}
+                        {plan.savings && (
+                          <p className="text-xs text-primary font-medium mt-2">{plan.savings}</p>
+                        )}
+>>>>>>> teste
                       </div>
 
                       <ul className="space-y-3 mb-8">
@@ -957,13 +1071,21 @@ const Dashboard = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-foreground">
+<<<<<<< HEAD
                             {hasActiveSubscription ? "Plano Premium" : "Plano Gratuito"}
+=======
+                            {hasActiveSubscription ? `Plano ${activePlanName}` : "Plano Gratuito"}
+>>>>>>> teste
                           </span>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hasActiveSubscription
                             ? "bg-primary/20 text-primary"
                             : "bg-secondary text-secondary-foreground"
                             }`}>
+<<<<<<< HEAD
                             {hasActiveSubscription ? `${subscriptionCreatedAt ? calculateDaysLeft(subscriptionCreatedAt) : 0} dias restantes` : "Inativo"}
+=======
+                            {hasActiveSubscription ? `${expiresAt ? calculateDaysLeft(expiresAt) : 0} dias restantes` : "Inativo"}
+>>>>>>> teste
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -1169,8 +1291,9 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
 
           <div className="flex items-center justify-between sm:justify-end gap-3">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                {leads.length} Leads
+              <span className="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-primary/10 text-primary min-w-[60px] leading-tight">
+                <span className="text-sm font-black">{leads.length}</span>
+                <span className="text-[10px] font-bold uppercase tracking-tighter">Leads</span>
               </span>
             </div>
 

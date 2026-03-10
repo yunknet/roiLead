@@ -51,8 +51,16 @@ const PricingSection = () => {
     try {
       setLoadingPlan(plan.name);
 
+      const { data: { user } } = await supabase.auth.getUser();
+
+      console.log("🛒 Iniciando checkout para:", plan.id);
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {} // Enviando vazio, não exigimos email antecipado
+        body: {
+          plan: plan.id,
+          userId: user?.id,
+          email: user?.email
+        }
       });
 
       if (error) throw error;

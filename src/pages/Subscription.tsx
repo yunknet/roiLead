@@ -88,7 +88,7 @@ const Subscription = () => {
                 return;
             }
 
-            console.log("Iniciando checkout para:", planId);
+            console.log("🛒 Iniciando checkout para:", planId);
 
             const { data, error } = await supabase.functions.invoke('create-checkout', {
                 body: {

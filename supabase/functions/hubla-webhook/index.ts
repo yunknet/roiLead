@@ -72,14 +72,29 @@ serve(async (req: Request) => {
       // Se cents > 0 divide por 100, senão tenta pegar de data.amount (number normal)
       const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0)
 
-      // Identifica o plano dinamicamente pelo valor pago
-      // Mensal = 67.00 | Anual = 324.00 (ou algo acima de 100 reais)
-      const planName = amount > 100 ? "Anual" : "Mensal";
+      // Identifica o plano de forma robusta e inteligente (v3.0)
+      // Tenta cruzar dados de Nome do Produto/Oferta + Valor Pago para evitar erros de centavos/decimal
+      const productInfo = eventData.product?.name || eventData.offer?.name || "";
+      let planName = "Mensal";
+
+      // Hubla amount pode vir em centavos (ex: 6700) ou decimal (67.00)
+      // Se for > 1000, provavelmente é centavos e precisamos dividir por 100
+      const normalizedAmount = amount > 1000 ? amount / 100 : amount;
+
+      if (productInfo.toLowerCase().includes("anual")) {
+        planName = "Anual";
+      } else if (productInfo.toLowerCase().includes("mensal")) {
+        planName = "Mensal";
+      } else {
+        // Fallback pelo valor caso não tenha nome claro no payload
+        // Mensal = 67.00 | Anual = 324.00 (ou algo acima de 100 reais)
+        planName = normalizedAmount > 100 ? "Anual" : "Mensal";
+      }
 
       // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
 
-      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${amount}`)
+      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Produto: ${productInfo || "N/A"}`)
 
       let isNewUser = false
 
@@ -146,7 +161,7 @@ serve(async (req: Request) => {
           full_name: fullName,
           phone_number: phone,
           plan_name: planName,
-          amount_paid: amount,
+          amount_paid: normalizedAmount,
           payment_status: "paid",
           subscription_status: "active",
           external_reference_id: externalId,
@@ -168,7 +183,7 @@ serve(async (req: Request) => {
             full_name: fullName,
             phone_number: phone,
             plan_name: planName,
-            amount_paid: amount,
+            amount_paid: normalizedAmount,
             payment_status: "paid",
             subscription_status: "active",
             external_reference_id: externalId,

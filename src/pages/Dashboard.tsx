@@ -122,6 +122,10 @@ const Dashboard = () => {
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
 
+  // Email Editing State
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [tempEmail, setTempEmail] = useState("");
+
   // Password Change State
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -307,6 +311,7 @@ const Dashboard = () => {
           });
           setTempFirstName(profile.first_name || "");
           setTempLastName(profile.last_name || "");
+          setTempEmail(email || "");
 
           if (profile.phone_number) {
             setPhone(profile.phone_number);
@@ -449,6 +454,29 @@ const Dashboard = () => {
       toast.success("Nome atualizado com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao atualizar nome: " + err.message);
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    try {
+      if (!tempEmail || !tempEmail.includes("@")) {
+        toast.error("Formato de e-mail inválido");
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.rpc('change_user_email', { new_email: tempEmail });
+
+      if (error) throw error;
+
+      toast.success("E-mail atualizado com sucesso!");
+      setIsEditingEmail(false);
+      setUserProfile(prev => prev ? ({ ...prev, email: tempEmail }) : null);
+
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar e-mail. Verifique se o novo e-mail já está em uso.");
     }
   };
 
@@ -1010,8 +1038,27 @@ const Dashboard = () => {
                       </div>
                       <div className="grid gap-2">
                         <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                        <div className="p-2 bg-muted/50 rounded-md text-foreground">
-                          {userProfile?.email}
+                        <div className="flex gap-2">
+                          <Input
+                            type="email"
+                            value={isEditingEmail ? tempEmail : userProfile?.email || ""}
+                            onChange={(e) => setTempEmail(e.target.value)}
+                            disabled={!isEditingEmail}
+                            className={!isEditingEmail ? "bg-muted/50 border-none w-full" : "w-full"}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (isEditingEmail) {
+                                handleSaveEmail();
+                              } else {
+                                setIsEditingEmail(true);
+                                setTempEmail(userProfile?.email || "");
+                              }
+                            }}
+                          >
+                            {isEditingEmail ? "Salvar" : "Alterar"}
+                          </Button>
                         </div>
                       </div>
                       <div className="grid gap-2">

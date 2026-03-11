@@ -166,19 +166,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                     <DialogTitle className="text-lg sm:text-xl font-bold text-center sm:text-left leading-tight">
                         {lead.title}
                     </DialogTitle>
-<<<<<<< HEAD
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 flex-wrap">
-                        {lead.request_details && <span className="flex items-center gap-1 bg-green-100 text-green-700 font-medium px-2 py-1 rounded border border-green-200"><Building2 className="w-3 h-3" /> {lead.request_details}</span>}
-                        {/* Etiqueta azul do produto */}
-                        <span
-                            className="flex items-center gap-1 bg-blue-100 text-blue-700 font-medium px-2 py-1 rounded border border-blue-200 cursor-pointer hover:bg-blue-200 transition-colors"
-                            onClick={() => { setIsEditingProduct(true); setProductInputValue(productTag); }}
-                            title="Clique para editar o produto"
-                        >
-                            <ShoppingBag className="w-3 h-3" /> {productTag || 'Produto'}
-                        </span>
-                        <span className="flex items-center gap-1 bg-background px-2 py-1 rounded border"><Phone className="w-3 h-3" /> {lead.phone}</span>
-=======
                     <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground mt-3 flex-wrap">
                         {lead.request_details && (
                             <span className="flex items-center gap-1 bg-green-100 text-green-700 font-medium px-2.5 py-1 rounded-full border border-green-200 text-xs shadow-sm">
@@ -194,7 +181,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                         <span className="flex items-center gap-1 bg-background px-2.5 py-1 rounded-full border text-xs shadow-sm">
                             <Phone className="w-3 h-3 text-muted-foreground" /> {lead.phone}
                         </span>
->>>>>>> teste
                     </div>
                 </DialogHeader>
 
@@ -408,13 +394,8 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                         type="button"
                                         onClick={() => setProductInputValue(suggestion)}
                                         className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${productInputValue === suggestion
-<<<<<<< HEAD
-                                                ? 'bg-blue-100 text-blue-700 border-blue-300'
-                                                : 'bg-muted/50 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
-=======
                                             ? 'bg-blue-100 text-blue-700 border-blue-300'
                                             : 'bg-muted/50 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
->>>>>>> teste
                                             }`}
                                     >
                                         {suggestion}

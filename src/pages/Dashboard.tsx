@@ -320,23 +320,14 @@ const Dashboard = () => {
         }
 
         // 2. Fetch Subscription Status directly from subscriptions table
-<<<<<<< HEAD
-        // This is the source of truth for "Plano Contratado"
-        const { data: subData, error: subErr } = await supabase
-          .from('subscriptions')
-          .select('subscription_status, created_at')
-=======
         const { data: subData, error: subErr } = await supabase
           .from('subscriptions')
           .select('subscription_status, created_at, expires_at, plan_name')
->>>>>>> teste
           .ilike('email', email)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
-<<<<<<< HEAD
-=======
         if (profile) {
           setTermsAccepted(!!profile.terms_accepted);
           if (!profile.terms_accepted) {
@@ -344,16 +335,10 @@ const Dashboard = () => {
           }
         }
 
->>>>>>> teste
         if (subErr) {
           console.error("Erro ao buscar assinatura:", subErr.message);
         }
 
-<<<<<<< HEAD
-        const isActivelySubscribed = !!subData || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
-        setHasActiveSubscription(isActivelySubscribed);
-        if (subData?.created_at) {
-=======
         // Verifica se a assinatura ainda é válida por data
         const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
 
@@ -363,7 +348,6 @@ const Dashboard = () => {
         setHasActiveSubscription(isActivelySubscribed);
 
         if (subData) {
->>>>>>> teste
           setSubscriptionCreatedAt(subData.created_at);
 
           // Fallback para assinaturas antigas ou sem expires_at

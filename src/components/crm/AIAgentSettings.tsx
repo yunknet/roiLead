@@ -210,27 +210,42 @@ export function AIAgentSettings() {
                             placeholder={DEFAULT_PROMPT}
                         />
 
-                        <div className="w-full lg:w-[320px] shrink-0 bg-red-500/5 border border-red-500/20 p-5 rounded-xl text-sm flex flex-col gap-4">
-                            <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                Como editar esse roteiro?
+                        <div className="w-full lg:w-[340px] shrink-0 flex flex-col gap-4">
+                            <div className="bg-red-500/5 border border-red-500/20 p-5 rounded-xl text-sm flex flex-col gap-4">
+                                <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    Como editar esse roteiro?
+                                </div>
+
+                                <p className="leading-relaxed font-medium text-foreground/80">
+                                    O texto esmaecido ao lado é um <strong>modelo otimizado</strong> de alta conversão. Você pode ignorá-lo e digitar o seu próprio texto do zero se preferir.
+                                </p>
+
+                                <div className="space-y-2 mt-2">
+                                    <p className="font-bold text-red-600/90 dark:text-red-400">
+                                        Quer usar o nosso modelo e apenas trocar as palavras?
+                                    </p>
+                                    <p className="leading-relaxed text-muted-foreground">
+                                        Por ser um texto de fundo (placeholder), não é possível apagar os colchetes diretamente agora.
+                                    </p>
+                                </div>
+
+                                <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 font-semibold text-red-700 dark:text-red-400 mt-2">
+                                    Para destravar o texto e personalizá-lo, deixe o campo em branco e clique em "Salvar Configurações". O sistema irá preenchê-lo definitivamente para você!
+                                </div>
                             </div>
 
-                            <p className="leading-relaxed font-medium text-foreground/80">
-                                O texto esmaecido ao lado é um <strong>modelo otimizado</strong> de alta conversão. Você pode ignorá-lo e digitar o seu próprio texto do zero se preferir.
-                            </p>
-
-                            <div className="space-y-2 mt-2">
-                                <p className="font-bold text-red-600/90 dark:text-red-400">
-                                    Quer usar o nosso modelo e apenas trocar as palavras?
+                            <div className="bg-red-500/5 border border-red-500/20 p-5 rounded-xl text-sm flex flex-col gap-3">
+                                <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    Pausa Automática da IA
+                                </div>
+                                <p className="leading-relaxed font-medium text-foreground/80">
+                                    O Agente irá <strong>parar automaticamente</strong> caso você responda o lead no chat.
                                 </p>
                                 <p className="leading-relaxed text-muted-foreground">
-                                    Por ser um texto de fundo (placeholder), não é possível apagar os colchetes diretamente agora.
+                                    Se você não interferir, o agente ficará conversando até atingir o objetivo do prompt. Caso você (ou outro humano) responda manualmente a conversa, o agente entra em pausa para esse lead por <strong>5 dias</strong>. Depois desse tempo, se o lead voltar a chamar, o agente retoma o atendimento.
                                 </p>
-                            </div>
-
-                            <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 font-semibold text-red-700 dark:text-red-400 mt-2">
-                                Para destravar o texto e personalizá-lo, deixe o campo em branco e clique em "Salvar Configurações". O sistema irá preenchê-lo definitivamente para você!
                             </div>
                         </div>
                     </div>

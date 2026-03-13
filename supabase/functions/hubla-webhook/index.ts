@@ -81,7 +81,9 @@ serve(async (req: Request) => {
       // Se for > 1000, provavelmente é centavos e precisamos dividir por 100
       const normalizedAmount = amount > 1000 ? amount / 100 : amount;
 
-      if (productInfo.toLowerCase().includes("anual")) {
+      if (productInfo.toLowerCase().includes("shark tank")) {
+        planName = productInfo;
+      } else if (productInfo.toLowerCase().includes("anual")) {
         planName = "Anual";
       } else if (productInfo.toLowerCase().includes("mensal")) {
         planName = "Mensal";
@@ -90,6 +92,7 @@ serve(async (req: Request) => {
         // Mensal = 67.00 | Anual = 324.00 (ou algo acima de 100 reais)
         planName = normalizedAmount > 100 ? "Anual" : "Mensal";
       }
+
 
       // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`

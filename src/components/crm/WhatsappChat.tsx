@@ -720,10 +720,10 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-card shadow-sm border-l border-border relative overflow-hidden">
+        <div className="flex flex-col h-full w-full bg-card overflow-hidden relative">
             {/* HEADER */}
             {activeLead ? (
-                <div className="flex items-center justify-between p-3 border-b border-border bg-muted/20">
+                <div className="flex items-center justify-between p-3 pl-12 border-b border-border bg-muted/20">
                     <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
                         <Button variant="ghost" size="icon" className="w-6 h-6 shrink-0" onClick={() => setActiveLead(null)}>
                             <ChevronLeft className="w-4 h-4" />
@@ -775,7 +775,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col p-3 border-b border-border bg-muted/20 gap-3">
+                <div className="flex flex-col p-3 pl-12 border-b border-border bg-muted/20 gap-3">
                     <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                             <MessageSquare className="w-4 h-4" />

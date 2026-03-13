@@ -24,7 +24,8 @@ import {
   Clock,
   Kanban,
   ShieldCheck,
-  Bot
+  Bot,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,11 +38,13 @@ import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { WhatsappChat } from "@/components/crm/WhatsappChat";
 import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
+import { SharkTank } from "@/components/crm/SharkTank";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
   { icon: Bot, label: "Agente IA", id: "agent" },
+  { icon: Target, label: "Shark Tank", id: "sharktank" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -857,297 +860,415 @@ const Dashboard = () => {
             )}
 
             {activeMenu === "crm" && (
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+              <div className="flex-1 overflow-hidden h-full flex flex-col p-4 sm:p-6 pb-2 w-full">
                 <KanbanBoard onCallLead={handleOpenWhatsApp} />
               </div>
             )}
 
-            {activeMenu === "agent" && (
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <AIAgentSettings />
+            {activeMenu === "sharktank" && (
+              <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
+                <SharkTank />
               </div>
             )}
 
             {activeMenu === "subscription" && (
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
-                <div className="flex flex-col gap-2">
-                  <h2 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h2>
-                  <p className="text-muted-foreground">Escolha o plano ideal para o seu negócio.</p>
-                </div>
-
-                {hasActiveSubscription && expiresAt && (
-                  <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-6 flex flex-col items-center justify-center text-center animate-fade-in mx-auto">
-                    <div className="flex items-center gap-2 text-primary mb-2">
-                      <Clock className="w-5 h-5" />
-                      <span className="font-semibold uppercase tracking-wider text-xs">Tempo de Assinatura</span>
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                <div className="max-w-4xl mx-auto space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground">Planos e Assinatura</h2>
+                      <p className="text-muted-foreground">Escolha o melhor plano para o seu negócio.</p>
                     </div>
-                    <div className="text-4xl font-black text-foreground mb-1">
-                      {calculateDaysLeft(expiresAt)} <span className="text-lg font-bold">dias</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">restantes no seu plano {(activePlanName || "anual").toLowerCase()}</p>
                   </div>
-                )}
 
-                <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
-                  {plans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`
-                      w-full max-w-md relative p-6 rounded-xl border-2 transition-all duration-200 bg-card
-                      ${plan.popular ? 'border-primary shadow-md ring-1 ring-primary/20' : 'border-border hover:border-primary/50'}
-                    `}
-                    >
-                      {plan.popular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">
-                          Mais Vantajoso
-                        </div>
-                      )}
-
-                      <div className="mb-4">
-                        <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
-                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+                  {hasActiveSubscription ? (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Check className="w-8 h-8 text-primary" />
                       </div>
-
-                      <div className="mb-6">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
-                          <span className="text-muted-foreground text-sm">{plan.period}</span>
-                        </div>
-                        {plan.installment && (
-                          <p className="text-sm font-medium text-foreground mt-1">{plan.installment}</p>
-                        )}
-                        {plan.savings && (
-                          <p className="text-xs text-primary font-medium mt-2">{plan.savings}</p>
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground">Assinatura Ativa</h3>
+                        <p className="text-muted-foreground mt-1">
+                          Você está no plano <strong>{activePlanName}</strong>. Tudo liberado! 🚀
+                        </p>
+                        {expiresAt && (
+                          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-lg text-sm font-medium text-foreground">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            Expira em: <span className="text-primary">{new Date(expiresAt).toLocaleDateString()}</span>
+                            <span className="text-muted-foreground">({calculateDaysLeft(expiresAt)} dias restantes)</span>
+                          </div>
                         )}
                       </div>
-
-                      <ul className="space-y-3 mb-8">
-                        {plan.features.map((feature, index) => (
-                          <li key={index} className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <Check className="w-4 h-4 text-primary flex-shrink-0" /> {feature}
-                          </li>
-                        ))}
-                      </ul>
-
-                      <Button
-                        className="w-full"
-                        variant={plan.popular ? "default" : "outline"}
-                        onClick={() => handleSubscribe(plan.id)}
-                        disabled={loadingPlan === plan.id || hasActiveSubscription}
-                      >
-                        {loadingPlan === plan.id ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                        {loadingPlan === plan.id
-                          ? "Processando..."
-                          : (hasActiveSubscription && activePlanName.toLowerCase() === plan.name.toLowerCase())
-                            ? "Assinado"
-                            : "Assinar " + plan.name}
-                      </Button>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-6 pt-4">
+                      {plans.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className={`relative rounded-2xl border-2 p-6 flex flex-col h-full bg-card/50 transition-colors ${plan.popular
+                            ? 'border-primary shadow-lg shadow-primary/10 bg-gradient-to-br from-primary/5 to-transparent'
+                            : 'border-border hover:border-primary/50'
+                            }`}
+                        >
+                          {plan.popular && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                                MAIS ESCOLHIDO
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="mb-6 flex-shrink-0">
+                            <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
+                            <p className="text-sm text-muted-foreground mt-1 min-h-[40px]">{plan.description}</p>
+                            <div className="mt-4 flex items-baseline gap-1">
+                              <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
+                              <span className="text-muted-foreground font-medium">{plan.period}</span>
+                            </div>
+
+                            {plan.id === "anual" && (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                  {plan.installment}
+                                </p>
+                                <p className="text-xs text-muted-foreground font-medium bg-emerald-500/10 px-2 py-1 rounded w-fit">
+                                  {plan.savings}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 flex flex-col justify-end">
+                            <ul className="space-y-3 mb-6">
+                              {plan.features.map((feature, i) => (
+                                <li key={i} className="flex items-center gap-3 text-sm text-foreground/80">
+                                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <Check className="w-3 h-3 text-primary" />
+                                  </div>
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                            <Button
+                              className={`w-full mt-auto text-base h-11 transition-all shadow-md ${plan.popular
+                                ? 'bg-primary hover:bg-primary/90 hover:scale-[1.02] shadow-primary/25 text-primary-foreground'
+                                : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                                }`}
+                              variant={plan.popular ? "default" : "secondary"}
+                              disabled={loadingPlan === plan.id}
+                              onClick={() => handleSubscribe(plan.id)}
+                            >
+                              {loadingPlan === plan.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Processando...
+                                </>
+                              ) : (
+                                "Assinar Agora"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bg-muted p-6 rounded-xl space-y-4">
+                    <h3 className="font-semibold flex items-center gap-2 text-foreground">
+                      <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                      Garantia Incondicional
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      E se eu não gostar? Não se preocupe! Você tem até <strong>7 dias</strong> para pedir o cancelamento e estorno total do valor, seja no plano Mensal ou Anual. Teste sem riscos.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeMenu === "settings" && (
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full space-y-6">
-                <div className="flex flex-col gap-2 items-center text-center">
-                  <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
-                  <p className="text-muted-foreground">Gerencie seus dados e preferências.</p>
-                </div>
-
-                <div className="space-y-4 max-w-2xl mx-auto">
-                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                      <User className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium text-foreground">Dados Pessoais</h3>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-muted-foreground">Nome</label>
-                        <div className="flex gap-2 items-start">
-                          {isEditingName ? (
-                            <div className="flex-1 flex gap-2">
-                              <div className="space-y-1 flex-1">
-                                <Input
-                                  placeholder="Nome"
-                                  value={tempFirstName}
-                                  onChange={(e) => setTempFirstName(e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-1 flex-1">
-                                <Input
-                                  placeholder="Sobrenome"
-                                  value={tempLastName}
-                                  onChange={(e) => setTempLastName(e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-2 bg-muted/50 rounded-md text-foreground flex-1">
-                              {fullName}
-                            </div>
-                          )}
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (isEditingName) {
-                                handleSaveName();
-                              } else {
-                                setIsEditingName(true);
-                              }
-                            }}
-                          >
-                            {isEditingName ? "Salvar" : "Alterar"}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="email"
-                            value={isEditingEmail ? tempEmail : userProfile?.email || ""}
-                            onChange={(e) => setTempEmail(e.target.value)}
-                            disabled={!isEditingEmail}
-                            className={!isEditingEmail ? "bg-muted/50 border-none w-full" : "w-full"}
-                          />
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (isEditingEmail) {
-                                handleSaveEmail();
-                              } else {
-                                setIsEditingEmail(true);
-                                setTempEmail(userProfile?.email || "");
-                              }
-                            }}
-                          >
-                            {isEditingEmail ? "Salvar" : "Alterar"}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-muted-foreground">Telefone / WhatsApp</label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            disabled={!isEditingPhone}
-                            className={!isEditingPhone ? "bg-muted/50 border-none" : ""}
-                          />
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (isEditingPhone) {
-                                handleSavePhone();
-                              } else {
-                                setIsEditingPhone(true);
-                              }
-                            }}
-                          >
-                            {isEditingPhone ? "Salvar" : "Alterar"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+                <div className="max-w-2xl space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
+                    <p className="text-muted-foreground">Gerencie seu perfil e preferências.</p>
                   </div>
 
-                  {/* Bloco de Alterar Senha */}
-                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                      <Lock className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium text-foreground">Alterar Senha</h3>
-                    </div>
-                    <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Proteja sua conta utilizando uma senha forte com letras e números.
-                      </p>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Input
-                          type="password"
-                          placeholder="Nova Senha"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                        />
-                        <Input
-                          type="password"
-                          placeholder="Confirmar Nova Senha"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        onClick={handleChangePassword}
-                        disabled={!newPassword || !confirmPassword || isChangingPassword}
-                      >
-                        {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        {isChangingPassword ? "Alterando..." : "Salvar Nova Senha"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-6 rounded-xl bg-card border border-border space-y-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                      <CreditCard className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium text-foreground">Plano Contratado</h3>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">
-                            {hasActiveSubscription ? `Plano ${activePlanName}` : "Plano Gratuito"}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hasActiveSubscription
-                            ? "bg-primary/20 text-primary"
-                            : "bg-secondary text-secondary-foreground"
-                            }`}>
-                            {hasActiveSubscription ? `${expiresAt ? calculateDaysLeft(expiresAt) : 0} dias restantes` : "Inativo"}
-                          </span>
+                  <div className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-4">Informações Pessoais</h3>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Nome Completo</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={userProfile?.firstName || ""}
+                              readOnly={!isEditingName}
+                              onChange={(e) => {
+                                if (userProfile) {
+                                  setUserProfile({ ...userProfile, firstName: e.target.value });
+                                  setTempFirstName(e.target.value);
+                                }
+                              }}
+                              className="bg-muted/50 w-1/2"
+                              placeholder="Nome"
+                            />
+                            <Input
+                              value={userProfile?.lastName || ""}
+                              readOnly={!isEditingName}
+                              onChange={(e) => {
+                                if (userProfile) {
+                                  setUserProfile({ ...userProfile, lastName: e.target.value });
+                                  setTempLastName(e.target.value);
+                                }
+                              }}
+                              className="bg-muted/50 w-1/2"
+                              placeholder="Sobrenome"
+                            />
+                            {!isEditingName ? (
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setTempFirstName(userProfile?.firstName || "");
+                                  setTempLastName(userProfile?.lastName || "");
+                                  setIsEditingName(true);
+                                }}
+                              >
+                                Editar
+                              </Button>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setIsEditingName(false);
+                                    if (userProfile) {
+                                      setUserProfile({
+                                        ...userProfile,
+                                        firstName: tempFirstName,
+                                        lastName: tempLastName
+                                      });
+                                    }
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handleSaveName}>
+                                  Salvar
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {hasActiveSubscription ? "Sua assinatura está ativa." : "Assine um plano para liberar os recursos."}
-                        </p>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">E-mail</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={userProfile?.email || ""}
+                              readOnly={!isEditingEmail}
+                              onChange={(e) => {
+                                if (userProfile) {
+                                  setUserProfile({ ...userProfile, email: e.target.value });
+                                  setTempEmail(e.target.value);
+                                }
+                              }}
+                              className="bg-muted/50"
+                            />
+                            {!isEditingEmail ? (
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setTempEmail(userProfile?.email || "");
+                                  setIsEditingEmail(true);
+                                }}
+                              >
+                                Alterar
+                              </Button>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setIsEditingEmail(false);
+                                    if (userProfile) {
+                                      setUserProfile({ ...userProfile, email: tempEmail });
+                                    }
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handleSaveEmail}>
+                                  Salvar
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Ao alterar o e-mail, será necessário confirmar o novo endereço.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Telefone</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={phone}
+                              readOnly={!isEditingPhone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="(00) 00000-0000"
+                              className="bg-muted/50"
+                            />
+                            {!isEditingPhone ? (
+                              <Button variant="outline" onClick={() => setIsEditingPhone(true)}>
+                                Editar
+                              </Button>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setIsEditingPhone(false);
+                                    setPhone(userProfile?.phone_number || "");
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handleSavePhone}>Salvar</Button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">O telefone só pode ser alterado a cada 15 dias.</p>
+                        </div>
                       </div>
-                      <Button variant="outline" onClick={() => setActiveMenu("subscription")}>
-                        {hasActiveSubscription ? "Gerenciar Plano" : "Ver Planos"}
+                    </div>
+
+                    <div className="pt-6 border-t border-border">
+                      <h3 className="text-lg font-semibold text-foreground mb-4">Segurança</h3>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Nova Senha</label>
+                          <Input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            className="bg-muted/50"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Confirmar Nova Senha</label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="bg-muted/50"
+                            />
+                            <Button
+                              onClick={handleChangePassword}
+                              disabled={isChangingPassword || !newPassword || !confirmPassword}
+                            >
+                              {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atualizar"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-border">
+                      <Button variant="destructive" className="w-full sm:w-auto">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir Conta
                       </Button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
+            {activeMenu === "agent" && (
+              <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
+                <AIAgentSettings />
+              </div>
+            )}
+
+            <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Termos de Uso</DialogTitle>
+                  <DialogDescription>
+                    Para continuar usando o roiLead, você precisa aceitar nossos termos de uso.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="p-4 bg-muted text-sm rounded-lg max-h-60 overflow-y-auto mb-4 custom-scrollbar text-foreground leading-relaxed">
+                  <h4 className="font-bold mb-2">1. Coleta de Dados e Privacidade</h4>
+                  <p className="mb-2">Ao continuar, você autoriza o roiLead a coletar e armazenar seu endereço de e-mail e número de telefone para fins de identificação, acesso aos serviços do plano e comunicação sobre atualizações da plataforma.</p>
+                  <p className="mb-4">O roiLead não compartilha essas informações com terceiros, exceto quando necessário para processar pagamentos através dos nossos parceiros.</p>
+
+                  <h4 className="font-bold mb-2">2. Comunicação e Transparência</h4>
+                  <p className="mb-2">Ao aceitar estes termos, você está ciente de que não enviaremos e-mails de marketing ou promoções externas, mas poderemos usar o seu e-mail e telefone para contatos referentes exclusivamente ao funcionamento, cobranças ou suporte da sua conta roiLead.</p>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      toast.error("Você precisa aceitar os termos para usar a plataforma.");
+                      setShowTermsModal(false);
+                    }}
+                    disabled={isAcceptingTerms}
+                    className="w-full sm:w-auto"
+                  >
+                    Recusar e Sair
+                  </Button>
+                  <Button
+                    onClick={handleAcceptTerms}
+                    disabled={isAcceptingTerms}
+                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+                  >
+                    {isAcceptingTerms ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Sim, eu aceito
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          {/* Persistent WhatsApp Chat for Search and CRM Tabs */}
-          {hasActiveSubscription && (activeMenu === "search" || activeMenu === "crm") && (
-            <div className={`transition-all duration-300 ease-in-out border-l border-border bg-card shrink-0 flex-col overflow-hidden hidden lg:flex relative ${isChatMinimized ? "w-[60px]" : "w-[450px] lg:w-[32%] xl:w-[28%]"
-              } h-full`}>
-              <div className="absolute top-2 right-2 z-10 bg-background rounded-md border border-border">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6 m-1 text-muted-foreground"
-                  onClick={() => setIsChatMinimized(!isChatMinimized)}
-                  title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
-                >
-                  {isChatMinimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </Button>
-              </div>
+          {/* Div do WhatsappChat (ocupa o rhs) */}
+          <div className={`hidden lg:flex transition-all duration-300 ${isChatMinimized ? 'w-[60px]' : 'w-[450px]'} border-l border-border bg-card overflow-hidden relative group`}>
+            <Button
+              variant="default"
+              size="icon"
+              className={`absolute top-3 ${isChatMinimized ? 'left-1/2 -translate-x-1/2' : 'left-3'} z-50 w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all flex items-center justify-center`}
+              onClick={() => setIsChatMinimized(!isChatMinimized)}
+              title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
+            >
+              {isChatMinimized ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            </Button>
 
-              {!isChatMinimized ? (
-                <div className="flex-1 flex flex-col pt-10 h-full">
-                  <WhatsappChat initialContact={whatsappInitialLead} />
-                </div>
+
+            {hasActiveSubscription ? (
+              !isChatMinimized ? (
+                <WhatsappChat initialContact={whatsappInitialLead} />
               ) : (
-                <div className="flex flex-col items-center pt-10 h-full w-full">
-                  <MessageCircle className="w-8 h-8 text-primary opacity-50 mb-2 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => setIsChatMinimized(false)} />
-                  <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }} className="text-xs font-bold text-muted-foreground mt-4 tracking-widest leading-none">
-                    WHATSAPP
+                <div className="flex flex-col items-center pt-20 h-full w-full bg-muted/10 cursor-pointer" onClick={() => setIsChatMinimized(false)}>
+                  <MessageCircle className="w-7 h-7 text-primary opacity-40 mb-6" />
+                  <span style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-black text-muted-foreground/40 tracking-[0.3em] uppercase">
+                    WhatsApp
                   </span>
                 </div>
-              )}
-            </div>
-          )}
+              )
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-muted/30">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6 shadow-inner">
+                  <Lock className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-3">WhatsApp Conectado</h3>
+                <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
+                  Para integrar seu WhatsApp, conversar com os leads salvos no CRM e usar mensagens instantâneas, escolha um plano de assinatura.
+                </p>
+              </div>
+
+            )}
+          </div>
+
         </div>
       </main>
     </div>

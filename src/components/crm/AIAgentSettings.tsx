@@ -3,20 +3,43 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Bot, Save, Power, PowerOff } from "lucide-react";
+import { Loader2, Bot, Save, Power, PowerOff, AlertCircle } from "lucide-react";
 
-const DEFAULT_PROMPT = `Você é um Vendedor Especialista focado em qualificar leads e fechar vendas pelo WhatsApp.
+const DEFAULT_PROMPT = `PERSONA E CONTEXTO
+Você é [Nome do Agente, ex: João], consultor(a) especialista em [Seu Nicho/Mercado, ex: Planos de Saúde / Venda de Veículos / Estética].
+Sua missão é atender leads no WhatsApp de forma cordial, natural e breve.
+Não use palavras difíceis de serem entendidas!
+Você DEVE coletar informações específicas para qualificação, mas SEM parecer um formulário ou um robô de "menus".
+Não fale em terceira pessoa.
 
-=== SUAS REGRAS DE OURO ===
-1. Seja sempre amigável, educado e use emojis moderadamente (👋, 😊, 🚀).
-2. Seu objetivo principal NÃO é dar o preço de cara, mas sim entender a dor do cliente.
-3. Faça sempre UMA ÚNICA pergunta no final da sua mensagem. Nunca mande textos gigantes.
-4. Se o cliente perguntar o preço, dê uma estimativa e pergunte algo em seguida para manter o controle da conversa.
-5. Se o cliente mostrar interesse em avançar, diga que um especialista humano (ou gerente) vai assumir a conversa para finalizar os detalhes.
+OBJETIVO DA CONVERSA
+Você precisa extrair as seguintes informações essenciais do cliente, seguindo esta ordem lógica, mas adaptando a linguagem para ser fluida:
 
-=== EXEMPLO DE POSTURA ===
-Lead: "Qual o valor?"
-Você: "Olá! Tudo bem? 👋 O valor varia bastante dependendo da sua necessidade exata (ex: tamanho, urgência). Para eu te dar uma estimativa certinha, me conta: qual é o seu objetivo principal hoje?"`;
+[Informação 1, ex: Qual o serviço/produto desejado?]
+[Informação 2, ex: Qual a urgência do cliente ou prazo ideal?]
+[Informação 3, ex: Qual o orçamento estimado ou faixa de preço?]
+[Informação 4, se houver, ex: Qual a localização/bairro do cliente?]
+
+(Nota: Apague ou adicione números acima conforme a necessidade do seu negócio).
+
+REGRAS DE CONDUTA (IMPORTANTE)
+1. NUNCA USE MENUS NUMERADOS: Jamais diga "Digite 1 para X". Pergunte naturalmente: "Você busca a opção X, Y ou Z?".
+2. UM PASSO DE CADA VEZ: Faça apenas UMA pergunta por mensagem para não sobrecarregar o cliente.
+3. SEJA RESILIENTE: Se o cliente responder de forma vaga (ex: "Não sei ainda"), explique educadamente que precisa de uma estimativa para conseguir ajudá-lo e pergunte novamente de forma amigável.
+4. NÃO EXPLIQUE O SISTEMA: Não explique como a IA funciona. Apenas foque no atendimento.
+
+ROTEIRO DE FLUXO (GUIA LÓGICO)
+PASSO 1: SAUDAÇÃO E PRIMEIRA PERGUNTA
+(Apenas se for o início da conversa)
+"Olá! Que bom ter você por aqui! 👋 Sou [Seu Nome], especialista em [Seu Nicho]. Para te ajudar da melhor forma, me conta rapidinho: [Insira aqui a sua 1ª pergunta]?"
+
+PASSO 2: COLETA DE DADOS RESTANTES
+Após a resposta, faça um elogio breve e avance para a próxima pergunta.
+Exemplo: "Perfeito! [Insira aqui a próxima pergunta]"
+
+PASSO 3: ENCERRAMENTO
+Quando tiver tudo, encerre:
+"Prontinho! Tudo anotado. Em alguns instantes você será atendido(a) para darmos andamento! ☎️"`;
 
 export function AIAgentSettings() {
     const [loading, setLoading] = useState(true);
@@ -57,6 +80,40 @@ export function AIAgentSettings() {
             toast.error("Erro ao carregar configurações do Agente de IA.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleActive = async () => {
+        const newValue = !isActive;
+        setIsActive(newValue);
+
+        try {
+            // Sincroniza imediatamente com Evolution API (Webhook) + Settings
+            await supabase.functions.invoke('whatsapp', {
+                body: { action: 'set_webhook', useN8n: newValue }
+            });
+
+            // Salva no DB
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const payload = {
+                    user_id: user.id,
+                    is_active: newValue,
+                    system_prompt: systemPrompt.trim() !== "" ? systemPrompt : DEFAULT_PROMPT,
+                    updated_at: new Date().toISOString()
+                };
+                if (agentId) {
+                    await supabase.from('ai_agents').update(payload).eq('id', agentId);
+                } else {
+                    const { data } = await supabase.from('ai_agents').insert([payload]).select().single();
+                    if (data) setAgentId(data.id);
+                }
+            }
+            toast.success(newValue ? "Agente Ligado!" : "Agente Desligado!");
+        } catch (err) {
+            console.error("Erro ao sincronizar status do agente:", err);
+            toast.error("Erro ao alternar o status do agente.");
+            setIsActive(!newValue); // rollback
         }
     };
 
@@ -131,14 +188,12 @@ export function AIAgentSettings() {
                         <h3 className="text-lg font-semibold text-foreground">Status do Agente</h3>
                         <p className="text-sm text-muted-foreground">Ligar ou desligar a inteligência artificial para novas conversas.</p>
                     </div>
-                    <Button
-                        variant={isActive ? "default" : "outline"}
-                        className={isActive ? "bg-green-600 hover:bg-green-700 text-white" : "text-muted-foreground"}
-                        onClick={() => setIsActive(!isActive)}
+                    <div
+                        className={`w-12 h-6 rounded-full relative transition-[background-color] duration-300 ease-in-out cursor-pointer flex-shrink-0 ${isActive ? 'bg-[#1bc678]' : 'bg-slate-300'}`}
+                        onClick={handleToggleActive}
                     >
-                        {isActive ? <Power className="w-4 h-4 mr-2" /> : <PowerOff className="w-4 h-4 mr-2" />}
-                        {isActive ? "Agente Ligado" : "Agente Desligado"}
-                    </Button>
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-transform duration-300 ease-in-out shadow-md ${isActive ? 'translate-x-[26px]' : 'translate-x-[2px]'}`} />
+                    </div>
                 </div>
 
                 <div className="space-y-3">
@@ -148,12 +203,38 @@ export function AIAgentSettings() {
                     <p className="text-sm text-muted-foreground mb-2">
                         Descreva detalhadamente como o seu Agente deve ler, pensar e responder aos clientes. Se você deixar em branco e ativar, usaremos o exemplo abaixo pro padrão.
                     </p>
-                    <textarea
-                        value={systemPrompt}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
-                        className="w-full min-h-[350px] p-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/50 text-foreground resize-y outline-none leading-relaxed"
-                        placeholder={DEFAULT_PROMPT}
-                    />
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        <textarea
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
+                            className="flex-1 min-h-[450px] p-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/50 text-foreground resize-y outline-none leading-relaxed"
+                            placeholder={DEFAULT_PROMPT}
+                        />
+
+                        <div className="w-full lg:w-[320px] shrink-0 bg-red-500/5 border border-red-500/20 p-5 rounded-xl text-sm flex flex-col gap-4">
+                            <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                Como editar esse roteiro?
+                            </div>
+
+                            <p className="leading-relaxed font-medium text-foreground/80">
+                                O texto esmaecido ao lado é um <strong>modelo otimizado</strong> de alta conversão. Você pode ignorá-lo e digitar o seu próprio texto do zero se preferir.
+                            </p>
+
+                            <div className="space-y-2 mt-2">
+                                <p className="font-bold text-red-600/90 dark:text-red-400">
+                                    Quer usar o nosso modelo e apenas trocar as palavras?
+                                </p>
+                                <p className="leading-relaxed text-muted-foreground">
+                                    Por ser um texto de fundo (placeholder), não é possível apagar os colchetes diretamente agora.
+                                </p>
+                            </div>
+
+                            <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 font-semibold text-red-700 dark:text-red-400 mt-2">
+                                👉 Para destravar o texto e personalizá-lo, deixe o campo em branco e clique em "Salvar Configurações". O sistema irá preenchê-lo definitivamente para você!
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end pt-4 border-t border-border">

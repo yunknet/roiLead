@@ -161,7 +161,45 @@ serve(async (req) => {
           value: 0
         });
       }
+
+      // O envio para o N8N foi movido para o final do arquivo, fora do loop, para evitar duplicações.
     }
+
+    // A MÁGICA ACONTECE AQUI: A Trava do Agente (Gate de Inteligência)
+    // Após salvar as conversas no banco de dados local perfeitamente, decidimos se repassamos ao N8N
+    try {
+      const { data: agentData } = await supabaseClient
+        .from('ai_agents')
+        .select('is_active')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const isAgentActive = agentData?.is_active === true;
+      const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
+
+      if (isAgentActive && n8nWebhookUrl) {
+        console.log(`Agente ATIVADO. Repassando payload para o N8N: ${n8nWebhookUrl}`);
+
+        const n8nResponse = await fetch(n8nWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload) // <-- Enviando o payload bruto para o bot assumir
+        });
+
+        if (!n8nResponse.ok) {
+          console.error(`Falha ao encaminhar ao n8n. Status: ${n8nResponse.status}`, await n8nResponse.text());
+        } else {
+          console.log(`Payload enviado ao n8n com sucesso (Usuário: ${userId})`);
+        }
+      } else {
+        console.log(`Agente DESATIVADO ou N8N_URL vazia. O N8n NÃO foi chamado. Controle exclusivamente humano.`);
+      }
+    } catch (agentErr) {
+      console.error("Erro ao verificar status do agente ou falha de comunicação n8n:", agentErr);
+    }
+
     return new Response(JSON.stringify({
       success: true
     }), {

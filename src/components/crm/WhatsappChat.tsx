@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { encryptMessage, decryptMessage } from '@/lib/crypto';
 import { toast } from 'sonner';
-import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus } from 'lucide-react';
+import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -89,6 +89,7 @@ const DDIS = [
 export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [status, setStatus] = useState<'loading' | 'disconnected' | 'connected'>('loading');
     const [qrCode, setQrCode] = useState('');
+    const [useIaAgent, setUseIaAgent] = useState(false);
     const [leads, setLeads] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
     const [activeLead, setActiveLead] = useState<any>(() => {
@@ -220,22 +221,35 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data, error } = await supabase
+            // ---- Polling Messages ----
+            const { data: messagesData, error: messagesError } = await supabase
                 .from('chat_messages')
                 .select('*')
                 .eq('user_id', user.id)
                 .gt('created_at', lastPolledRef.current)
                 .order('created_at', { ascending: true });
 
-            if (!error && data && data.length > 0) {
+            if (!messagesError && messagesData && messagesData.length > 0) {
                 // Atualiza o ref de último momento em que verificamos de acordo com timestamp do cliente
-                // Para evitar furos de rede, usamos max do created_at na lista
-                const maxDate = new Date(Math.max(...data.map(m => new Date(m.created_at).getTime())));
+                const maxDate = new Date(Math.max(...messagesData.map(m => new Date(m.created_at).getTime())));
                 lastPolledRef.current = maxDate.toISOString();
 
-                data.forEach(msg => handleNewMessage({ new: msg }));
+                messagesData.forEach(msg => handleNewMessage({ new: msg }));
             }
-        }, 5000);
+
+            // ---- Polling Agent Status ----
+            // Garante que o chat detecta instantaneamente se o usuário ligou/desligou a IA no painel "Meu Agente"
+            const { data: agentData } = await supabase
+                .from('ai_agents')
+                .select('is_active')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (agentData) {
+                setUseIaAgent(agentData.is_active);
+            }
+
+        }, 2000); // Reduzido de 5s para 2s para o reflexo do Switch ser mais "Instantâneo" visualmente
 
         return () => {
             clearInterval(pollInterval);
@@ -417,6 +431,20 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
 
             if (data?.state === 'open' || data?.instance?.state === 'open') {
                 setStatus('connected');
+
+                // Tenta puxar o status do agente no banco silenciosamente
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        const { data: aiAgent } = await supabase.from('ai_agents').select('is_active').eq('user_id', user.id).maybeSingle();
+                        if (aiAgent) {
+                            setUseIaAgent(aiAgent.is_active);
+                        }
+                    }
+                } catch (e) {
+                    console.log("Erro silencioso ao checar agente atual no db", e);
+                }
+
             } else {
                 setStatus('disconnected');
                 await connectInstance();
@@ -432,7 +460,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         setQrCode('');
         try {
             const { data, error } = await supabase.functions.invoke('whatsapp', {
-                body: { action: 'create_instance' }
+                body: { action: 'create_instance', useN8n: useIaAgent }
             });
             if (error) throw error;
 
@@ -452,6 +480,33 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             toast.error('Erro ao conectar WhatsApp');
         } finally {
             setLoadingAction(false);
+        }
+    };
+
+    const handleToggleIaAgent = async (checked: boolean) => {
+        setUseIaAgent(checked);
+        if (status === 'connected') {
+            setLoadingAction(true);
+            try {
+                const { error } = await supabase.functions.invoke('whatsapp', {
+                    body: { action: 'set_webhook', useN8n: checked }
+                });
+                if (error) throw error;
+
+                // Sync com DB de agentes para as telas ficarem simultaneas
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await supabase.from('ai_agents').update({ is_active: checked }).eq('user_id', user.id);
+                }
+
+                toast.success(checked ? 'Agente de Inteligência Artificial Ativado!' : 'Agente de Inteligência Artificial Desativado!');
+            } catch (error) {
+                console.error(error);
+                toast.error('Erro ao alternar o Agente de IA');
+                setUseIaAgent(!checked); // reverte a UI
+            } finally {
+                setLoadingAction(false);
+            }
         }
     };
 
@@ -747,14 +802,29 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                         </div>
                     </div>
                     {status === 'connected' && (
-                        <div className="relative w-full">
-                            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                            <Input
-                                placeholder="Pesquisar conversa rápida..."
-                                value={searchContactTerm}
-                                onChange={(e) => setSearchContactTerm(e.target.value)}
-                                className="pl-9 h-8 text-xs bg-background border-border/50 focus-visible:ring-1"
-                            />
+                        <div className="flex flex-col gap-2 w-full mt-2">
+                            <div className="relative w-full">
+                                <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                                <Input
+                                    placeholder="Pesquisar conversa rápida..."
+                                    value={searchContactTerm}
+                                    onChange={(e) => setSearchContactTerm(e.target.value)}
+                                    className="pl-9 h-8 text-xs bg-background border-border/50 focus-visible:ring-1"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between mt-2 px-3 py-3 border border-border/50 bg-background/50 rounded-lg w-full">
+                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                                    <Bot className="w-4 h-4" />
+                                    Meu Agente de IA
+                                </span>
+                                <div
+                                    className={`w-12 h-6 rounded-full relative transition-[background-color] duration-300 ease-in-out cursor-pointer flex-shrink-0 ${useIaAgent ? 'bg-[#1bc678]' : 'bg-slate-300'}`}
+                                    onClick={() => handleToggleIaAgent(!useIaAgent)}
+                                >
+                                    <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-transform duration-300 ease-in-out shadow-md ${useIaAgent ? 'translate-x-[26px]' : 'translate-x-[2px]'}`} />
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -821,7 +891,21 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                         <div className="bg-white p-2 rounded-xl shadow-sm border border-border/50 transition-all hover:scale-105">
                             <img src={qrCode} alt="WhatsApp QR Code" className="w-[200px] h-[200px] sm:w-48 sm:h-48 object-contain" />
                         </div>
-                        <Button onClick={connectInstance} variant="secondary" size="sm" className="w-full max-w-[200px] mt-4">
+
+                        <div className="flex items-center space-x-2 mt-2">
+                            <input
+                                type="checkbox"
+                                id="ia-toggle-qr"
+                                checked={useIaAgent}
+                                onChange={(e) => setUseIaAgent(e.target.checked)}
+                                className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary accent-primary cursor-pointer"
+                            />
+                            <label htmlFor="ia-toggle-qr" className="text-sm font-medium leading-none cursor-pointer">
+                                Ligar Agente de IA
+                            </label>
+                        </div>
+
+                        <Button onClick={connectInstance} variant="secondary" size="sm" className="w-full max-w-[200px] mt-2">
                             Atualizar QR Code
                         </Button>
                     </div>
@@ -831,6 +915,8 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     <div className="flex flex-col items-center pt-10 px-4 space-y-4">
                         <QrCode className="w-10 h-10 text-muted-foreground" />
                         <p className="text-sm text-center text-muted-foreground">O WhatsApp não está conectado.</p>
+
+
                         <Button onClick={connectInstance} className="w-full max-w-[200px]">Conectar agora</Button>
                     </div>
                 )}

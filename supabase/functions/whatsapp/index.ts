@@ -4,7 +4,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
-serve(async (req)=>{
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: corsHeaders
@@ -12,15 +12,15 @@ serve(async (req)=>{
   }
   try {
     const supabaseClient = createClient(// Supabase API URL - env var exported by default.
-    Deno.env.get('SUPABASE_URL') ?? '', // Supabase API Anon Key - env var exported by default.
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '', // Create client with Auth context of the user that called the function.
-    {
-      global: {
-        headers: {
-          Authorization: req.headers.get('Authorization')
+      Deno.env.get('SUPABASE_URL') ?? '', // Supabase API Anon Key - env var exported by default.
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '', // Create client with Auth context of the user that called the function.
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get('Authorization')
+          }
         }
-      }
-    });
+      });
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({
@@ -34,7 +34,7 @@ serve(async (req)=>{
       });
     }
     const reqBody = await req.json();
-    const { action, instanceName = user.id } = reqBody;
+    const { action, instanceName = user.id, useN8n } = reqBody;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     // Usamos a chave global para criar/gerenciar instâncias
     const EVOLUTION_GLOBAL_KEY = Deno.env.get('EVOLUTION_GLOBAL_KEY');
@@ -55,7 +55,7 @@ serve(async (req)=>{
     }
     const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
     console.log(`Webhook URL: ${WEBHOOK_URL}`);
-    switch(action){
+    switch (action) {
       case 'create_instance':
         console.log(`Creating instance: ${instanceId}`);
         try {
@@ -73,28 +73,54 @@ serve(async (req)=>{
           console.log('Create Response:', JSON.stringify(createData));
           // 2. Always Set Webhook (regardless of create result, unless fatal)
           try {
+            const finalWebhookUrl = WEBHOOK_URL;
+            const finalEvents = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"];
+
+            const webhookPayload: any = {
+              webhook: {
+                enabled: true,
+                url: finalWebhookUrl,
+                webhook_by_events: false,
+                webhook_base64: true,
+                events: finalEvents
+              }
+            };
+
+            // Para a Evolution API V2, a opção de rejeitar ligacao e ignorar grupos
+            // fica nas definições gerais da instância e não mais amarrado estritamente ao webhook Payload em algumas versões.
             const webhookRes = await fetch(`${EVOLUTION_API_URL}/webhook/set/${instanceId}`, {
               method: 'POST',
               headers: {
                 ...headers,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                webhook: {
-                  enabled: true,
-                  url: WEBHOOK_URL,
-                  webhook_by_events: false,
-                  webhook_base64: true,
-                  events: [
-                    "MESSAGES_UPSERT",
-                    "MESSAGES_UPDATE",
-                    "SEND_MESSAGE"
-                  ]
-                }
-              })
+              body: JSON.stringify(webhookPayload)
             });
             const webhookData = await webhookRes.json();
             console.log("Webhook Update Result:", JSON.stringify(webhookData));
+
+            // Evolution v1 to v2: às vezes rejectCall/ignoreGroups precisam de endpoint de settings à parte.
+            // Para garantir que funciona, caso a API exija chamada em /settings/set:
+            if (useN8n) {
+              try {
+                await fetch(`${EVOLUTION_API_URL}/settings/set/${instanceId}`, {
+                  method: 'POST',
+                  headers: {
+                    ...headers,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    rejectCall: true,
+                    groupsIgnore: true, // Evolution API usa groupsIgnore e não ignoreGroups no endpoint /settings/set
+                    readMessages: true,
+                    readStatus: false
+                  })
+                });
+              } catch (settingsErr) {
+                console.log("Error updating exclusive N8N settings", settingsErr);
+              }
+            }
+
           } catch (webhookErr) {
             console.error("Error updating webhook:", webhookErr);
           }
@@ -174,27 +200,49 @@ serve(async (req)=>{
         break;
       case 'set_webhook':
         try {
+          const finalWebhookUrl = WEBHOOK_URL;
+          const finalEvents = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"];
+
+          // Configurações padrão de webhook na Evolution API V2
+          const webhookPayload: any = {
+            webhook: {
+              enabled: true,
+              url: finalWebhookUrl,
+              webhook_by_events: false,
+              webhook_base64: true,
+              events: finalEvents
+            }
+          };
+
           const webhookRes = await fetch(`${EVOLUTION_API_URL}/webhook/set/${instanceId}`, {
             method: 'POST',
             headers: {
               ...headers,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              webhook: {
-                enabled: true,
-                url: WEBHOOK_URL,
-                webhook_by_events: false,
-                webhook_base64: true,
-                events: [
-                  "MESSAGES_UPSERT",
-                  "MESSAGES_UPDATE",
-                  "SEND_MESSAGE"
-                ]
-              }
-            })
+            body: JSON.stringify(webhookPayload)
           });
           result = await webhookRes.json();
+
+          // Manda as definições sempre (seja ativando ou desativando) para garantir Evolution API
+          try {
+            await fetch(`${EVOLUTION_API_URL}/settings/set/${instanceId}`, {
+              method: 'POST',
+              headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                rejectCall: useN8n ? true : false,
+                groupsIgnore: useN8n ? true : false,
+                readMessages: useN8n ? true : false,
+                readStatus: false
+              })
+            });
+          } catch (settingsErr) {
+            console.log("Error updating exclusive N8N settings on set_webhook", settingsErr);
+          }
+
         } catch (e) {
           result = {
             error: e.message

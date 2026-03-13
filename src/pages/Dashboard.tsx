@@ -988,7 +988,7 @@ const Dashboard = () => {
 
             {activeMenu === "settings" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <div className="max-w-2xl space-y-6">
+                <div className="max-w-2xl mx-auto space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
                     <p className="text-muted-foreground">Gerencie seu perfil e preferências.</p>
@@ -1185,7 +1185,7 @@ const Dashboard = () => {
             )}
 
             {activeMenu === "agent" && (
-              <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
+              <div className="flex-1 overflow-y-auto h-full flex flex-col w-full">
                 <AIAgentSettings />
               </div>
             )}

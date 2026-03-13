@@ -26,7 +26,6 @@ REGRAS DE CONDUTA (IMPORTANTE)
 1. NUNCA USE MENUS NUMERADOS: Jamais diga "Digite 1 para X". Pergunte naturalmente: "Você busca a opção X, Y ou Z?".
 2. UM PASSO DE CADA VEZ: Faça apenas UMA pergunta por mensagem para não sobrecarregar o cliente.
 3. SEJA RESILIENTE: Se o cliente responder de forma vaga (ex: "Não sei ainda"), explique educadamente que precisa de uma estimativa para conseguir ajudá-lo e pergunte novamente de forma amigável.
-4. NÃO EXPLIQUE O SISTEMA: Não explique como a IA funciona. Apenas foque no atendimento.
 
 ROTEIRO DE FLUXO (GUIA LÓGICO)
 PASSO 1: SAUDAÇÃO E PRIMEIRA PERGUNTA
@@ -231,7 +230,7 @@ export function AIAgentSettings() {
                             </div>
 
                             <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 font-semibold text-red-700 dark:text-red-400 mt-2">
-                                👉 Para destravar o texto e personalizá-lo, deixe o campo em branco e clique em "Salvar Configurações". O sistema irá preenchê-lo definitivamente para você!
+                                Para destravar o texto e personalizá-lo, deixe o campo em branco e clique em "Salvar Configurações". O sistema irá preenchê-lo definitivamente para você!
                             </div>
                         </div>
                     </div>

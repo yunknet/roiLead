@@ -436,13 +436,22 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
-                        const { data: aiAgent } = await supabase.from('ai_agents').select('is_active').eq('user_id', user.id).maybeSingle();
+                        const instanceId = `user_${user.id.replace(/[^a-zA-Z0-9-]/g, '')}`;
+                        const { data: aiAgent } = await supabase.from('ai_agents').select('is_active, instance_name').eq('user_id', user.id).maybeSingle();
+
+                        // Atualiza se necessário (agente ativo ou nome da instância faltando/diferente)
                         if (aiAgent) {
                             setUseIaAgent(aiAgent.is_active);
+                            if (aiAgent.instance_name !== instanceId) {
+                                await supabase.from('ai_agents').update({ instance_name: instanceId }).eq('user_id', user.id);
+                            }
+                        } else {
+                            // Cria a entrada se não existir
+                            await supabase.from('ai_agents').insert({ user_id: user.id, instance_name: instanceId });
                         }
                     }
                 } catch (e) {
-                    console.log("Erro silencioso ao checar agente atual no db", e);
+                    console.log("Erro silencioso ao checar/sincronizar agente no db", e);
                 }
 
             } else {
@@ -463,6 +472,20 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                 body: { action: 'create_instance', useN8n: useIaAgent }
             });
             if (error) throw error;
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const instanceId = `user_${user.id.replace(/[^a-zA-Z0-9-]/g, '')}`;
+                try {
+                    await supabase.from('ai_agents').upsert({
+                        user_id: user.id,
+                        instance_name: instanceId,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+                } catch (dbErr) {
+                    console.error("Erro ao salvar instância no ai_agents:", dbErr);
+                }
+            }
 
             const qrBase64 = data?.qrcode?.base64 || data?.base64;
             if (qrBase64) {

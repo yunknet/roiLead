@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Bot, Save, Power, PowerOff, AlertCircle } from "lucide-react";
+import { Loader2, Bot, Save, Power, PowerOff, AlertCircle, BotOff } from "lucide-react";
 
 const DEFAULT_PROMPT = `# IDENTIDADE E MISSÃO
 Você é [Seu Nome, ex: João], [Seu Cargo, ex: Especialista de Vendas] da empresa [Nome da sua Empresa].
@@ -58,6 +58,10 @@ export function AIAgentSettings() {
     const [isActive, setIsActive] = useState(false);
     const [systemPrompt, setSystemPrompt] = useState("");
     const [agentId, setAgentId] = useState<string | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
+    const [showLockModal, setShowLockModal] = useState(false);
+    const [lockDuration, setLockDuration] = useState(1);
+    const [lockUnit, setLockUnit] = useState<'min' | 'hour'>('min');
 
     useEffect(() => {
         fetchAgentSettings();
@@ -81,6 +85,7 @@ export function AIAgentSettings() {
             if (data) {
                 setAgentId(data.id);
                 setIsActive(data.is_active);
+                setIsLocked(data.is_locked === 'sim');
                 setSystemPrompt(data.system_prompt || "");
             } else {
                 // Se não tem dados salvos, deixa vazio mas o placeholder vai mostrar o exemplo genial
@@ -125,6 +130,31 @@ export function AIAgentSettings() {
             console.error("Erro ao sincronizar status do agente:", err);
             toast.error("Erro ao alternar o status do agente.");
             setIsActive(!newValue); // rollback
+        }
+    };
+
+    const handleLockAgent = async (unlock = false) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const seconds = unlock ? 0 : (lockUnit === 'min' ? lockDuration * 60 : lockDuration * 3600);
+        const lockValue = unlock ? 'não' : 'sim';
+
+        const { error } = await supabase
+            .from('ai_agents')
+            .update({
+                is_locked: lockValue,
+                lock_time_seconds: seconds
+            })
+            .eq('user_id', user.id);
+
+        if (!error) {
+            setShowLockModal(false);
+            setIsLocked(!unlock);
+            toast.success(unlock ? 'Agente destravado com sucesso!' : `Agente travado por ${lockDuration} ${lockUnit === 'min' ? 'minuto(s)' : 'hora(s)'}`);
+        } else {
+            console.error("Erro ao atualizar agente:", error);
+            toast.error(unlock ? 'Erro ao destravar agente' : 'Erro ao travar agente');
         }
     };
 
@@ -199,11 +229,35 @@ export function AIAgentSettings() {
                         <h3 className="text-lg font-semibold text-foreground">Status do Agente</h3>
                         <p className="text-sm text-muted-foreground">Ligar ou desligar a inteligência artificial para novas conversas.</p>
                     </div>
-                    <div
-                        className={`w-12 h-6 rounded-full relative transition-[background-color] duration-300 ease-in-out cursor-pointer flex-shrink-0 ${isActive ? 'bg-[#1bc678]' : 'bg-slate-300'}`}
-                        onClick={handleToggleActive}
-                    >
-                        <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-transform duration-300 ease-in-out shadow-md ${isActive ? 'translate-x-[26px]' : 'translate-x-[2px]'}`} />
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowLockModal(true)}
+                            className={`h-9 px-4 text-xs gap-2 transition-all duration-300 font-bold ${isLocked
+                                ? 'border-green-500/50 text-green-500 hover:bg-green-500 hover:text-white'
+                                : 'border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white'
+                                }`}
+                        >
+                            {isLocked ? (
+                                <>
+                                    <Bot className="w-4 h-4" />
+                                    Destravar Agente
+                                </>
+                            ) : (
+                                <>
+                                    <BotOff className="w-4 h-4" />
+                                    Travar Agente Agora
+                                </>
+                            )}
+                        </Button>
+
+                        <div
+                            className={`w-12 h-6 rounded-full relative transition-[background-color] duration-300 ease-in-out cursor-pointer flex-shrink-0 ${isActive ? 'bg-[#1bc678]' : 'bg-slate-300'}`}
+                            onClick={handleToggleActive}
+                        >
+                            <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-transform duration-300 ease-in-out shadow-md ${isActive ? 'translate-x-[26px]' : 'translate-x-[2px]'}`} />
+                        </div>
                     </div>
                 </div>
 
@@ -247,18 +301,6 @@ export function AIAgentSettings() {
                                 </div>
                             </div>
 
-                            <div className="bg-red-500/5 border border-red-500/20 p-5 rounded-xl text-sm flex flex-col gap-3">
-                                <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                    Pausa Automática da IA
-                                </div>
-                                <p className="leading-relaxed font-medium text-foreground/80">
-                                    O Agente irá <strong>parar automaticamente</strong> caso você responda o lead no chat.
-                                </p>
-                                <p className="leading-relaxed text-muted-foreground">
-                                    Se você não interferir, o agente ficará conversando até atingir o objetivo do prompt. Caso você (ou outro humano) responda manualmente a conversa, o agente entra em pausa para esse lead por <strong>5 dias</strong>. Depois desse tempo, se o lead voltar a chamar, o agente retoma o atendimento.
-                                </p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -270,6 +312,49 @@ export function AIAgentSettings() {
                     </Button>
                 </div>
             </div>
+
+            {/* LOCK AGENT MODAL */}
+            {showLockModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-card p-6 rounded-2xl border border-border shadow-2xl w-full max-w-[320px] animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-2 mb-4 text-amber-500">
+                            <BotOff className="w-5 h-5" />
+                            <h3 className="font-bold">Travar Agente IA</h3>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mb-4">
+                            O agente irá parar de responder automaticamente para todas as suas conversas pelo tempo selecionado.
+                        </p>
+
+                        <div className="flex gap-2 mb-6 text-foreground">
+                            <Input
+                                type="number"
+                                min="1"
+                                value={lockDuration}
+                                onChange={(e) => setLockDuration(Number(e.target.value))}
+                                className="flex-1 h-9 text-sm"
+                            />
+                            <select
+                                value={lockUnit}
+                                onChange={(e) => setLockUnit(e.target.value as any)}
+                                className="bg-background border border-input rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                                <option value="min">Minutos</option>
+                                <option value="hour">Horas</option>
+                            </select>
+                        </div>
+
+                        <div className="flex justify-end gap-3 font-semibold">
+                            <Button variant="ghost" size="sm" onClick={() => setShowLockModal(false)} className="text-xs">Cancelar</Button>
+                            {isLocked ? (
+                                <Button onClick={() => handleLockAgent(true)} className="bg-green-500 hover:bg-green-600 text-white text-xs h-9">Destravar Agora</Button>
+                            ) : (
+                                <Button onClick={() => handleLockAgent(false)} className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-9">Travar Agora</Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

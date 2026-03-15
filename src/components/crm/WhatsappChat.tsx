@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { encryptMessage, decryptMessage } from '@/lib/crypto';
 import { toast } from 'sonner';
-import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus, Bot } from 'lucide-react';
+import { Send, QrCode, LogOut, Loader2, MessageSquare, ChevronLeft, Plus, Edit2, Check, X, Smile, Paperclip, Search, Trash2, UserMinus, Bot, BotOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -116,6 +116,10 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [loadingAction, setLoadingAction] = useState(false);
     const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
     const [showDeleteClientConfirm, setShowDeleteClientConfirm] = useState(false);
+    const [showLockModal, setShowLockModal] = useState(false);
+    const [lockDuration, setLockDuration] = useState(1);
+    const [lockUnit, setLockUnit] = useState<'min' | 'hour'>('min');
+    const [isLocked, setIsLocked] = useState(false);
 
     // Unread Notifications State
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -241,12 +245,13 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             // Garante que o chat detecta instantaneamente se o usuário ligou/desligou a IA no painel "Meu Agente"
             const { data: agentData } = await supabase
                 .from('ai_agents')
-                .select('is_active')
+                .select('is_active, is_locked')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
             if (agentData) {
                 setUseIaAgent(agentData.is_active);
+                setIsLocked(agentData.is_locked === 'sim');
             }
 
         }, 2000); // Reduzido de 5s para 2s para o reflexo do Switch ser mais "Instantâneo" visualmente
@@ -546,6 +551,31 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
         }
     };
 
+    const handleLockAgent = async (unlock = false) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const seconds = unlock ? 0 : (lockUnit === 'min' ? lockDuration * 60 : lockDuration * 3600);
+        const lockValue = unlock ? 'não' : 'sim';
+
+        const { error } = await supabase
+            .from('ai_agents')
+            .update({
+                is_locked: lockValue,
+                lock_time_seconds: seconds
+            })
+            .eq('user_id', user.id);
+
+        if (!error) {
+            setShowLockModal(false);
+            setIsLocked(!unlock);
+            toast.success(unlock ? 'Agente destravado com sucesso!' : `Agente travado por ${lockDuration} ${lockUnit === 'min' ? 'minuto(s)' : 'hora(s)'}`);
+        } else {
+            console.error("Erro ao atualizar agente:", error);
+            toast.error(unlock ? 'Erro ao destravar agente' : 'Erro ao travar agente');
+        }
+    };
+
     const confirmDeleteChat = async () => {
         if (!activeLead) return;
         setLoadingAction(true);
@@ -760,6 +790,27 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                         {status === 'loading' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         {status === 'connected' && (
                             <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowLockModal(true)}
+                                    className={`h-7 px-2 text-[10px] gap-1 transition-all duration-300 font-bold ${isLocked
+                                        ? 'border-green-500/50 text-green-500 hover:bg-green-500 hover:text-white'
+                                        : 'border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white'
+                                        }`}
+                                >
+                                    {isLocked ? (
+                                        <>
+                                            <Bot className="w-3 h-3" />
+                                            Destravar Agente
+                                        </>
+                                    ) : (
+                                        <>
+                                            <BotOff className="w-3 h-3" />
+                                            Travar Agente IA
+                                        </>
+                                    )}
+                                </Button>
                                 <Button variant="ghost" size="icon" className="w-6 h-6 text-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => setShowDeleteClientConfirm(true)} title="Deletar Cliente">
                                     <UserMinus className="w-3.5 h-3.5" />
                                 </Button>
@@ -1113,6 +1164,48 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {/* LOCK AGENT MODAL */}
+            {showLockModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-card p-6 rounded-2xl border border-border shadow-2xl w-full max-w-[320px] animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-2 mb-4 text-amber-500">
+                            <BotOff className="w-5 h-5" />
+                            <h3 className="font-bold">Travar Agente IA</h3>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mb-4">
+                            O agente irá parar de responder automaticamente para todas as suas conversas pelo tempo selecionado.
+                        </p>
+
+                        <div className="flex gap-2 mb-6">
+                            <Input
+                                type="number"
+                                min="1"
+                                value={lockDuration}
+                                onChange={(e) => setLockDuration(Number(e.target.value))}
+                                className="flex-1 h-9 text-sm"
+                            />
+                            <select
+                                value={lockUnit}
+                                onChange={(e) => setLockUnit(e.target.value as any)}
+                                className="bg-background border border-input rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                                <option value="min">Minutos</option>
+                                <option value="hour">Horas</option>
+                            </select>
+                        </div>
+
+                        <div className="flex justify-end gap-3 font-semibold">
+                            <Button variant="ghost" size="sm" onClick={() => setShowLockModal(false)} className="text-xs">Cancelar</Button>
+                            {isLocked ? (
+                                <Button onClick={() => handleLockAgent(true)} className="bg-green-500 hover:bg-green-600 text-white text-xs h-9">Destravar Agora</Button>
+                            ) : (
+                                <Button onClick={() => handleLockAgent(false)} className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-9">Travar Agora</Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

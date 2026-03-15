@@ -988,8 +988,8 @@ const Dashboard = () => {
 
             {activeMenu === "settings" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
-                <div className="max-w-2xl space-y-6">
-                  <div>
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <div className="text-center space-y-2">
                     <h2 className="text-2xl font-bold text-foreground">Configurações</h2>
                     <p className="text-muted-foreground">Gerencie seu perfil e preferências.</p>
                   </div>
@@ -1173,19 +1173,13 @@ const Dashboard = () => {
                       </div>
                     </div>
 
-                    <div className="pt-6 border-t border-border">
-                      <Button variant="destructive" className="w-full sm:w-auto">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir Conta
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             {activeMenu === "agent" && (
-              <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
+              <div className="flex-1 overflow-y-auto h-full flex flex-col w-full">
                 <AIAgentSettings />
               </div>
             )}
@@ -1236,7 +1230,7 @@ const Dashboard = () => {
             <Button
               variant="default"
               size="icon"
-              className={`absolute top-3 ${isChatMinimized ? 'left-1/2 -translate-x-1/2' : 'left-3'} z-50 w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all flex items-center justify-center`}
+              className={`absolute top-3 ${isChatMinimized ? 'left-1/2 -translate-x-1/2' : 'left-2'} z-50 w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all flex items-center justify-center`}
               onClick={() => setIsChatMinimized(!isChatMinimized)}
               title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
             >

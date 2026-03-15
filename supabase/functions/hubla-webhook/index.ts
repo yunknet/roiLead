@@ -90,8 +90,24 @@ serve(async (req: Request) => {
         planName = "Mensal";
       } else {
         // Fallback pelo valor caso não tenha nome claro no payload
-        // Mensal = 67.00 | Anual = 324.00 (ou algo acima de 100 reais)
         planName = normalizedAmount > 100 ? "Anual" : "Mensal";
+      }
+
+      // Verificação de Recarga de Tokens (Novo sistema)
+      let tokensToAdd = 0;
+      const hubla1k = Deno.env.get("HUBLA_1MIL");
+      const hubla5k = Deno.env.get("HUBLA_5MIL");
+      const hubla10k = Deno.env.get("HUBLA_10MIL");
+
+      if (productInfo === hubla1k || productInfo.includes("1.000 tokens")) {
+        tokensToAdd = 1000;
+        planName = "Recarga 1k";
+      } else if (productInfo === hubla5k || productInfo.includes("5.000 tokens")) {
+        tokensToAdd = 5000;
+        planName = "Recarga 5k";
+      } else if (productInfo === hubla10k || productInfo.includes("10.000 tokens")) {
+        tokensToAdd = 10000;
+        planName = "Recarga 10k";
       }
 
 
@@ -241,12 +257,46 @@ serve(async (req: Request) => {
             }, { onConflict: 'id' })
           }
         }
+
+        // --- ATUALIZAÇÃO DE TOKENS (Se for recarga) ---
+        if (tokensToAdd > 0 && userId) {
+          console.log(`🪙 Adicionando ${tokensToAdd} tokens para o usuário ${userId}`);
+          const { data: agent } = await supabase
+            .from('ai_agents')
+            .select('tokens_balance')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          const newBalance = (agent?.tokens_balance || 0) + tokensToAdd;
+
+          await supabase
+            .from('ai_agents')
+            .update({ tokens_balance: newBalance })
+            .eq('user_id', userId);
+
+          console.log(`✅ Salvo novo saldo: ${newBalance}`);
+        }
       }
+
+      // ====================================================
+      // BLOCO DE ENVIO 0: RECARGA DE TOKENS (NOVO)
+      // ====================================================
+      if (tokensToAdd > 0 && email && resendApiKey) {
+        const emailSubject = "Seus Créditos chegaram! 🪙";
+        const emailHtml = `Olá, ${firstName}!<br><br>Sua recarga de <b>${tokensToAdd.toLocaleString()} créditos</b> no roiLead foi confirmada com sucesso! ✅<br><br>Seu saldo já foi atualizado e seu Agente de IA está pronto para continuar trabalhando por você.<br><br>Boa prospecção!<br>Equipe roiLead.`;
+        await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
+
+        if (phone && evoUrl && evoInstance && evoKey) {
+          const msgTokens = `Olá, ${firstName}! 🪙\n\nSua recarga de *${tokensToAdd.toLocaleString()} créditos* foi confirmada e já está disponível na sua conta!\n\nSeu Agente de IA está pronto para brilhar. 🚀`;
+          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgTokens);
+        }
+      }
+
 
       // ====================================================
       // BLOCO DE ENVIO 1: CONTA & LOGIN (Pagamento Confirmado)
       // ====================================================
-      if (!alreadyPaid && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
+      if (!alreadyPaid && tokensToAdd === 0 && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
         const resendApiKey = Deno.env.get("RESEND_API_KEY");
         const senderEmail = "Equipe roiLead <contato@roilead.com.br>";
 
@@ -285,6 +335,8 @@ serve(async (req: Request) => {
           await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgInstrucoes)
         }
       }
+
+
     }
 
     // ====================================================
@@ -325,6 +377,24 @@ serve(async (req: Request) => {
           payment_status: 'NONE',
           access_status: 'NEW'
         }).eq('email', email)
+
+        // --- TRAVA DE SEGURANÇA: Estorno de Tokens ---
+        // Se o evento for de reembolso, zeramos o saldo de tokens por precaução
+        if (eventType === 'invoice.refunded') {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', email)
+            .maybeSingle();
+
+          if (userProfile?.id) {
+            console.log(`💸 Reembolso detectado para ${email}. Zerando saldo de tokens.`);
+            await supabase
+              .from('ai_agents')
+              .update({ tokens_balance: 0 })
+              .eq('user_id', userProfile.id);
+          }
+        }
       }
 
       if (phone && evoUrl && evoInstance && evoKey) {

@@ -24,8 +24,7 @@ import {
   Clock,
   Kanban,
   ShieldCheck,
-  Bot,
-  Target
+  Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,13 +37,11 @@ import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { WhatsappChat } from "@/components/crm/WhatsappChat";
 import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
-import { SharkTank } from "@/components/crm/SharkTank";
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
   { icon: Bot, label: "Agente IA", id: "agent" },
-  { icon: Target, label: "Shark Tank", id: "sharktank" },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -865,11 +862,6 @@ const Dashboard = () => {
               </div>
             )}
 
-            {activeMenu === "sharktank" && (
-              <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
-                <SharkTank />
-              </div>
-            )}
 
             {activeMenu === "subscription" && (
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">

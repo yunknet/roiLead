@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Bot, Save, Power, PowerOff, AlertCircle, BotOff } from "lucide-react";
+import { Loader2, Bot, Save, Power, PowerOff, AlertCircle, BotOff, Coins, Zap, ShoppingCart } from "lucide-react";
 
 const DEFAULT_PROMPT = `# IDENTIDADE E MISSÃO
 Você é [Seu Nome, ex: João], [Seu Cargo, ex: Especialista de Vendas] da empresa [Nome da sua Empresa].
@@ -63,6 +63,11 @@ export function AIAgentSettings() {
     const [lockDuration, setLockDuration] = useState(1);
     const [lockUnit, setLockUnit] = useState<'min' | 'hour'>('min');
 
+    // Novos estados para tokens
+    const [tokensBalance, setTokensBalance] = useState(0);
+    const [trialUsed, setTrialUsed] = useState(false);
+    const [claimingTrial, setClaimingTrial] = useState(false);
+
     useEffect(() => {
         fetchAgentSettings();
     }, []);
@@ -86,6 +91,8 @@ export function AIAgentSettings() {
                 setAgentId(data.id);
                 setIsActive(data.is_active);
                 setIsLocked(data.is_locked === 'sim');
+                setTokensBalance(data.tokens_balance || 0);
+                setTrialUsed(data.trial_used || false);
                 setSystemPrompt(data.system_prompt || "");
             } else {
                 // Se não tem dados salvos, deixa vazio mas o placeholder vai mostrar o exemplo genial
@@ -100,6 +107,11 @@ export function AIAgentSettings() {
     };
 
     const handleToggleActive = async () => {
+        if (!isActive && tokensBalance <= 0) {
+            toast.error("Você não possui saldo de créditos para ligar o agente.");
+            return;
+        }
+
         const newValue = !isActive;
         setIsActive(newValue);
 
@@ -155,6 +167,51 @@ export function AIAgentSettings() {
         } else {
             console.error("Erro ao atualizar agente:", error);
             toast.error(unlock ? 'Erro ao destravar agente' : 'Erro ao travar agente');
+        }
+    };
+
+    const handleClaimTrial = async () => {
+        setClaimingTrial(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Update DB with 100 tokens and trial_used = true
+            const { error } = await supabase
+                .from('ai_agents')
+                .update({
+                    tokens_balance: (tokensBalance + 100),
+                    trial_used: true
+                })
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            setTokensBalance(prev => prev + 100);
+            setTrialUsed(true);
+            toast.success("Você recebeu 100 créditos de presente! 🎁");
+        } catch (err) {
+            console.error("Erro ao resgatar trial:", err);
+            toast.error("Erro ao resgatar seus créditos de teste.");
+        } finally {
+            setClaimingTrial(false);
+        }
+    };
+
+    const handlePurchaseTokens = async (planId: string) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data, error } = await supabase.functions.invoke('create-checkout', {
+                body: { plan: planId, email: user?.email }
+            });
+
+            if (error) throw error;
+            if (data?.payment_url) {
+                window.open(data.payment_url, '_blank');
+            }
+        } catch (err) {
+            console.error("Erro ao gerar checkout:", err);
+            toast.error("Erro ao abrir checkout. Tente novamente.");
         }
     };
 
@@ -221,6 +278,64 @@ export function AIAgentSettings() {
                 <p className="text-muted-foreground">
                     Crie a personalidade e as regras do seu vendedor automático para interagir com leads no WhatsApp.
                 </p>
+            </div>
+
+            {/* SEÇÃO DE CRÉDITOS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 bg-card border border-border p-6 rounded-xl flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Coins className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponível</h3>
+                        <div className="text-4xl font-black text-foreground">{tokensBalance.toLocaleString()}</div>
+                        <p className="text-xs mt-1 text-primary animate-pulse font-bold">Créditos de Mensagens</p>
+                    </div>
+
+                    {!trialUsed && (
+                        <Button
+                            variant="outline"
+                            className="w-full border-primary/30 hover:bg-primary/5 text-primary gap-2"
+                            onClick={handleClaimTrial}
+                            disabled={claimingTrial}
+                        >
+                            {claimingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 fill-primary" />}
+                            Ganhar 100 Créditos Grátis
+                        </Button>
+                    )}
+                </div>
+
+                <div className="md:col-span-2 bg-card border border-border p-6 rounded-xl space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <ShoppingCart className="w-5 h-5 text-primary" />
+                        <h3 className="font-bold text-foreground">Recarregar Créditos</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[
+                            { tokens: "1.000", price: "50,00", planId: "1mil" },
+                            { tokens: "5.000", price: "225,00", planId: "5mil", popular: true },
+                            { tokens: "10.000", price: "400,00", planId: "10mil" }
+                        ].map((pack, idx) => (
+                            <div key={idx} className={`p-4 rounded-xl border flex flex-col items-center transition-all hover:scale-[1.02] cursor-pointer ${pack.popular ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-muted/20'}`}>
+                                {pack.popular && <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full mb-2">MELHOR CUSTO</span>}
+                                <span className="text-xl font-black text-foreground">{pack.tokens}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold mb-3">Créditos</span>
+                                <div className="text-lg font-bold text-primary mb-4">R$ {pack.price}</div>
+                                <Button
+                                    className="w-full h-8 text-xs font-bold"
+                                    variant={pack.popular ? "default" : "secondary"}
+                                    onClick={() => handlePurchaseTokens(pack.planId)}
+                                >
+                                    Comprar
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center italic mt-2">
+                        * Os créditos não expiram e são consumidos apenas no envio de respostas da IA.
+                    </p>
+                </div>
             </div>
 
             <div className="bg-card border border-border p-6 rounded-xl space-y-6">

@@ -182,15 +182,17 @@ serve(async (req) => {
     try {
       const { data: agentData } = await supabaseClient
         .from('ai_agents')
-        .select('is_active')
+        .select('is_active, tokens_balance, is_locked')
         .eq('user_id', userId)
         .maybeSingle();
 
       const isAgentActive = agentData?.is_active === true;
+      const hasTokens = (agentData?.tokens_balance ?? 0) > 0;
+      const isLocked = agentData?.is_locked === 'sim';
       const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
-      if (isAgentActive && n8nWebhookUrl) {
-        console.log(`Agente ATIVADO. Repassando payload para o N8N: ${n8nWebhookUrl}`);
+      if (isAgentActive && hasTokens && !isLocked && n8nWebhookUrl) {
+        console.log(`Agente ATIVADO e com SALDO (${agentData.tokens_balance}). Repassando payload para o N8N: ${n8nWebhookUrl}`);
 
         const n8nResponse = await fetch(n8nWebhookUrl, {
           method: 'POST',
@@ -206,7 +208,8 @@ serve(async (req) => {
           console.log(`Payload enviado ao n8n com sucesso (Usuário: ${userId})`);
         }
       } else {
-        console.log(`Agente DESATIVADO ou N8N_URL vazia. O N8n NÃO foi chamado. Controle exclusivamente humano.`);
+        const reason = !isAgentActive ? 'DESATIVADO' : !hasTokens ? 'SEM SALDO' : isLocked ? 'TRAVADO (PAUSE)' : 'N8N_URL vazia';
+        console.log(`Agente não chamado. Motivo: ${reason}. Controle exclusivamente humano.`);
       }
     } catch (agentErr) {
       console.error("Erro ao verificar status do agente ou falha de comunicação n8n:", agentErr);

@@ -21,9 +21,17 @@ serve(async (req) => {
     console.log("🎯 Plano Detectado:", requestedPlan);
 
     // Seleciona a secret correta baseada no plano
-    // Aceita variações comuns para evitar erros
-    const isMensal = requestedPlan === 'mensal' || requestedPlan === 'monthly' || requestedPlan === 'mês';
-    const secretKey = isMensal ? 'HUBLA_CHECKOUT_MES' : 'HUBLA_CHECKOUT_LINK';
+    let secretKey = 'HUBLA_CHECKOUT_LINK'; // Default anual
+
+    if (requestedPlan === 'mensal' || requestedPlan === 'monthly' || requestedPlan === 'mês') {
+      secretKey = 'HUBLA_CHECKOUT_MES';
+    } else if (requestedPlan === '1mil' || requestedPlan === '1000') {
+      secretKey = 'HUBLA_1MIL';
+    } else if (requestedPlan === '5mil' || requestedPlan === '5000') {
+      secretKey = 'HUBLA_5MIL';
+    } else if (requestedPlan === '10mil' || requestedPlan === '10000') {
+      secretKey = 'HUBLA_10MIL';
+    }
 
     const hublaLink = Deno.env.get(secretKey);
 

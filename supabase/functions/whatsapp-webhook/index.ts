@@ -37,8 +37,20 @@ serve(async (req) => {
         status: 200
       });
     }
-    // Extract User ID from Instance Name (Assuming format: user_<UUID>)
-    let userId = instanceStr?.replace('user_', '');
+    // Extract User ID from Instance Name
+    let userId = instanceStr?.startsWith('user_') ? instanceStr.replace('user_', '') : null;
+
+    // Se não for o padrão user_UUID, busca no banco pelo apelido da instância (ex: roiLead)
+    if (!userId && instanceStr) {
+      const { data: agent } = await supabaseClient
+        .from('ai_agents')
+        .select('user_id')
+        .eq('instance_name', instanceStr)
+        .maybeSingle();
+
+      if (agent) userId = agent.user_id;
+    }
+
     if (!userId) {
       console.error('Could not identify user from instance name:', instanceStr);
       // Return 200 to acknowledge webhook and stop retries, but log error

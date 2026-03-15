@@ -27,7 +27,8 @@ serve(async (req: Request) => {
 
     const evoUrl = Deno.env.get("EVOLUTION_API_URL")
     const evoKey = Deno.env.get("EVOLUTION_GLOBAL_KEY") || Deno.env.get("EVOLUTION_API_KEY")
-    const evoInstance = Deno.env.get("EVOLUTION_INSTANCE")
+    // Força o nome correto da instância (roiLead) para evitar erro de Case Sensitive (maiúsculas/minúsculas)
+    const evoInstance = Deno.env.get("EVOLUTION_INSTANCE") || "roiLead"
 
     // 1. Pega o Payload
     const payload = await req.json()
@@ -97,7 +98,16 @@ serve(async (req: Request) => {
       // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
 
-      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Produto: ${productInfo || "N/A"}`)
+      // --- TRAVA DE DUPLICIDADE (v1.0): Verifica se já processamos esse pagamento ---
+      const { data: existingSubStatus } = await supabase
+        .from("subscriptions")
+        .select("payment_status")
+        .eq("external_reference_id", externalId)
+        .maybeSingle();
+
+      const alreadyPaid = existingSubStatus?.payment_status === "paid";
+
+      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Já processado: ${alreadyPaid}`)
 
       let isNewUser = false
 
@@ -147,9 +157,6 @@ serve(async (req: Request) => {
             }
           }
         }
-<<<<<<< HEAD
-=======
-
         // Calcula a data de expiração baseada no plano
         const now = new Date();
         const expiresAt = new Date(now);
@@ -158,7 +165,6 @@ serve(async (req: Request) => {
         } else {
           expiresAt.setDate(now.getDate() + 30);
         }
->>>>>>> teste
 
         // Upsert na tabela subscriptions
         // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
@@ -171,12 +177,8 @@ serve(async (req: Request) => {
           payment_status: "paid",
           subscription_status: "active",
           external_reference_id: externalId,
-<<<<<<< HEAD
-          updated_at: new Date().toISOString()
-=======
           expires_at: expiresAt.toISOString(),
           updated_at: now.toISOString()
->>>>>>> teste
         }
         if (userId) upsertData.user_id = userId
 
@@ -197,12 +199,8 @@ serve(async (req: Request) => {
             payment_status: "paid",
             subscription_status: "active",
             external_reference_id: externalId,
-<<<<<<< HEAD
-            updated_at: new Date().toISOString()
-=======
             expires_at: expiresAt.toISOString(),
             updated_at: now.toISOString()
->>>>>>> teste
           }
           if (userId) subData.user_id = userId
 
@@ -245,48 +243,46 @@ serve(async (req: Request) => {
         }
       }
 
-      // Envia WhatsApp e/ou E-mail do roiLead (v2.1)
-      if (eventType === 'invoice.payment_succeeded') {
+      // ====================================================
+      // BLOCO DE ENVIO 1: CONTA & LOGIN (Pagamento Confirmado)
+      // ====================================================
+      if (!alreadyPaid && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
         const resendApiKey = Deno.env.get("RESEND_API_KEY");
-        const senderEmail = "Equipe roiLead <contato@roilead.com.br>"; // Ajuste conforme seu domínio verificado no Resend
+        const senderEmail = "Equipe roiLead <contato@roilead.com.br>";
 
         if (isNewUser) {
-          // 1. Envio do E-mail para Usuário Novo
+          // 1. E-mail de Boas-vindas
           if (email && resendApiKey) {
             const emailSubject = "Seu acesso ao roiLead chegou! 🚀";
-            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>12345</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Esse é o Whatsapp Oficial onde você consegue conversar e pedir os Leads: <a href="https://wa.me/5538997426436">https://wa.me/5538997426436</a><br><br>Importante: Pedimos que, assim que entrar no painel, você atualize seus dados de contato. Isso garante que nossas notificações e integrações funcionem perfeitamente para você.<br><br>Se tiver qualquer dificuldade, basta responder a este e-mail.<br><br>Equipe roiLead.`;
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>12345</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Equipe roiLead.`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
 
-          // 2. Envio do WhatsApp para Usuário Novo
+          // 2. WhatsApp de Login
           if (phone && evoUrl && evoInstance && evoKey) {
-            // Mensagem de Boas Vindas + Acesso
-            const msg1 = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:(${email}) e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
-
-            // Mensagem de Instruções de Uso
-            const msg2 = `O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
-
-            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg1)
-
-            // Pausa de 1,5 segundos para evitar que as mensagens cheguem fora de ordem no celular
-            await new Promise(resolve => setTimeout(resolve, 1500))
-
-            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msg2)
+            const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:(${email}) e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgLogin)
           }
-
         } else {
-          // 1. Envio do E-mail para Veterano
+          // E-mail e WhatsApp para veterano (Apenas confirmação)
           if (email && resendApiKey) {
             const emailSubject = "Pagamento Confirmado - roiLead! ✅";
-            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>Se tiver qualquer dificuldade, basta responder a este e-mail.<br><br>Equipe roiLead.`;
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo de volta ao roiLead.<br><br>Seu pagamento foi confirmado com sucesso.`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
-
-          // 2. Envio do WhatsApp para Veterano
           if (phone && evoUrl && evoInstance && evoKey) {
-            const textMessage = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a configurar tudo.\n\n📋 O QUE VOCÊ PODE PEDIR?\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp ou excluir e-mails de contadores.\n\n💡 COMO PEDIR (Exemplo):\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ IMPORTANTE:\nComo a ficha técnica é extensa, por aqui te envio o Resumo Essencial para agilizar a leitura.\n👉 Todos os dados completos ficam salvos no seu Dashboard, onde você pode inclusive exportar para planilha (https://roilead.com.br/dashboard).\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje?\n(Obs: Busco até 50 empresas por vez para não travar seu celular com mensagens grandes). 👇`
-            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, `Olá, ${firstName}! Seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar.`)
           }
+        }
+      }
+
+      // ====================================================
+      // BLOCO DE ENVIO 2: INSTRUÇÕES DE USO (Assinatura Ativa)
+      // ====================================================
+      if (eventType === 'subscription.activated') {
+        if (phone && evoUrl && evoInstance && evoKey) {
+          const msgInstrucoes = `📋 *DICAS DE USO - roiLead*\n\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp.\n\n💡 *COMO PEDIR (Exemplo):*\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ *IMPORTANTE:*\nPor aqui te envio o Resumo Essencial. Todos os dados completos ficam no seu Dashboard: https://roilead.com.br/dashboard\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje? 👇`
+          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgInstrucoes)
         }
       }
     }
@@ -362,8 +358,8 @@ async function sendWhatsapp(url: string, key: string, instance: string, phone: s
     let cleanPhone = phone
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11) cleanPhone = "55" + cleanPhone
 
-    // Remove espaços do instance name
-    const safeInstanceName = instance.trim()
+    // Remove espaços do instance name e garante o nome correto (roiLead) como segurança final
+    const safeInstanceName = (instance || "roiLead").trim()
 
     const response = await fetch(`${url}/message/sendText/${safeInstanceName}`, {
       method: "POST",

@@ -207,7 +207,8 @@ export function AIAgentSettings() {
 
             if (error) throw error;
             if (data?.payment_url) {
-                window.open(data.payment_url, '_blank');
+                // No mobile, redirecionar na mesma aba é mais seguro para evitar bloqueadores de popup
+                window.location.href = data.payment_url;
             }
         } catch (err) {
             console.error("Erro ao gerar checkout:", err);
@@ -295,7 +296,7 @@ export function AIAgentSettings() {
                     {!trialUsed && (
                         <Button
                             variant="outline"
-                            className="w-full border-primary/30 hover:bg-primary/5 text-primary gap-2"
+                            className="w-full h-11 border-primary/30 hover:bg-primary/5 text-primary gap-2 font-bold"
                             onClick={handleClaimTrial}
                             disabled={claimingTrial}
                         >
@@ -317,15 +318,18 @@ export function AIAgentSettings() {
                             { tokens: "5.000", price: "225,00", planId: "5mil", popular: true },
                             { tokens: "10.000", price: "400,00", planId: "10mil" }
                         ].map((pack, idx) => (
-                            <div key={idx} className={`p-4 rounded-xl border flex flex-col items-center transition-all hover:scale-[1.02] cursor-pointer ${pack.popular ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-muted/20'}`}>
-                                {pack.popular && <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full mb-2">MELHOR CUSTO</span>}
+                            <div
+                                key={idx}
+                                onClick={() => handlePurchaseTokens(pack.planId)}
+                                className={`p-4 rounded-xl border flex flex-col items-center transition-all hover:scale-[1.02] active:scale-95 cursor-pointer select-none ${pack.popular ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-muted/20'}`}
+                            >
+                                {pack.popular && <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full mb-2 uppercase">Melhor Custo</span>}
                                 <span className="text-xl font-black text-foreground">{pack.tokens}</span>
                                 <span className="text-[10px] text-muted-foreground uppercase font-bold mb-3">Créditos</span>
                                 <div className="text-lg font-bold text-primary mb-4">R$ {pack.price}</div>
                                 <Button
-                                    className="w-full h-8 text-xs font-bold"
+                                    className="w-full h-10 text-xs font-black uppercase pointer-events-none"
                                     variant={pack.popular ? "default" : "secondary"}
-                                    onClick={() => handlePurchaseTokens(pack.planId)}
                                 >
                                     Comprar
                                 </Button>

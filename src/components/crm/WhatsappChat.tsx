@@ -86,7 +86,7 @@ const DDIS = [
     { code: '+260', country: 'Zâmbia' }, { code: '+263', country: 'Zimbábue' }
 ];
 
-export function WhatsappChat({ initialContact }: { initialContact?: any }) {
+export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialContact?: any, onNavigateToAgent?: () => void }) {
     const [status, setStatus] = useState<'loading' | 'disconnected' | 'connected'>('loading');
     const [qrCode, setQrCode] = useState('');
     const [useIaAgent, setUseIaAgent] = useState(false);
@@ -120,6 +120,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     const [lockDuration, setLockDuration] = useState(1);
     const [lockUnit, setLockUnit] = useState<'min' | 'hour'>('min');
     const [isLocked, setIsLocked] = useState(false);
+    const [tokensBalance, setTokensBalance] = useState(0);
 
     // Unread Notifications State
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -242,19 +243,19 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
             }
 
             // ---- Polling Agent Status ----
-            // Garante que o chat detecta instantaneamente se o usuário ligou/desligou a IA no painel "Meu Agente"
             const { data: agentData } = await supabase
                 .from('ai_agents')
-                .select('is_active, is_locked')
+                .select('*')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
             if (agentData) {
                 setUseIaAgent(agentData.is_active);
                 setIsLocked(agentData.is_locked === 'sim');
+                setTokensBalance(agentData.tokens_balance || 0);
             }
 
-        }, 2000); // Reduzido de 5s para 2s para o reflexo do Switch ser mais "Instantâneo" visualmente
+        }, 2000); // Polling interval
 
         return () => {
             clearInterval(pollInterval);
@@ -441,9 +442,10 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
-                        const { data: aiAgent } = await supabase.from('ai_agents').select('is_active').eq('user_id', user.id).maybeSingle();
+                        const { data: aiAgent } = await supabase.from('ai_agents').select('is_active, tokens_balance').eq('user_id', user.id).maybeSingle();
                         if (aiAgent) {
                             setUseIaAgent(aiAgent.is_active);
+                            setTokensBalance(aiAgent.tokens_balance || 0);
                         }
                     }
                 } catch (e) {
@@ -489,6 +491,18 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     };
 
     const handleToggleIaAgent = async (checked: boolean) => {
+        if (checked && tokensBalance <= 0) {
+            toast.error("Saldo insuficiente", {
+                description: "Você não possui créditos para ativar o agente. Recarregue agora.",
+                action: onNavigateToAgent ? {
+                    label: "Recarregar",
+                    onClick: onNavigateToAgent
+                } : undefined
+            });
+            setUseIaAgent(false);
+            return;
+        }
+
         setUseIaAgent(checked);
         if (status === 'connected') {
             setLoadingAction(true);
@@ -603,7 +617,6 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
     };
 
     const confirmLogout = async () => {
-        setLoadingAction(true);
         try {
             const { error } = await supabase.functions.invoke('whatsapp', {
                 body: { action: 'delete_instance' }
@@ -948,7 +961,7 @@ export function WhatsappChat({ initialContact }: { initialContact?: any }) {
                                 type="checkbox"
                                 id="ia-toggle-qr"
                                 checked={useIaAgent}
-                                onChange={(e) => setUseIaAgent(e.target.checked)}
+                                onChange={(e) => handleToggleIaAgent(e.target.checked)}
                                 className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary accent-primary cursor-pointer"
                             />
                             <label htmlFor="ia-toggle-qr" className="text-sm font-medium leading-none cursor-pointer">

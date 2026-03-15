@@ -1232,7 +1232,10 @@ const Dashboard = () => {
 
             {hasActiveSubscription ? (
               !isChatMinimized ? (
-                <WhatsappChat initialContact={whatsappInitialLead} />
+                <WhatsappChat
+                  initialContact={whatsappInitialLead}
+                  onNavigateToAgent={() => setActiveMenu("agent")}
+                />
               ) : (
                 <div className="flex flex-col items-center pt-20 h-full w-full bg-muted/10 cursor-pointer" onClick={() => setIsChatMinimized(false)}>
                   <MessageCircle className="w-7 h-7 text-primary opacity-40 mb-6" />

@@ -69,9 +69,11 @@ serve(async (req: Request) => {
 
       const { email, firstName, fullName, phone, invoice } = getCustomerData(eventData)
 
-      const cents = invoice.amount?.totalCents || 0
-      // Se cents > 0 divide por 100, senão tenta pegar de data.amount (number normal)
-      const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0)
+      const cents = invoice.amount?.totalCents || 0;
+      const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0);
+
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      const senderEmail = "Equipe roiLead <contato@roilead.com.br>";
 
       // Identifica o plano de forma robusta e inteligente (v3.0)
       // Tenta cruzar dados de Nome do Produto/Oferta + Valor Pago para evitar erros de centavos/decimal
@@ -95,17 +97,16 @@ serve(async (req: Request) => {
 
       // Verificação de Recarga de Tokens (Novo sistema)
       let tokensToAdd = 0;
-      const hubla1k = Deno.env.get("HUBLA_1MIL");
-      const hubla5k = Deno.env.get("HUBLA_5MIL");
-      const hubla10k = Deno.env.get("HUBLA_10MIL");
 
-      if (productInfo === hubla1k || productInfo.includes("1.000 tokens")) {
+      // Procura por padrões no nome do produto vindo da Hubla
+      const productLower = productInfo.toLowerCase();
+      if (productLower.includes("1.000") || productLower.includes("1000") || productLower.includes("1mil")) {
         tokensToAdd = 1000;
         planName = "Recarga 1k";
-      } else if (productInfo === hubla5k || productInfo.includes("5.000 tokens")) {
+      } else if (productLower.includes("5.000") || productLower.includes("5000") || productLower.includes("5mil")) {
         tokensToAdd = 5000;
         planName = "Recarga 5k";
-      } else if (productInfo === hubla10k || productInfo.includes("10.000 tokens")) {
+      } else if (productLower.includes("10.000") || productLower.includes("10000") || productLower.includes("10mil")) {
         tokensToAdd = 10000;
         planName = "Recarga 10k";
       }
@@ -296,9 +297,9 @@ serve(async (req: Request) => {
       // ====================================================
       // BLOCO DE ENVIO 1: CONTA & LOGIN (Pagamento Confirmado)
       // ====================================================
-      if (!alreadyPaid && tokensToAdd === 0 && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
-        const resendApiKey = Deno.env.get("RESEND_API_KEY");
-        const senderEmail = "Equipe roiLead <contato@roilead.com.br>";
+      if (alreadyPaid) {
+        console.log("⏭️ Pagamento já processado anteriormente. Pulando envios de e-mail/whats de boas vindas.");
+      } else if (tokensToAdd === 0 && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
 
         if (isNewUser) {
           // 1. E-mail de Boas-vindas

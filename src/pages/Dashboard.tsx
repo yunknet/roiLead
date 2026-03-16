@@ -41,7 +41,7 @@ import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
-  { icon: Bot, label: "Agente IA", id: "agent" },
+  { icon: Bot, label: "Agente IA", id: "agent", isNew: true },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -679,7 +679,12 @@ const Dashboard = () => {
                     }`}
                 >
                   <item.icon className="w-5 h-5" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.isNew && (
+                    <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+                      Novo
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

@@ -3,7 +3,8 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Bot, Save, Power, PowerOff, AlertCircle, BotOff, Coins, Zap, ShoppingCart } from "lucide-react";
+import { Loader2, Bot, Save, Power, PowerOff, AlertCircle, BotOff, Coins, Zap, ShoppingCart, Info, CheckCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const DEFAULT_PROMPT = `# IDENTIDADE E MISSÃO
 Você é [Seu Nome, ex: João], [Seu Cargo, ex: Especialista de Vendas] da empresa [Nome da sua Empresa].
@@ -67,6 +68,7 @@ export function AIAgentSettings() {
     const [tokensBalance, setTokensBalance] = useState(0);
     const [trialUsed, setTrialUsed] = useState(false);
     const [claimingTrial, setClaimingTrial] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
 
     useEffect(() => {
         fetchAgentSettings();
@@ -275,22 +277,26 @@ export function AIAgentSettings() {
                 <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
                     <Bot className="w-8 h-8 text-primary" />
                     Meu Agente de Inteligência Artificial
+                    <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Novo
+                    </span>
                 </h2>
                 <p className="text-muted-foreground">
                     Crie a personalidade e as regras do seu vendedor automático para interagir com leads no WhatsApp.
                 </p>
             </div>
 
-            {/* SEÇÃO DE CRÉDITOS */}
+            {/* SEÇÃO DE CRÉDITOS E RECARGA */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 bg-card border border-border p-6 rounded-xl flex flex-col items-center justify-center text-center space-y-4">
+                {/* CARD DE SALDO */}
+                <div className="md:col-span-1 bg-card border border-border p-6 rounded-xl flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                         <Coins className="w-8 h-8 text-primary" />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponível</h3>
                         <div className="text-4xl font-black text-foreground">{tokensBalance.toLocaleString()}</div>
-                        <p className="text-xs mt-1 text-primary animate-pulse font-bold">Créditos de Mensagens</p>
+                        <p className="text-xs text-primary animate-pulse font-bold">Créditos de Mensagens</p>
                     </div>
 
                     {!trialUsed && (
@@ -306,7 +312,8 @@ export function AIAgentSettings() {
                     )}
                 </div>
 
-                <div className="md:col-span-2 bg-card border border-border p-6 rounded-xl space-y-4">
+                {/* CARD DE RECARGA (AGORA MAIS LARGO NOVAMENTE) */}
+                <div className="md:col-span-2 bg-card border border-border p-6 rounded-xl space-y-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                         <ShoppingCart className="w-5 h-5 text-primary" />
                         <h3 className="font-bold text-foreground">Recarregar Créditos</h3>
@@ -342,6 +349,28 @@ export function AIAgentSettings() {
                 </div>
             </div>
 
+            {/* BANNER: ENTENDA O AGENTE (POSICIONADO ABAIXO PARA NÃO COMPETIR COM PREÇOS) */}
+            <div 
+                onClick={() => setShowInfoModal(true)}
+                className="bg-gradient-to-r from-primary to-green-600 p-6 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-6 cursor-pointer hover:opacity-95 transition-all shadow-md group relative overflow-hidden"
+            >
+                <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/10 transition-colors" />
+                
+                <div className="flex items-center gap-4 relative z-10 w-full sm:w-auto">
+                    <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-lg">
+                        <Bot className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="text-left">
+                        <h3 className="text-xl font-black text-white leading-tight uppercase tracking-tighter">Entenda o Agente de IA</h3>
+                        <p className="text-sm text-white/90 font-medium">Descubra como nossa máquina de vendas escala seu atendimento por um custo baixíssimo.</p>
+                    </div>
+                </div>
+
+                <Button variant="secondary" className="w-full sm:w-auto bg-white text-primary font-black hover:bg-white/90 shadow-xl px-8 h-12 uppercase tracking-tight relative z-10">
+                    Clique aqui para entender 🚀
+                </Button>
+            </div>
+
             <div className="bg-card border border-border p-6 rounded-xl space-y-6">
                 <div className="flex items-center justify-between border-b border-border pb-6">
                     <div>
@@ -349,28 +378,6 @@ export function AIAgentSettings() {
                         <p className="text-sm text-muted-foreground">Ligar ou desligar a inteligência artificial para novas conversas.</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowLockModal(true)}
-                            className={`h-9 px-4 text-xs gap-2 transition-all duration-300 font-bold ${isLocked
-                                ? 'border-green-500/50 text-green-500 hover:bg-green-500 hover:text-white'
-                                : 'border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white'
-                                }`}
-                        >
-                            {isLocked ? (
-                                <>
-                                    <Bot className="w-4 h-4" />
-                                    Destravar Agente
-                                </>
-                            ) : (
-                                <>
-                                    <BotOff className="w-4 h-4" />
-                                    Travar Agente Agora
-                                </>
-                            )}
-                        </Button>
-
                         <div
                             className={`w-12 h-6 rounded-full relative transition-[background-color] duration-300 ease-in-out cursor-pointer flex-shrink-0 ${isActive ? 'bg-[#1bc678]' : 'bg-slate-300'}`}
                             onClick={handleToggleActive}
@@ -378,6 +385,40 @@ export function AIAgentSettings() {
                             <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] transition-transform duration-300 ease-in-out shadow-md ${isActive ? 'translate-x-[26px]' : 'translate-x-[2px]'}`} />
                         </div>
                     </div>
+                </div>
+
+                {/* Seção de Pausa Temporária separada para não confundir com o Botão Master */}
+                <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                            {isLocked ? <Bot className="w-5 h-5 text-green-600" /> : <BotOff className="w-5 h-5 text-amber-600" />}
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-foreground">Pausa Temporária (Handover)</p>
+                            <p className="text-xs text-muted-foreground">Impeça a IA de enviar respostas automáticas enquanto você atende este cliente.</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLockModal(true)}
+                        className={`h-9 px-6 text-xs gap-2 transition-all duration-300 font-bold w-full sm:w-auto ${isLocked
+                            ? 'border-green-500/50 text-green-500 hover:bg-green-500 hover:text-white'
+                            : 'border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white'
+                            }`}
+                    >
+                        {isLocked ? (
+                            <>
+                                <Bot className="w-4 h-4" />
+                                Destravar Agente Agora
+                            </>
+                        ) : (
+                            <>
+                                <BotOff className="w-4 h-4" />
+                                Travar Agente Agora
+                            </>
+                        )}
+                    </Button>
                 </div>
 
                 <div className="space-y-3">
@@ -474,6 +515,70 @@ export function AIAgentSettings() {
                     </div>
                 </div>
             )}
+            {/* MODAL EXPLICATIVO DO AGENTE IA */}
+            <Dialog open={showInfoModal} onOpenChange={setShowInfoModal}>
+                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none bg-background">
+                    <div className="bg-primary p-6 text-white relative overflow-hidden">
+                        <div className="relative z-10 flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                <Bot className="w-7 h-7 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold leading-none">Como o Agente IA funciona?</h3>
+                                <p className="text-white/80 text-sm mt-2">Sua máquina de vendas 24 horas</p>
+                            </div>
+                        </div>
+                        {/* Círculos decorativos de fundo */}
+                        <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                        <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                    </div>
+
+                    <div className="p-6 space-y-5">
+                        <div className="space-y-4">
+                            <div className="flex gap-4">
+                                <div className="mt-1 bg-primary/10 p-2 rounded-lg h-fit">
+                                    <Zap className="w-5 h-5 text-primary fill-primary" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-bold text-foreground">Velocidade que Converte</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">Leads que não são respondidos em minutos esfriam. Seu agente responde em segundos, garantindo que o cliente se sinta atendido na hora.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="mt-1 bg-primary/10 p-2 rounded-lg h-fit">
+                                    <Bot className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-bold text-foreground">Cérebro de Especialista</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">Ele utiliza tecnologia avançada para entender o contexto, tirar dúvidas complexas e quebrar objeções como se fosse você digitando.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="mt-1 bg-primary/10 p-2 rounded-lg h-fit">
+                                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-bold text-foreground">Economia e Transparência</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">Você só gasta 1 crédito quando a IA envia uma resposta. Atendimentos manuais são gratuitos. É o melhor custo-benefício para escalar sua operação.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Dica de Ouro 💡</p>
+                            <p className="text-sm italic text-foreground/80">"Quanto mais detalhado for o seu roteiro (System Prompt), mais persuasivo e certeiro o seu agente será nas respostas!"</p>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-6 pt-0">
+                        <Button onClick={() => setShowInfoModal(false)} className="w-full h-12 text-sm font-bold uppercase tracking-tight">
+                            Entendi, Vamos Escalar! 🚀
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -73,25 +73,30 @@ serve(async (req) => {
     } else if (data && typeof data === 'object') {
       // v2 evolution passes single message directly inside data
       if (data.key) {
-        messages = [
-          data
-        ];
+        messages = [data];
       } else if (data.message && data.message.extendedTextMessage) {
-        messages = [
-          data
-        ];
+        messages = [data];
       }
     }
+
+    // NEW: Stop processing immediately if it's a group message to avoid sending to n8n
+    const isGroup = messages.some(msg => msg.key?.remoteJid?.includes('@g.us'));
+    if (isGroup) {
+      console.log('Ignore group message from instance:', instanceStr);
+      return new Response(JSON.stringify({ message: 'Ignored group message' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
     for (const msg of messages) {
       if (!msg.key) continue;
       const remoteJid = msg.key.remoteJid;
       const fromMe = msg.key.fromMe;
       // Ignore status updates
       if (remoteJid?.includes('status@broadcast')) continue;
-      // Ignore group messages
-      const isGroup = remoteJid?.includes('@g.us');
-      if (isGroup) continue;
-      const phone = remoteJid?.replace('@s.whatsapp.net', '').replace('@g.us', '');
+      
+      const phone = remoteJid?.replace('@s.whatsapp.net', '');
       // Get message content
       let text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || (msg.message?.imageMessage ? '📷 Foto' : null) || (msg.message?.audioMessage ? '🎤 Áudio' : null) || (msg.message?.videoMessage ? '🎥 Vídeo' : null) || '';
       if (!text && msg.message?.templateButtonReplyMessage) {

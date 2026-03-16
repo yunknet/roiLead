@@ -489,8 +489,14 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             setLoadingAction(false);
         }
     };
-
     const handleToggleIaAgent = async (checked: boolean) => {
+        if (checked) {
+            // Apenas dispara a checagem mas não avisa nada
+            supabase.functions.invoke('whatsapp', {
+                body: { action: 'create_instance' }
+            });
+        }
+
         if (checked && tokensBalance <= 0) {
             toast.error("Saldo insuficiente", {
                 description: "Você não possui créditos para ativar o agente. Recarregue agora.",
@@ -499,7 +505,7 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                     onClick: onNavigateToAgent
                 } : undefined
             });
-            setUseIaAgent(false);
+            setTimeout(() => setUseIaAgent(false), 100);
             return;
         }
 
@@ -951,9 +957,14 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
 
                 {status === 'disconnected' && !loadingAction && qrCode && (
                     <div className="flex flex-col items-center pt-10 px-4 space-y-4">
-                        <p className="text-sm font-medium text-center text-muted-foreground animate-pulse">Aguardando leitura do QR Code...</p>
-                        <div className="bg-white p-2 rounded-xl shadow-sm border border-border/50 transition-all hover:scale-105">
-                            <img src={qrCode} alt="WhatsApp QR Code" className="w-[200px] h-[200px] sm:w-48 sm:h-48 object-contain" />
+                        <div className="flex flex-col items-center gap-4">
+                            <img src={qrCode} alt="WhatsApp QR Code" className="w-64 h-64 border-4 border-white shadow-lg rounded-xl" />
+                            <div className="text-center space-y-2">
+                                <p className="text-sm font-medium animate-pulse">Aponte a câmera do WhatsApp para este código</p>
+                                <p className="text-[11px] text-amber-600 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10 max-w-[280px]">
+                                    💡 Se demorar ou der erro, atualize o QR Code para garantir o funcionamento correto.
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex items-center space-x-2 mt-2">

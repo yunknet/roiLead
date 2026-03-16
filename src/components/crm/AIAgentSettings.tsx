@@ -69,10 +69,35 @@ export function AIAgentSettings() {
     const [trialUsed, setTrialUsed] = useState(false);
     const [claimingTrial, setClaimingTrial] = useState(false);
     const [showInfoModal, setShowInfoModal] = useState(false);
+    const [isWhatsappConnected, setIsWhatsappConnected] = useState<boolean | null>(null);
 
     useEffect(() => {
         fetchAgentSettings();
+        checkWhatsappConnection();
     }, []);
+
+    const checkWhatsappConnection = async () => {
+        try {
+            // Primeiro busca o nome da instância se existir
+            const { data: { user } } = await supabase.auth.getUser();
+            let instanceName = undefined;
+            if (user) {
+                const { data: agent } = await supabase.from('ai_agents').select('instance_name').eq('user_id', user.id).maybeSingle();
+                if (agent?.instance_name) instanceName = agent.instance_name;
+            }
+
+            const { data } = await supabase.functions.invoke('whatsapp', {
+                body: { action: 'create_instance', instanceName }
+            });
+            const isConnected = data?.state === 'open' || data?.instance?.state === 'open';
+            setIsWhatsappConnected(isConnected);
+            return isConnected;
+        } catch (e) {
+            console.error("Erro ao checar conexão whatsapp:", e);
+            setIsWhatsappConnected(false);
+            return false;
+        }
+    };
 
     const fetchAgentSettings = async () => {
         try {
@@ -109,6 +134,11 @@ export function AIAgentSettings() {
     };
 
     const handleToggleActive = async () => {
+        // Se estiver tentando ligar, faz uma checagem fresca da conexão
+        if (!isActive) {
+            checkWhatsappConnection();
+        }
+
         if (!isActive && tokensBalance <= 0) {
             toast.error("Você não possui saldo de créditos para ligar o agente.");
             return;
@@ -284,6 +314,16 @@ export function AIAgentSettings() {
                 <p className="text-muted-foreground">
                     Crie a personalidade e as regras do seu vendedor automático para interagir com leads no WhatsApp.
                 </p>
+                {isWhatsappConnected === false && (
+                    <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 text-amber-600">
+                        <AlertCircle className="w-5 h-5 shrink-0" />
+                        <div className="text-sm">
+                            <p className="text-sm font-bold">
+                                Atenção: O Agente de IA só funcionará após você conectar seu WhatsApp.
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* SEÇÃO DE CRÉDITOS E RECARGA */}
@@ -395,7 +435,7 @@ export function AIAgentSettings() {
                         </div>
                         <div>
                             <p className="text-sm font-bold text-foreground">Pausa Temporária (Handover)</p>
-                            <p className="text-xs text-muted-foreground">Impeça a IA de enviar respostas automáticas enquanto você atende este cliente.</p>
+                            <p className="text-xs text-muted-foreground">Impeça a IA de enviar respostas automáticas enquanto você atende os clientes.</p>
                         </div>
                     </div>
                     <Button

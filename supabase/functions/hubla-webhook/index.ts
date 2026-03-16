@@ -95,27 +95,10 @@ serve(async (req: Request) => {
         planName = normalizedAmount > 100 ? "Anual" : "Mensal";
       }
 
-      // Verificação de Recarga de Tokens (Novo sistema)
-      let tokensToAdd = 0;
-
-      // Procura por padrões no nome do produto vindo da Hubla
-      const productLower = productInfo.toLowerCase();
-      if (productLower.includes("1.000") || productLower.includes("1000") || productLower.includes("1mil")) {
-        tokensToAdd = 1000;
-        planName = "Recarga 1k";
-      } else if (productLower.includes("5.000") || productLower.includes("5000") || productLower.includes("5mil")) {
-        tokensToAdd = 5000;
-        planName = "Recarga 5k";
-      } else if (productLower.includes("10.000") || productLower.includes("10000") || productLower.includes("10mil")) {
-        tokensToAdd = 10000;
-        planName = "Recarga 10k";
-      }
-
-
-      // Tenta pegar UTM Content (referenceID) ou usa o ID da invoice
+      // --- FLUXO NORMAL DE ASSINATURA ---
+      const tokensToAdd = 0; // Nesta função agora é sempre 0 (tokens são na huba-webhook-agente)
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
-
-      // --- TRAVA DE DUPLICIDADE (v1.0): Verifica se já processamos esse pagamento ---
+      
       const { data: existingSubStatus } = await supabase
         .from("subscriptions")
         .select("payment_status")
@@ -258,41 +241,7 @@ serve(async (req: Request) => {
             }, { onConflict: 'id' })
           }
         }
-
-        // --- ATUALIZAÇÃO DE TOKENS (Se for recarga) ---
-        if (tokensToAdd > 0 && userId) {
-          console.log(`🪙 Adicionando ${tokensToAdd} tokens para o usuário ${userId}`);
-          const { data: agent } = await supabase
-            .from('ai_agents')
-            .select('tokens_balance')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          const newBalance = (agent?.tokens_balance || 0) + tokensToAdd;
-
-          await supabase
-            .from('ai_agents')
-            .update({ tokens_balance: newBalance })
-            .eq('user_id', userId);
-
-          console.log(`✅ Salvo novo saldo: ${newBalance}`);
-        }
       }
-
-      // ====================================================
-      // BLOCO DE ENVIO 0: RECARGA DE TOKENS (NOVO)
-      // ====================================================
-      if (tokensToAdd > 0 && email && resendApiKey) {
-        const emailSubject = "Seus Créditos chegaram! 🪙";
-        const emailHtml = `Olá, ${firstName}!<br><br>Sua recarga de <b>${tokensToAdd.toLocaleString()} créditos</b> no roiLead foi confirmada com sucesso! ✅<br><br>Seu saldo já foi atualizado e seu Agente de IA está pronto para continuar trabalhando por você.<br><br>Boa prospecção!<br>Equipe roiLead.`;
-        await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
-
-        if (phone && evoUrl && evoInstance && evoKey) {
-          const msgTokens = `Olá, ${firstName}! 🪙\n\nSua recarga de *${tokensToAdd.toLocaleString()} créditos* foi confirmada e já está disponível na sua conta!\n\nSeu Agente de IA está pronto para brilhar. 🚀`;
-          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgTokens);
-        }
-      }
-
 
       // ====================================================
       // BLOCO DE ENVIO 1: CONTA & LOGIN (Pagamento Confirmado)
@@ -302,27 +251,28 @@ serve(async (req: Request) => {
       } else if (tokensToAdd === 0 && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
 
         if (isNewUser) {
-          // 1. E-mail de Boas-vindas
+          // 1. E-mail de Boas-vindas (Novo Usuário)
           if (email && resendApiKey) {
             const emailSubject = "Seu acesso ao roiLead chegou! 🚀";
             const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>12345</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Equipe roiLead.`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
 
-          // 2. WhatsApp de Login
+          // 2. WhatsApp de Login (Novo Usuário)
           if (phone && evoUrl && evoInstance && evoKey) {
-            const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login.\n\nCom seu E-mail:(${email}) e a Senha padrão: 12345\n\nPor segurança, peço que vá no Menu Configurações e altere sua senha.⚠️`
+            const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login\n\nUtilize seu E-mail: *${email}*\nSua Senha padrão: *12345*\n\nPor segurança, peço que após entrar, vá no Menu Configurações e altere sua senha. ⚠️`
             await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgLogin)
           }
         } else {
-          // E-mail e WhatsApp para veterano (Apenas confirmação)
+          // E-mail e WhatsApp para veterano (Acesso reativado ou renovado)
           if (email && resendApiKey) {
             const emailSubject = "Pagamento Confirmado - roiLead! ✅";
-            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo de volta ao roiLead.<br><br>Seu pagamento foi confirmado com sucesso.`;
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo de volta ao roiLead! 🚀<br><br>Seu pagamento do plano <b>${planName}</b> foi confirmado com sucesso e seu acesso já está liberado.<br><br>Você já pode acessar a plataforma com seu e-mail e senha habituais.<br><br>👉 <a href="https://roilead.com.br/login">Clique aqui para entrar</a>`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
           if (phone && evoUrl && evoInstance && evoKey) {
-            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, `Olá, ${firstName}! Seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar.`)
+            const msgVeterano = `Olá, ${firstName}! Seja bem-vindo de volta ao *roiLead*! 🚀\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nJá liberei seu acesso e estou pronto para te ajudar a encontrar os melhores leads. Você já pode acessar com seu e-mail e senha em: https://roilead.com.br/login`
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgVeterano)
           }
         }
       }
@@ -331,6 +281,9 @@ serve(async (req: Request) => {
       // BLOCO DE ENVIO 2: INSTRUÇÕES DE USO (Assinatura Ativa)
       // ====================================================
       if (eventType === 'subscription.activated') {
+        // Pequeno delay para garantir que a mensagem de boas-vindas chegue ANTES das instruções
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         if (phone && evoUrl && evoInstance && evoKey) {
           const msgInstrucoes = `📋 *DICAS DE USO - roiLead*\n\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp.\n\n💡 *COMO PEDIR (Exemplo):*\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ *IMPORTANTE:*\nPor aqui te envio o Resumo Essencial. Todos os dados completos ficam no seu Dashboard: https://roilead.com.br/dashboard\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje? 👇`
           await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgInstrucoes)

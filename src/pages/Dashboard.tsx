@@ -345,8 +345,24 @@ const Dashboard = () => {
         // Verifica se a assinatura ainda é válida por data
         const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
 
-        // Regras de ativação: Ter uma sub válida ou ter flag manual no profile
-        const isActivelySubscribed = (!!subData && isTimeValid && subData.subscription_status !== 'canceled' && subData.subscription_status !== 'refunded') || profile?.payment_status === 'PAID' || profile?.access_status === 'PAID_USER';
+        // Hierarquia de Acesso Refinada: Assinatura > Flags Manuais
+        let isActivelySubscribed = false;
+
+        if (subData) {
+          // Se existe registro na tabela de assinaturas, a data e o status mandam.
+          isActivelySubscribed = isTimeValid && 
+                                 subData.subscription_status !== 'canceled' && 
+                                 subData.subscription_status !== 'refunded';
+          
+          // Permite override apenas se houver uma flag de acesso manual administrativo
+          if (profile?.access_status === 'PAID_USER') {
+            isActivelySubscribed = true;
+          }
+        } else {
+          // Fallback para legados que não possuem registro em 'subscriptions'
+          isActivelySubscribed = profile?.payment_status === 'PAID' || 
+                                 profile?.access_status === 'PAID_USER';
+        }
 
         setHasActiveSubscription(isActivelySubscribed);
 

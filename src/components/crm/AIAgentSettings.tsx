@@ -335,7 +335,7 @@ export function AIAgentSettings() {
                     </div>
                     <div className="space-y-1">
                         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponível</h3>
-                        <div className="text-4xl font-black text-foreground">{tokensBalance.toLocaleString()}</div>
+                        <div className="text-4xl font-black text-foreground">{tokensBalance.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}</div>
                         <p className="text-xs text-primary animate-pulse font-bold">Créditos de Mensagens</p>
                     </div>
 
@@ -601,7 +601,7 @@ export function AIAgentSettings() {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-bold text-foreground">Economia e Transparência</p>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">Você só gasta 1 crédito quando a IA envia uma resposta. Atendimentos manuais são gratuitos. É o melhor custo-benefício para escalar sua operação.</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">Você só gasta 0,5 crédito quando a IA envia uma resposta. Atendimentos manuais são gratuitos. É o melhor custo-benefício para escalar sua operação.</p>
                                 </div>
                             </div>
                         </div>

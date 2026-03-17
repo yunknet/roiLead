@@ -46,8 +46,10 @@ serve(async (req) => {
       'apikey': EVOLUTION_GLOBAL_KEY
     };
     let result;
-    // Sanitiza o ID para usar apenas alfanuméricos e hífens (preserva UUID)
-    const instanceId = `user_${instanceName.replace(/[^a-zA-Z0-9-]/g, '')}`;
+    // Sanitiza o ID: se já começar com user_, usa como está, senão adiciona o prefixo.
+    // Também permite underscores na sanitização.
+    const cleanName = instanceName.replace(/[^a-zA-Z0-9-_]/g, '');
+    const instanceId = cleanName.startsWith('user_') ? cleanName : `user_${cleanName}`;
     let SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
     // Remove trailing slash if present
     if (SUPABASE_URL.endsWith('/')) {
@@ -124,6 +126,7 @@ serve(async (req) => {
           } catch (webhookErr) {
             console.error("Error updating webhook:", webhookErr);
           }
+
           // 3. Handle Create Result
           if (createData?.qrcode || createData?.base64) {
             result = createData;
@@ -153,6 +156,27 @@ serve(async (req) => {
             // Unknown error or success without QR
             result = createData;
           }
+
+          // 4. Update the database with the instance name
+          const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+          );
+
+          const { error: dbError } = await supabaseAdmin
+            .from('ai_agents')
+            .upsert({ 
+              user_id: user.id, 
+              instance_name: instanceId,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+
+          if (dbError) {
+            console.error("Error updating ai_agents instance_name:", dbError);
+          } else {
+            console.log(`Successfully updated database with instance_name: ${instanceId}`);
+          }
+
         } catch (e) {
           throw new Error(`Failed to create instance: ${e.message}`);
         }
@@ -169,6 +193,16 @@ serve(async (req) => {
           headers
         });
         result = await delRes.json();
+
+        // 5. Limpa o banco de dados após deletar a instância
+        const supabaseAdminClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        await supabaseAdminClient
+          .from('ai_agents')
+          .update({ instance_name: null })
+          .eq('user_id', user.id);
         break;
       case 'send_message':
         const { number, text } = reqBody;

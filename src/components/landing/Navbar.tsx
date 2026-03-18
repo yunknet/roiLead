@@ -50,6 +50,9 @@ const Navbar = () => {
             <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
+            <a href="#footer" className="text-muted-foreground hover:text-foreground transition-colors">
+              Suporte
+            </a>
             <div className="flex items-center gap-4">
               <ModeToggle />
               <Link to={session ? "/dashboard" : "/login"}>
@@ -81,6 +84,9 @@ const Navbar = () => {
               </a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 FAQ
+              </a>
+              <a href="#footer" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+                Suporte
               </a>
               <Link to={session ? "/dashboard" : "/login"} onClick={() => setIsOpen(false)}>
                 <Button variant="hero" className="w-full">{session ? "Dashboard" : "Entrar"}</Button>

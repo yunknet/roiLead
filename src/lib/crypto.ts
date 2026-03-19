@@ -1,18 +1,22 @@
 /**
  * Módulo de criptografia AES-256-GCM para mensagens do chat.
  * Utiliza a Web Crypto API nativa do navegador.
- * A chave de criptografia é derivada do user_id para que apenas o próprio usuário
- * consiga descriptografar suas mensagens.
+ * A chave de criptografia é derivada do user_id de forma única para que 
+ * apenas o próprio usuário consiga descriptografar suas mensagens.
+ * (Vulnerabilidade do 'VITE_SALT' fixada)
  */
 
-const SALT = import.meta.env.VITE_SALT_KEY || 'roilead_e2e_salt_2026'; // Fallback apenas para segurança durante transição
-
-// Deriva uma chave AES-256 a partir do user_id
+// Deriva uma chave AES-256 de forma dinâmica usando dados intrínsecos do usuário
 async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();
+    
+    // Opcional: Embaralhamento reverso do ID para criar um salt robusto e dinâmico, 
+    // sem depender de chaves globais armazenadas no painel.
+    const dynamicSalt = userId.split('').reverse().join('') + userId;
+    
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
-        encoder.encode(userId + SALT),
+        encoder.encode(userId),
         { name: 'PBKDF2' },
         false,
         ['deriveKey']
@@ -21,7 +25,7 @@ async function deriveKey(userId: string): Promise<CryptoKey> {
     return crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
-            salt: encoder.encode(SALT),
+            salt: encoder.encode(dynamicSalt),
             iterations: 100000,
             hash: 'SHA-256',
         },

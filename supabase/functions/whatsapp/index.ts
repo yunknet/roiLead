@@ -55,7 +55,9 @@ serve(async (req) => {
     if (SUPABASE_URL.endsWith('/')) {
       SUPABASE_URL = SUPABASE_URL.slice(0, -1);
     }
-    const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+    const webhookSecret = Deno.env.get('EVOLUTION_WEBHOOK_SECRET');
+    const secretSuffix = webhookSecret ? `?token=${webhookSecret}` : '';
+    const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/whatsapp-webhook${secretSuffix}`;
     console.log(`Webhook URL: ${WEBHOOK_URL}`);
     switch (action) {
       case 'create_instance':

@@ -3,13 +3,13 @@
  * Utiliza a Web Crypto API nativa do Deno.
  */
 
-const SALT = Deno.env.get('SALT_KEY') || 'roilead_e2e_salt_2026';
-
 async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();
+    const dynamicSalt = userId.split('').reverse().join('') + userId;
+
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
-        encoder.encode(userId + SALT),
+        encoder.encode(userId),
         { name: 'PBKDF2' },
         false,
         ['deriveKey']
@@ -18,7 +18,7 @@ async function deriveKey(userId: string): Promise<CryptoKey> {
     return crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
-            salt: encoder.encode(SALT),
+            salt: encoder.encode(dynamicSalt),
             iterations: 100000,
             hash: 'SHA-256',
         },

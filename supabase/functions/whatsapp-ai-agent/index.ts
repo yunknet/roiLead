@@ -21,6 +21,26 @@ serve(async (req) => {
   }
 
   try {
+    // 🔒 SECURANÇA: Autenticação do Webhook da Evolution API
+    // Impede que requisições falsas criem ou leiam conversas no banco de dados.
+    const webhookSecret = Deno.env.get('EVOLUTION_WEBHOOK_SECRET');
+    
+    if (webhookSecret) {
+      // Aceita nos Headers (Authorization, apikey, x-webhook-secret) ou na URL (?token=)
+      const authHeader = req.headers.get('Authorization') || req.headers.get('apikey') || req.headers.get('x-webhook-secret');
+      const url = new URL(req.url);
+      const tokenQuery = url.searchParams.get('token');
+
+      const cleanAuthHeader = authHeader?.replace('Bearer ', '');
+
+      if (cleanAuthHeader !== webhookSecret && tokenQuery !== webhookSecret) {
+        console.error("⛔ Acesso Negado: Tentativa de webhook falso bloqueada.");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+    } else {
+      console.warn("⚠️ CRÍTICO: 'EVOLUTION_WEBHOOK_SECRET' não definido no painel do Supabase. A Rota da IA está exposta!");
+    }
+
     const payload = await req.json()
     console.log('-> Incoming Webhook from Evolution API:', payload.event, 'Instance:', payload.instance);
 

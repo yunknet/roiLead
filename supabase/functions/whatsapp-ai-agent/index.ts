@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.6'
+import { encryptMessage, decryptMessage } from './crypto.ts';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -147,9 +148,11 @@ serve(async (req) => {
         // Ignorar se a mensagem for vazia
         if (!msg.message) continue;
 
+        const decryptedMessageText = await decryptMessage(msg.message, userId);
+
         geminiHistory.push({
           role: msg.sender === 'me' ? 'model' : 'user', // Se "eu" (Agente/Humano) respondi, o Gemini entende como "model"
-          parts: [{ text: msg.message }]
+          parts: [{ text: decryptedMessageText }]
         });
       }
     }
@@ -240,10 +243,12 @@ serve(async (req) => {
     }
 
     // 8. SALVAR A RESPOSTA DA IA NO BANCO DE DADOS (chat_messages) PARA APARECER NO PAINEL DO CRM
+    const encryptedAiResponse = await encryptMessage(aiResponseText, userId);
+
     await supabase.from('chat_messages').insert({
       user_id: userId,
       contact_phone: cleanPhone,
-      message: aiResponseText,
+      message: encryptedAiResponse,
       sender: 'me', // Fica verde no chat do CRM
       status: 'sending'
     });

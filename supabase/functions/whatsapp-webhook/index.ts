@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { encryptMessage } from './crypto.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
@@ -142,11 +144,14 @@ serve(async (req) => {
         const safeMimeType = mimeType.replace(/\s+/g, '');
         mediaUrl = `data:${safeMimeType};base64,${cleanBase64}`;
       }
+      // Encrypt the message text before saving to database
+      const encryptedText = await encryptMessage(text, userId);
+
       // Insert into chat_messages
       const { error: msgError } = await supabaseClient.from('chat_messages').insert({
         user_id: userId,
         contact_phone: phone,
-        message: text,
+        message: encryptedText,
         sender: fromMe ? 'me' : 'them',
         status: fromMe ? 'sent' : 'delivered',
         type: msgType,

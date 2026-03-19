@@ -21,23 +21,14 @@ const Index = () => {
       <PricingSection />
       <FAQSection />
       
-      {/* Wrapper para os Depoimentos + Anúncios Laterais */}
-      <div className="flex justify-between items-stretch max-w-[1600px] mx-auto xl:px-8">
-        {/* Anúncio Esquerdo - Fixo só em telas grandes */}
-        <div className="hidden xl:flex w-[300px] sticky top-32 flex-col justify-end pb-20 shrink-0">
-          <AdBanner adSlot="2284407894" />
-        </div>
-
-        {/* Conteúdo Central */}
-        <div className="flex-1 overflow-hidden">
-          <Testimonials />
-        </div>
-
-        {/* Anúncio Direito - Fixo só em telas grandes */}
-        <div className="hidden xl:flex w-[300px] sticky top-32 flex-col justify-end pb-20 shrink-0">
+      {/* Anúncio Único e Horizontal (Entre FAQ e Depoimentos) */}
+      <div className="container mx-auto px-4 py-4 md:py-8">
+        <div className="max-w-5xl mx-auto w-full flex justify-center items-center min-h-[100px] bg-secondary/5 rounded-xl border border-border/50 overflow-hidden shadow-inner">
           <AdBanner adSlot="2284407894" />
         </div>
       </div>
+
+      <Testimonials />
 
       <Footer />
     </div>

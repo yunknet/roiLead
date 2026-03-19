@@ -14,7 +14,8 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Webhook payload:', JSON.stringify(payload));
     const supabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    // Debug Logger: Store raw payload to check reception
+    // Debug Logger: Store raw payload to check reception (Commented out because webhook_logs table is being deleted)
+    /*
     try {
       await supabaseClient.from('webhook_logs').insert({
         payload: payload
@@ -22,6 +23,7 @@ serve(async (req) => {
     } catch (logErr) {
       console.error('Failed to log webhook:', logErr);
     }
+    */
     const eventType = payload.event || payload.type;
     const instanceStr = payload.instance;
     const data = payload.data;

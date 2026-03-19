@@ -3,6 +3,7 @@ import Navbar from "@/components/landing/Navbar";
 import { HeroRoiLead } from "@/components/hero-roilead";
 import VideoSection from "@/components/landing/VideoSection";
 import { RoiLeadFeatures } from "@/components/roilead-features";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import PricingSection from "@/components/landing/PricingSection";
 import FAQSection from "@/components/landing/FAQSection";
 import { Testimonials } from "@/components/testimonials";
@@ -16,6 +17,7 @@ const Index = () => {
       <HeroRoiLead />
       <VideoSection />
       <RoiLeadFeatures />
+      <HowItWorks />
       <PricingSection />
       <FAQSection />
       

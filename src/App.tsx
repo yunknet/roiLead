@@ -16,6 +16,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
+import AboutUs from "./pages/AboutUs";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/complete-registration" element={<CompleteRegistration />} />
             <Route path="/subscription" element={<Subscription />} />
+            <Route path="/sobre" element={<AboutUs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

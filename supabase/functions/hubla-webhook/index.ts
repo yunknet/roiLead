@@ -114,7 +114,10 @@ serve(async (req: Request) => {
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
         let userId: string | null = null
-        const defaultPassword = "12345" // User requested simple password
+        // Cria uma senha dinâmica: Pega o primeiro nome em minúsculas e sem acentos + "12345"
+        // Exemplo: "João" vira "joao12345", evitando problemas de digitação no celular
+        const safeFirstName = firstName ? firstName.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '') : "cliente";
+        const defaultPassword = `${safeFirstName}12345`;
 
         // Busca de forma elástica, ignorando letras maiúsculas/minúsculas
         const { data: userProfile } = await supabase
@@ -254,13 +257,13 @@ serve(async (req: Request) => {
           // 1. E-mail de Boas-vindas (Novo Usuário)
           if (email && resendApiKey) {
             const emailSubject = "Seu acesso ao roiLead chegou! 🚀";
-            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>12345</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Equipe roiLead.`;
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>${defaultPassword}</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Equipe roiLead.`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
 
           // 2. WhatsApp de Login (Novo Usuário)
           if (phone && evoUrl && evoInstance && evoKey) {
-            const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login\n\nUtilize seu E-mail: *${email}*\nSua Senha padrão: *12345*\n\nPor segurança, peço que após entrar, vá no Menu Configurações e altere sua senha. ⚠️`
+            const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login\n\nUtilize seu E-mail: *${email}*\nSua Senha padrão: *${defaultPassword}*\n\nPor segurança, peço que após entrar, vá no Menu Configurações e altere sua senha. ⚠️`
             await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgLogin)
           }
         } else {

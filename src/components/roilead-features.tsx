@@ -20,7 +20,6 @@ export function RoiLeadFeatures() {
                     Tudo o que você precisa para <span className="text-emerald-500">vender mais</span>
                 </h2>
 
-                {/* Grid ajustado para 1 coluna (mobile), 2 (tablet), 4 (desktop) */}
                 <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     {features.map((feature, index) => (
                         <GridItem
@@ -36,7 +35,6 @@ export function RoiLeadFeatures() {
     );
 }
 
-// Dados extraídos da imagem de referência do roiLead
 const features = [
     {
         title: "Busca Inteligente de Leads",

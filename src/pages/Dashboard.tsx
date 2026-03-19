@@ -94,7 +94,6 @@ const Dashboard = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [whatsappInitialLead, setWhatsappInitialLead] = useState<any>(null);
 
-  // User Profile state
   const [userProfile, setUserProfile] = useState<{
     firstName: string;
     lastName: string;
@@ -103,7 +102,6 @@ const Dashboard = () => {
     last_phone_update?: string;
   } | null>(null);
 
-  // Subscription State
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [subscriptionCreatedAt, setSubscriptionCreatedAt] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -112,20 +110,16 @@ const Dashboard = () => {
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
-  // Editing state
   const [phone, setPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
 
-  // Name Editing State
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
 
-  // Email Editing State
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [tempEmail, setTempEmail] = useState("");
 
-  // Password Change State
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -135,11 +129,9 @@ const Dashboard = () => {
   const [leadRequests, setLeadRequests] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filtro de requisições baseado no termo de busca
   const filteredRequests = leadRequests.filter((req) => {
     if (!searchQuery.trim()) return true;
 
-    // Normaliza strings para comparação (remove acentos e lowercase)
     const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     const details = JSON.stringify(req.request_details || "").toLowerCase();
@@ -160,8 +152,6 @@ const Dashboard = () => {
       cleanPhone = `55${cleanPhone}`;
     }
 
-    // Pré-cria o lead no CRM com o nome correto do cliente
-    // para que, ao receber mensagens via webhook, o nome não seja substituído pelo pushName (nome do remetente)
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -206,7 +196,6 @@ const Dashboard = () => {
     }
   };
 
-  // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -214,7 +203,6 @@ const Dashboard = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
 
-  // Resetar para página 1 quando a busca muda
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
@@ -229,11 +217,9 @@ const Dashboard = () => {
           return;
         }
 
-        // Get basic metadata
         const meta = user.user_metadata || {};
         const email = user.email || "";
 
-        // 1. Fetch Profile
         let { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -242,7 +228,6 @@ const Dashboard = () => {
 
 
 
-        // Extrai nome do Google/Metadados se disponível
         const googleName = meta.full_name || meta.name || "";
         let googleFirstName = "";
         let googleLastName = "";
@@ -253,7 +238,6 @@ const Dashboard = () => {
           googleLastName = parts.slice(1).join(" ");
         }
 
-        // SELF-HEALING & SYNC: Create or Update Profile
         if (!profile) {
 
           const newProfile = {
@@ -279,7 +263,6 @@ const Dashboard = () => {
             profile = newProfile;
           }
         } else if (!profile.first_name && (googleFirstName || meta.first_name)) {
-          // SYNC: Se o perfil existe mas não tem nome, e temos nome nos metadados (Google), atualiza agora.
 
           const updates = {
             first_name: meta.first_name || googleFirstName,
@@ -292,12 +275,10 @@ const Dashboard = () => {
             .update(updates)
             .eq('id', user.id);
 
-          // Atualiza o objeto local para refletir na UI imediatamente
           profile.first_name = updates.first_name;
           profile.last_name = updates.last_name;
         }
 
-        // Update State from DB Profile (Source of Truth)
         if (profile) {
           setUserProfile({
             firstName: profile.first_name || "Usuário",
@@ -314,7 +295,6 @@ const Dashboard = () => {
             setPhone(meta.phone);
           }
         } else {
-          // Fallback purely to metadata if DB failed hard
           setUserProfile({
             firstName: meta.first_name || googleFirstName || "Usuário",
             lastName: meta.last_name || googleLastName || "",
@@ -322,7 +302,6 @@ const Dashboard = () => {
           });
         }
 
-        // 2. Fetch Subscription Status directly from subscriptions table
         const { data: subData, error: subErr } = await supabase
           .from('subscriptions')
           .select('subscription_status, created_at, expires_at, plan_name')
@@ -342,24 +321,19 @@ const Dashboard = () => {
           console.error("Erro ao buscar assinatura:", subErr.message);
         }
 
-        // Verifica se a assinatura ainda é válida por data
         const isTimeValid = subData?.expires_at ? new Date(subData.expires_at) > new Date() : true;
 
-        // Hierarquia de Acesso Refinada: Assinatura > Flags Manuais
         let isActivelySubscribed = false;
 
         if (subData) {
-          // Se existe registro na tabela de assinaturas, a data e o status mandam.
           isActivelySubscribed = isTimeValid && 
                                  subData.subscription_status !== 'canceled' && 
                                  subData.subscription_status !== 'refunded';
           
-          // Permite override apenas se houver uma flag de acesso manual administrativo
           if (profile?.access_status === 'PAID_USER') {
             isActivelySubscribed = true;
           }
         } else {
-          // Fallback para legados que não possuem registro em 'subscriptions'
           isActivelySubscribed = profile?.payment_status === 'PAID' || 
                                  profile?.access_status === 'PAID_USER';
         }
@@ -369,7 +343,6 @@ const Dashboard = () => {
         if (subData) {
           setSubscriptionCreatedAt(subData.created_at);
 
-          // Fallback para assinaturas antigas ou sem expires_at
           const daysToAdd = subData.plan_name?.toLowerCase() === 'mensal' ? 30 : 365;
           const calculatedFallback = new Date(new Date(subData.created_at).getTime() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
 
@@ -377,8 +350,6 @@ const Dashboard = () => {
           setActivePlanName(subData.plan_name || "Anual");
         }
 
-        // 3. Fetch Lead Requests (History)
-        // Sanitiza o telefone para busca (apenas números)
         const userPhone = profile?.phone_number || meta.phone || "";
         const cleanPhone = userPhone.replace(/\D/g, "");
 
@@ -387,12 +358,10 @@ const Dashboard = () => {
           .select('*')
           .order('created_at', { ascending: false });
 
-        // Tenta buscar por ID do usuário OU Telefone (para pegar leads gerados pelo Bot)
         if (cleanPhone && cleanPhone.length > 5) {
           const phoneWith55 = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
           const phoneWithout55 = cleanPhone.startsWith('55') ? cleanPhone.substring(2) : cleanPhone;
 
-          // Monta query OR: user_id igual AO SEU OU telefone igual a um dos formatos
           queryBuilder = queryBuilder.or(`user_id.eq.${user.id},phone_number.eq.${cleanPhone},phone_number.eq.${phoneWith55},phone_number.eq.${phoneWithout55}`);
         } else {
           queryBuilder = queryBuilder.eq('user_id', user.id);
@@ -406,7 +375,6 @@ const Dashboard = () => {
           console.error("Error fetching requests:", requestsError);
         }
 
-        // Check for plan param in URL
         const searchParams = new URLSearchParams(window.location.search);
         const plan = searchParams.get("plan");
         if (plan) {
@@ -508,7 +476,6 @@ const Dashboard = () => {
 
       toast.success("Telefone atualizado com sucesso!");
       setIsEditingPhone(false);
-      // Atualiza estado local
       setUserProfile(prev => prev ? ({
         ...prev,
         phone_number: phone,
@@ -648,7 +615,6 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen bg-background flex overflow-hidden">
-      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -656,14 +622,12 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
         w-64 bg-sidebar border-r border-sidebar-border flex flex-col
         transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        {/* Logo */}
         <div className="p-4 border-b border-sidebar-border flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex items-center text-2xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
@@ -679,7 +643,6 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4">
           <ul className="space-y-1">
             {menuItems.map((item) => (
@@ -707,7 +670,6 @@ const Dashboard = () => {
           </ul>
         </nav>
 
-        {/* User Menu Footer */}
         <div className="p-4 border-t border-sidebar-border mb-12">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center">
@@ -721,9 +683,7 @@ const Dashboard = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
@@ -745,7 +705,6 @@ const Dashboard = () => {
           </div>
         </header>
 
-        {/* Dashboard Content */}
         <div className="flex-1 overflow-hidden flex">
           <div className="flex-1 flex flex-col overflow-hidden">
             {activeMenu === "search" && (
@@ -1238,7 +1197,6 @@ const Dashboard = () => {
             </Dialog>
           </div>
 
-          {/* Div do WhatsappChat (ocupa o rhs) */}
           <div className={`hidden lg:flex transition-all duration-300 ${isChatMinimized ? 'w-[60px]' : 'w-[450px]'} border-l border-border bg-card overflow-hidden relative group`}>
             <Button
               variant="default"
@@ -1294,7 +1252,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [page, setPage] = useState(1);
 
-  // Format Date
   const date = new Date(request.created_at).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -1303,7 +1260,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
     minute: '2-digit'
   });
 
-  // Extract Query Text
   let queryText = "Pesquisa de Leads";
   if (request.request_details) {
     if (typeof request.request_details === 'string') {
@@ -1316,27 +1272,20 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
     }
   }
 
-  // Parse Leads Data
   let leads: any[] = [];
   try {
     let rawData = request.leads_data;
 
-    // 1. String parsing
     if (typeof rawData === 'string') {
       try { rawData = JSON.parse(rawData); } catch (e) {
-        // Try cleanup if needed (unescape)
         try { rawData = JSON.parse(rawData.replace(/\\n/g, '').replace(/\\"/g, '"')); } catch (e2) { }
       }
     }
-    // Double parse check
     if (typeof rawData === 'string') {
       try { rawData = JSON.parse(rawData); } catch (e) { }
     }
 
-    // 2. Structure Extraction
     if (Array.isArray(rawData)) {
-      // Support for wrapped response: [ { total: 12, cnpjs: [...] } ]
-      // or flat response: [ { ... }, { ... } ]
       leads = rawData.flatMap((item: any) => item.cnpjs || [item]);
     } else if (rawData && typeof rawData === 'object') {
       if (Array.isArray(rawData.cnpjs)) leads = rawData.cnpjs;
@@ -1348,7 +1297,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
     console.error("Error extracting leads data:", err);
   }
 
-  // Paginação dos Leads no Card
   useEffect(() => {
     setPage(1);
   }, [request.id]);
@@ -1358,14 +1306,13 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
   const paginatedLeads = leads.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleExport = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evita expandir o card ao clicar no botão
+    e.stopPropagation();
     if (leads.length === 0) {
       toast.error("Não há leads para exportar nesta requisição.");
       return;
     }
 
     try {
-      // Formata os dados para exportação
       const exportData = leads.map(lead => ({
         "Nome": lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "N/A",
         "CNPJ": lead.cnpj || lead.CNPJ || "",
@@ -1383,7 +1330,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Leads");
 
-      // Nome do arquivo com data e identificador
       const fileName = `leads_roilead_${request.id.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       XLSX.writeFile(wb, fileName);
@@ -1465,7 +1411,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
               <Trash2 className="w-4 h-4" />
             </Button>
 
-            {/* Botão Mobile Only para Download */}
             <Button
               variant="ghost"
               size="icon"
@@ -1489,7 +1434,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
               <>
                 <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
                   {paginatedLeads.map((lead, idx) => {
-                    // Mapeamento inteligente de propriedades (snake_case novo vs CamelCase antigo)
                     const nome = lead.nome_fantasia || lead["Nome Fantasia"] || lead.razao_social || lead["Razão Social"] || "Empresa sem nome";
                     const porte = lead.porte_empresa?.descricao || lead.Porte || "N/A";
                     const cnpj = lead.cnpj || lead.CNPJ || "";
@@ -1590,7 +1534,6 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
         lead={selectedLead}
       />
 
-      {/* Modal Profissional de Confirmação de Exclusão de Histórico */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

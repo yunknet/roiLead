@@ -63,7 +63,6 @@ const Signup = () => {
     try {
       const { email, password, firstName, lastName, phone } = formData;
 
-      // Get plan from URL query params
       const searchParams = new URLSearchParams(window.location.search);
       const plan = searchParams.get("plan");
 
@@ -81,7 +80,6 @@ const Signup = () => {
 
       if (error) throw error;
 
-      // Explicitly create profile if session exists immediately
       if (data.user) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -96,7 +94,6 @@ const Signup = () => {
 
         if (profileError) {
           console.error("Erro ao criar perfil automaticamente:", profileError);
-          // Non-blocking error
         }
       }
 
@@ -108,8 +105,6 @@ const Signup = () => {
       if (data.session) {
         navigate(`/dashboard?plan=${plan || ''}`);
       } else {
-        // Session is null, likely waiting for DB trigger to confirm email.
-        // Retry login logic...
         let attempts = 0;
         let loggedIn = false;
 
@@ -149,7 +144,6 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Left Side - Decorative */}
       <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden dark">
         <div className="absolute inset-0 bg-hero-pattern" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />
@@ -170,10 +164,8 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* Right Side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* Back Link */}
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Voltar
@@ -186,7 +178,6 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Header */}
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Criar sua conta
           </h1>
@@ -214,7 +205,6 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -310,7 +300,6 @@ const Signup = () => {
             </Button>
           </form>
 
-          {/* Login Link */}
           <p className="text-center text-muted-foreground mt-8">
             Já tem uma conta?{" "}
             <Link to="/login" className="text-primary hover:underline">

@@ -27,7 +27,6 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link
             to="/"
             className="flex items-center"
@@ -39,7 +38,6 @@ const Navbar = () => {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             <Link to="/sobre" className="text-muted-foreground hover:text-foreground transition-colors">
               Sobre Nós
@@ -66,7 +64,6 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2 text-foreground"
             onClick={() => setIsOpen(!isOpen)}
@@ -75,7 +72,6 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {isOpen && (
           <div className="md:hidden py-4 border-t border-border/50 animate-fade-in">
             <div className="flex flex-col gap-4">

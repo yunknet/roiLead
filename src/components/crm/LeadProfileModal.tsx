@@ -31,13 +31,11 @@ interface LeadProfileModalProps {
     onDeleteLead?: (leadId: string) => void;
 }
 
-// Converte centavos para string formatada "R$ X.XXX,XX"
 function formatCurrency(cents: number): string {
     const value = cents / 100;
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Converte valor numérico (ex: 150.5) para centavos inteiros
 function toCents(value: number): number {
     return Math.round(value * 100);
 }
@@ -49,11 +47,9 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    // Value editing - em centavos para máscara monetária
     const [valueCents, setValueCents] = useState(0);
     const [showEditValue, setShowEditValue] = useState(false);
 
-    // Product tag editing
     const [productTag, setProductTag] = useState('');
     const [isEditingProduct, setIsEditingProduct] = useState(false);
     const [productInputValue, setProductInputValue] = useState('');
@@ -92,9 +88,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
         }
     };
 
-    // Máscara de moeda: o usuário digita números e o campo formata automaticamente
     const handleCurrencyInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Remove tudo que não é dígito
         const raw = e.target.value.replace(/\D/g, '');
         const cents = parseInt(raw || '0', 10);
         setValueCents(cents);
@@ -184,7 +178,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                     </div>
                 </DialogHeader>
 
-                {/* Tabs */}
                 <div className="flex items-center border-b px-6 pt-2 gap-4 text-sm font-medium">
                     <button
                         onClick={() => setActiveTab('info')}
@@ -217,7 +210,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                         <span className="font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full inline-block w-max text-xs">{lead.request_details || "-"}</span>
                                     </div>
 
-                                    {/* Produto/Venda - Etiqueta azul editável */}
                                     <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
                                         <span className="text-muted-foreground">Produto:</span>
                                         <div className="flex items-center gap-2">
@@ -306,7 +298,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 </div>
             </DialogContent>
 
-            {/* Modal Profissional de Confirmação de Remoção */}
             <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -328,7 +319,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 </DialogContent>
             </Dialog>
 
-            {/* Modal de Atualização de Valor com Máscara Monetária */}
             <Dialog open={showEditValue} onOpenChange={setShowEditValue}>
                 <DialogContent className="sm:max-w-[350px]">
                     <DialogHeader>
@@ -365,7 +355,6 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                 </DialogContent>
             </Dialog>
 
-            {/* Modal de Edição do Produto */}
             <Dialog open={isEditingProduct} onOpenChange={setIsEditingProduct}>
                 <DialogContent className="sm:max-w-[400px]">
                     <DialogHeader>

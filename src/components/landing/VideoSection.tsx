@@ -20,12 +20,12 @@ const VideoSection = () => {
                     </p>
 
                     <div className="mt-8 flex justify-center">
-                        <div className="relative mx-auto border-gray-800 bg-gray-900 border-[14px] rounded-[2.5rem] shadow-2xl">
-                            <div className="w-[148px] h-[18px] bg-gray-800 top-0 rounded-b-[1rem] left-1/2 -translate-x-1/2 absolute z-10"></div>
-                            <div className="h-[46px] w-[3px] bg-gray-800 absolute -start-[17px] top-[124px] rounded-s-lg"></div>
-                            <div className="h-[46px] w-[3px] bg-gray-800 absolute -start-[17px] top-[178px] rounded-s-lg"></div>
-                            <div className="h-[64px] w-[3px] bg-gray-800 absolute -end-[17px] top-[142px] rounded-e-lg"></div>
-                            <div className="rounded-[2rem] overflow-hidden w-[300px] h-[600px] bg-black relative">
+                        <div className="relative mx-auto border-gray-800 bg-gray-900 border-[12px] rounded-[2.2rem] shadow-2xl">
+                            <div className="w-[124px] h-[15px] bg-gray-800 top-0 rounded-b-[0.8rem] left-1/2 -translate-x-1/2 absolute z-10"></div>
+                            <div className="h-[38px] w-[3px] bg-gray-800 absolute -start-[14px] top-[104px] rounded-s-lg"></div>
+                            <div className="h-[38px] w-[3px] bg-gray-800 absolute -start-[14px] top-[150px] rounded-s-lg"></div>
+                            <div className="h-[54px] w-[3px] bg-gray-800 absolute -end-[14px] top-[120px] rounded-e-lg"></div>
+                            <div className="rounded-[1.6rem] overflow-hidden w-[250px] h-[500px] bg-black relative">
                                 <video
                                     src="/videos/roilead.mp4"
                                     className="w-full h-full object-cover"

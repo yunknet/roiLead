@@ -17,13 +17,11 @@ const Login = () => {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    // Check if we came from signup with an email to pre-fill
     const emailParam = searchParams.get("email");
     if (emailParam) {
       setEmail(emailParam);
     }
 
-    // Check authentication session
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -73,10 +71,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Left Side - Form */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
-          {/* Back Link */}
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Voltar
@@ -89,7 +85,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Header */}
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
             Bem-vindo de volta
           </h1>
@@ -117,7 +112,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
@@ -163,7 +157,6 @@ const Login = () => {
             </Button>
           </form>
 
-          {/* Sign Up Link */}
           <p className="text-center text-muted-foreground mt-8">
             Não tem uma conta?{" "}
             <Link to="/signup" className="text-primary hover:underline">
@@ -173,7 +166,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Side - Decorative (Hidden on mobile) */}
       <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden dark">
         <div className="absolute inset-0 bg-hero-pattern" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />

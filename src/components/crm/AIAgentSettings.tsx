@@ -64,7 +64,6 @@ export function AIAgentSettings() {
     const [lockDuration, setLockDuration] = useState(1);
     const [lockUnit, setLockUnit] = useState<'min' | 'hour'>('min');
 
-    // Novos estados para tokens
     const [tokensBalance, setTokensBalance] = useState(0);
     const [trialUsed, setTrialUsed] = useState(false);
     const [claimingTrial, setClaimingTrial] = useState(false);
@@ -78,7 +77,6 @@ export function AIAgentSettings() {
 
     const checkWhatsappConnection = async () => {
         try {
-            // Primeiro busca o nome da instância se existir
             const { data: { user } } = await supabase.auth.getUser();
             let instanceName = undefined;
             if (user) {
@@ -122,7 +120,6 @@ export function AIAgentSettings() {
                 setTrialUsed(data.trial_used || false);
                 setSystemPrompt(data.system_prompt || "");
             } else {
-                // Se não tem dados salvos, deixa vazio mas o placeholder vai mostrar o exemplo genial
                 setSystemPrompt("");
             }
         } catch (err) {
@@ -134,7 +131,6 @@ export function AIAgentSettings() {
     };
 
     const handleToggleActive = async () => {
-        // Se estiver tentando ligar, faz uma checagem fresca da conexão
         if (!isActive) {
             checkWhatsappConnection();
         }
@@ -148,12 +144,10 @@ export function AIAgentSettings() {
         setIsActive(newValue);
 
         try {
-            // Sincroniza imediatamente com Evolution API (Webhook) + Settings
             await supabase.functions.invoke('whatsapp', {
                 body: { action: 'set_webhook', useN8n: newValue }
             });
 
-            // Salva no DB
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const payload = {
@@ -173,7 +167,7 @@ export function AIAgentSettings() {
         } catch (err) {
             console.error("Erro ao sincronizar status do agente:", err);
             toast.error("Erro ao alternar o status do agente.");
-            setIsActive(!newValue); // rollback
+            setIsActive(!newValue);
         }
     };
 
@@ -208,7 +202,6 @@ export function AIAgentSettings() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Update DB with 100 tokens and trial_used = true
             const { error } = await supabase
                 .from('ai_agents')
                 .update({
@@ -239,7 +232,6 @@ export function AIAgentSettings() {
 
             if (error) throw error;
             if (data?.payment_url) {
-                // No mobile, redirecionar na mesma aba é mais seguro para evitar bloqueadores de popup
                 window.location.href = data.payment_url;
             }
         } catch (err) {
@@ -260,7 +252,7 @@ export function AIAgentSettings() {
             const payload = {
                 user_id: user.id,
                 is_active: isActive,
-                system_prompt: systemPrompt.trim() !== "" ? systemPrompt : DEFAULT_PROMPT, // Salva o default se a pessoa deixar em branco
+                system_prompt: systemPrompt.trim() !== "" ? systemPrompt : DEFAULT_PROMPT,
                 updated_at: new Date().toISOString()
             };
 
@@ -326,9 +318,7 @@ export function AIAgentSettings() {
                 )}
             </div>
 
-            {/* SEÇÃO DE CRÉDITOS E RECARGA */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* CARD DE SALDO */}
                 <div className="md:col-span-1 bg-card border border-border p-6 rounded-xl flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                         <Coins className="w-8 h-8 text-primary" />
@@ -352,7 +342,6 @@ export function AIAgentSettings() {
                     )}
                 </div>
 
-                {/* CARD DE RECARGA (AGORA MAIS LARGO NOVAMENTE) */}
                 <div className="md:col-span-2 bg-card border border-border p-6 rounded-xl space-y-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                         <ShoppingCart className="w-5 h-5 text-primary" />
@@ -389,7 +378,6 @@ export function AIAgentSettings() {
                 </div>
             </div>
 
-            {/* BANNER: ENTENDA O AGENTE (POSICIONADO ABAIXO PARA NÃO COMPETIR COM PREÇOS) */}
             <div 
                 onClick={() => setShowInfoModal(true)}
                 className="bg-gradient-to-r from-primary to-green-600 p-6 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-6 cursor-pointer hover:opacity-95 transition-all shadow-md group relative overflow-hidden"
@@ -427,7 +415,6 @@ export function AIAgentSettings() {
                     </div>
                 </div>
 
-                {/* Seção de Pausa Temporária separada para não confundir com o Botão Master */}
                 <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -513,7 +500,6 @@ export function AIAgentSettings() {
                 </div>
             </div>
 
-            {/* LOCK AGENT MODAL */}
             {showLockModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-card p-6 rounded-2xl border border-border shadow-2xl w-full max-w-[320px] animate-in zoom-in-95 duration-200">
@@ -555,7 +541,6 @@ export function AIAgentSettings() {
                     </div>
                 </div>
             )}
-            {/* MODAL EXPLICATIVO DO AGENTE IA */}
             <Dialog open={showInfoModal} onOpenChange={setShowInfoModal}>
                 <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none bg-background">
                     <div className="bg-primary p-6 text-white relative overflow-hidden">
@@ -568,7 +553,6 @@ export function AIAgentSettings() {
                                 <p className="text-white/80 text-sm mt-2">Sua máquina de vendas 24 horas</p>
                             </div>
                         </div>
-                        {/* Círculos decorativos de fundo */}
                         <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                         <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 rounded-full blur-xl" />
                     </div>

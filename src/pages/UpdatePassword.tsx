@@ -14,7 +14,6 @@ const UpdatePassword = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Verifica se existe sessão. O link de recuperação loga o usuário automaticamente.
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (!session) {
                 toast.error("Link inválido ou expirado. Solicite a recuperação novamente.");

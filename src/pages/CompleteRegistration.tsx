@@ -23,8 +23,6 @@ export default function CompleteRegistration() {
         if (!ref) {
             ref = localStorage.getItem("subscription_ref");
             if (ref) {
-                // Update URL to include ref for better UX/shareability if needed, or just use it
-                // For now, just using it locally
             }
         }
 
@@ -43,15 +41,13 @@ export default function CompleteRegistration() {
             if (data?.payment_status === 'paid') {
                 setStatus('paid');
                 setLoading(false);
-                return true; // Stop polling
+                return true;
             }
             return false;
         };
 
-        // Immediate check
         checkStatus();
 
-        // Poll status
         const interval = setInterval(async () => {
             const stop = await checkStatus();
             if (stop) clearInterval(interval);

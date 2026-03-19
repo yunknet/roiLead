@@ -36,7 +36,7 @@ export const ContainerScroll = ({
 
     return (
         <div
-            className="h-auto min-h-screen md:h-[80rem] flex md:items-center justify-center relative p-2 md:p-20 pt-0 pb-8 md:py-0"
+            className="h-auto min-h-screen md:h-[60rem] flex md:items-center justify-center relative p-2 md:p-20 pt-0 pb-8 md:py-0"
             ref={containerRef}
         >
             <div
@@ -85,9 +85,9 @@ export const Card = ({
                 boxShadow:
                     "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003",
             }}
-            className="max-w-5xl -mt-12 mx-auto h-[30rem] md:h-[40rem] w-full border-4 border-[#222222] p-2 md:p-6 bg-[#09090b] rounded-[30px] shadow-2xl"
+            className="max-w-4xl -mt-12 mx-auto h-[30rem] md:h-[32rem] lg:h-[36rem] w-full border-4 border-[#222222] p-2 md:p-6 bg-[#09090b] rounded-[30px] shadow-2xl"
         >
-            <div className=" h-full w-full  overflow-hidden rounded-2xl bg-zinc-900 md:rounded-2xl md:p-4 border border-zinc-800 relative">
+            <div className=" h-full w-full overflow-hidden rounded-2xl bg-zinc-900 md:rounded-2xl md:p-4 border border-zinc-800 relative">
                 {children}
                 <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-zinc-900 via-zinc-900/20 to-transparent pointer-events-none z-10" />
             </div>

@@ -38,7 +38,6 @@ export function SharkTank() {
 
         init();
 
-        // Realtime subscription
         const channel = supabase.channel('schema-db-changes')
             .on(
                 'postgres_changes',
@@ -73,7 +72,6 @@ export function SharkTank() {
 
     const handleClaimLead = async (leadId: string) => {
         try {
-            // Call the RPC that enforces the 1-hour cooldown and atomic claiming
             const { error } = await supabase.rpc('claim_shark_lead', { target_lead_id: leadId });
 
             if (error) {
@@ -81,7 +79,7 @@ export function SharkTank() {
                 toast.error(error.message || "Erro desconhecido ao pegar o lead.");
             } else {
                 toast.success("Lead fisgado com sucesso!");
-                fetchLeads(); // Força recarregar (mesmo com realtime armando fallback)
+                fetchLeads();
             }
         } catch (err: any) {
             let msg = err.message || "Erro";
@@ -110,7 +108,6 @@ export function SharkTank() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Busca assinatura com filtro flexível para contemplar "Shark Tank" e o Nome do Nicho
             const { data: sub, error } = await supabase
                 .from('subscriptions')
                 .select('plan_name, subscription_status, payment_status, expires_at')
@@ -223,7 +220,6 @@ export function SharkTank() {
                 </div>
             </div>
 
-            {/* Quadro Kanban Estático */}
             <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden w-full pb-4 items-start">
                 {columns.map(col => {
                     const colLeads = filteredLeads.filter(l => l.status === col.id);

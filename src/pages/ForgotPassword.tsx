@@ -68,7 +68,6 @@ const ForgotPassword = () => {
         setIsLoading(true);
 
         try {
-            // 1. Verify OTP and Login
             const { error: verifyError } = await supabase.auth.verifyOtp({
                 email,
                 token: otp,
@@ -77,7 +76,6 @@ const ForgotPassword = () => {
 
             if (verifyError) throw verifyError;
 
-            // 2. Update Password
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password,
             });
@@ -96,10 +94,8 @@ const ForgotPassword = () => {
 
     return (
         <div className="min-h-screen bg-background flex">
-            {/* Left Side - Form */}
             <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
                 <div className="w-full max-w-md">
-                    {/* Back Link */}
                     <Link
                         to="/login"
                         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
@@ -117,7 +113,6 @@ const ForgotPassword = () => {
 
                     {step === "email" ? (
                         <>
-                            {/* Header */}
                             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
                                 Recuperar Senha
                             </h1>
@@ -125,7 +120,6 @@ const ForgotPassword = () => {
                                 Informe seu e-mail para receber um código de recuperação.
                             </p>
 
-                            {/* Email Form */}
                             <form onSubmit={handleSendCode} className="space-y-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="email">E-mail cadastrado</Label>
@@ -159,7 +153,6 @@ const ForgotPassword = () => {
                         </>
                     ) : (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                            {/* Header OTP */}
                             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
                                 Redefinir Senha
                             </h1>
@@ -167,10 +160,8 @@ const ForgotPassword = () => {
                                 Digite o código enviado para <strong>{email}</strong> e sua nova senha.
                             </p>
 
-                            {/* OTP + Password Form */}
                             <form onSubmit={handleResetPassword} className="space-y-6">
 
-                                {/* OTP Input */}
                                 <div className="space-y-2 flex flex-col items-center sm:items-start">
                                     <Label htmlFor="otp">Código de Verificação</Label>
                                     <InputOTP
@@ -192,7 +183,6 @@ const ForgotPassword = () => {
                                     </InputOTP>
                                 </div>
 
-                                {/* Password Fields */}
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="password">Nova Senha</Label>
@@ -273,7 +263,6 @@ const ForgotPassword = () => {
                 </div>
             </div>
 
-            {/* Right Side - Decorative (Hidden on mobile) */}
             <div className="hidden lg:flex flex-1 bg-gradient-card items-center justify-center p-8 relative overflow-hidden dark">
                 <div className="absolute inset-0 bg-hero-pattern" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent blur-3xl" />

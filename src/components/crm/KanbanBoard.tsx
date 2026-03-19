@@ -40,7 +40,6 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             const now = Date.now();
             let hasUpdates = false;
 
-            // Filtro para garantir apenas 1 lead por número caso existam duplicatas no banco
             const uniqueLeadsMap = new Map();
             data.forEach(lead => {
                 if (!uniqueLeadsMap.has(lead.phone)) {
@@ -49,7 +48,6 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             });
             const uniqueData = Array.from(uniqueLeadsMap.values());
 
-            // Detecta nome do dono: se 2+ leads compartilham o mesmo título, é o nome do próprio usuário
             const titleCount: Record<string, number> = {};
             uniqueData.forEach(lead => {
                 const t = (lead.title || '').trim().toLowerCase();
@@ -64,14 +62,12 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             );
 
             const updatedLeads = uniqueData.map(l => {
-                // Corrige título se for o nome do dono
                 const titleLower = (l.title || '').trim().toLowerCase();
                 if (ownerNames.has(titleLower)) {
                     supabase.from('crm_leads').update({ title: l.phone }).eq('id', l.id).then();
                     l = { ...l, title: l.phone };
                 }
 
-                // Se um lead ficar parado por mais de 24h, move-o para 'lost' (exceto se já estiver em won/lost)
                 if (l.status && l.status !== 'won' && l.status !== 'lost') {
                     const timeDiffHours = (now - new Date(l.updated_at).getTime()) / (1000 * 60 * 60);
                     if (timeDiffHours >= 24) {
@@ -101,12 +97,12 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
 
         if (error) {
             toast.error('Erro ao mover lead');
-            setLeads(originalLeads); // Revert
+            setLeads(originalLeads);
         }
     };
 
     const handleDeleteLead = (e: React.MouseEvent, lead: any) => {
-        e.stopPropagation(); // Evita abrir o modal
+        e.stopPropagation();
         setLeadToDelete(lead);
     };
 
@@ -125,7 +121,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
 
         if (error) {
             toast.error('Erro ao remover lead');
-            setLeads(originalLeads); // Revert
+            setLeads(originalLeads);
         } else {
             toast.success('Lead removido!');
         }
@@ -175,13 +171,11 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, column.id)}
                         >
-                            {/* Header */}
                             <div className={`p-3 font-semibold text-sm rounded-t-xl border-b flex items-center justify-between ${column.color}`}>
                                 <span>{column.title}</span>
                                 <span className="bg-background/50 px-2 py-0.5 rounded-full text-xs">{columnLeads.length}</span>
                             </div>
 
-                            {/* Conent */}
                             <div className="flex-1 overflow-y-auto p-3 space-y-3">
                                 {columnLeads.map(lead => (
                                     <div
@@ -268,7 +262,6 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                 />
             )}
 
-            {/* Modal Profissional de Confirmação de Remoção do Card */}
             <Dialog open={!!leadToDelete} onOpenChange={(open) => !open && setLeadToDelete(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>

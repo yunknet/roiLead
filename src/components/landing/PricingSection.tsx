@@ -82,7 +82,6 @@ const PricingSection = () => {
       <div className="absolute inset-0 bg-hero-pattern opacity-50" />
 
       <div className="container mx-auto px-4 relative z-10">
-        {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
             Receba 30 leads empresariais <span className="text-gradient">qualificados</span> em 7 dias ou seu dinheiro de volta
@@ -92,7 +91,6 @@ const PricingSection = () => {
           </span>
         </div>
 
-        {/* Pricing Cards */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-6 sm:gap-8 max-w-4xl mx-auto">
           {plans.map((plan, index) => (
             <div

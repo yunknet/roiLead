@@ -6,7 +6,6 @@ const Footer = () => {
     <footer id="footer" className="py-12 border-t border-border">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="grid grid-cols-2 md:flex md:justify-between gap-10">
-          {/* Brand */}
           <div className="col-span-2 md:flex-1 md:max-w-[200px]">
             <Link
               to="/"
@@ -23,7 +22,6 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Empresa */}
           <div>
             <h4 className="font-semibold text-foreground mb-4 text-sm">Empresa</h4>
             <ul className="space-y-2">
@@ -35,7 +33,6 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Produto */}
           <div>
             <h4 className="font-semibold text-foreground mb-4 text-sm">Produto</h4>
             <ul className="space-y-2">
@@ -57,7 +54,6 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Suporte */}
           <div>
             <h4 className="font-semibold text-foreground mb-4 text-sm">Suporte</h4>
             <ul className="space-y-3">
@@ -101,7 +97,6 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Legal */}
           <div>
             <h4 className="font-semibold text-foreground mb-4 text-sm">Legal</h4>
             <ul className="space-y-2">

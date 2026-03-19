@@ -21,7 +21,6 @@ const Index = () => {
       <PricingSection />
       <FAQSection />
       
-      {/* Anúncio Único e Horizontal (Entre FAQ e Depoimentos) */}
       <div className="container mx-auto px-4 py-4 md:py-8">
         <div className="max-w-5xl mx-auto w-full flex justify-center items-center min-h-[100px] bg-secondary/5 rounded-xl border border-border/50 overflow-hidden shadow-inner">
           <AdBanner adSlot="2284407894" />

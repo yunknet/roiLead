@@ -30,7 +30,6 @@ interface LeadDetailsModalProps {
 export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProps) {
     if (!lead) return null;
 
-    // Helper to format currency
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -38,7 +37,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
         }).format(value);
     };
 
-    // Helper to format date
     const formatDate = (dateString: string) => {
         if (!dateString) return "-";
         try {
@@ -115,7 +113,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                 <div className="flex-1 overflow-y-auto min-h-0 p-6">
                     <div className="space-y-8">
 
-                        {/* Informações Básicas Detalhadas */}
                         <section className="space-y-3">
                             <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
                                 <Building2 className="w-4 h-4" />
@@ -166,7 +163,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
                         <Separator />
 
-                        {/* Endereço Completo */}
                         <section className="space-y-3">
                             <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
                                 <MapPin className="w-4 h-4" />
@@ -209,14 +205,12 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
                         <Separator />
 
-                        {/* Contato */}
                         <section className="space-y-3">
                             <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
                                 <Phone className="w-4 h-4" />
                                 Contatos e Emails
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Telefones */}
                                 <div className="space-y-2">
                                     <span className="text-xs font-medium text-muted-foreground uppercase">Telefones</span>
                                     {lead.contato_telefonico && lead.contato_telefonico.length > 0 ? (
@@ -234,7 +228,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                                     )}
                                 </div>
 
-                                {/* Emails */}
                                 <div className="space-y-2">
                                     <span className="text-xs font-medium text-muted-foreground uppercase">Emails</span>
                                     {lead.contato_email && lead.contato_email.length > 0 ? (
@@ -258,7 +251,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
                         <Separator />
 
-                        {/* Atividades */}
                         <section className="space-y-3">
                             <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
                                 <Activity className="w-4 h-4" />
@@ -331,7 +323,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                             </>
                         )}
 
-                        {/* Simples / MEI */}
                         {(lead.simples || lead.mei) && (
                             <>
                                 <Separator />

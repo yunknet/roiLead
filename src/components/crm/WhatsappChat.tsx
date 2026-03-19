@@ -122,10 +122,8 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
     const [isLocked, setIsLocked] = useState(false);
     const [tokensBalance, setTokensBalance] = useState(0);
 
-    // Unread Notifications State
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-    // Media & Emoji Features
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const EMOJIS = ["😀", "😂", "🥰", "😎", "🤔", "🙌", "👍", "🙏", "🔥", "❤️", "✅", "🎉", "👀", "💰", "💪", "💡", "⚠️", "❌", "🤝", "🚀"];
@@ -143,7 +141,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
         reader.onloadend = async () => {
             const base64String = reader.result as string;
 
-            // Mock de visualização local e imediata sem ferir o DB
             const mockMsg = {
                 id: Date.now().toString(),
                 message: file.name,
@@ -155,7 +152,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             setMessages(prev => [...prev, mockMsg]);
 
             try {
-                // Tenta enviar para a Edge Function de mídia
                 const { error } = await supabase.functions.invoke('whatsapp', {
                     body: { action: 'send_media', number: activeLead.phone, media_base64: base64String, file_name: file.name }
                 });
@@ -164,23 +160,20 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             } catch (error) {
                 console.error(error);
                 toast.error("A integração de arquivos pelo servidor falhou.");
-                setMessages(prev => prev.filter(m => m.id !== mockMsg.id)); // Remove o mock
+                setMessages(prev => prev.filter(m => m.id !== mockMsg.id));
             }
         };
         reader.readAsDataURL(file);
 
-        // Clear input value so same file can be selected again
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    // New Chat State
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newChatDDI, setNewChatDDI] = useState('+55');
     const [newChatDDD, setNewChatDDD] = useState('');
     const [newChatPhone, setNewChatPhone] = useState('');
     const [newChatName, setNewChatName] = useState('');
 
-    // Editor State
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState('');
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -196,7 +189,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Monitor initialContact prop to start new external chats
     useEffect(() => {
         if (initialContact && initialContact.timestamp && status === 'connected') {
             const lastHandled = sessionStorage.getItem('whatsapp_last_handled_contact_time');
@@ -221,12 +213,10 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, handleNewMessage)
             .subscribe();
 
-        // Polling de fallback caso o banco não tenha realtime configurado
         const pollInterval = setInterval(async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // ---- Polling Messages ----
             const { data: messagesData, error: messagesError } = await supabase
                 .from('chat_messages')
                 .select('*')
@@ -235,14 +225,12 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 .order('created_at', { ascending: true });
 
             if (!messagesError && messagesData && messagesData.length > 0) {
-                // Atualiza o ref de último momento em que verificamos de acordo com timestamp do cliente
                 const maxDate = new Date(Math.max(...messagesData.map(m => new Date(m.created_at).getTime())));
                 lastPolledRef.current = maxDate.toISOString();
 
                 messagesData.forEach(msg => handleNewMessage({ new: msg }));
             }
 
-            // ---- Polling Agent Status ----
             const { data: agentData } = await supabase
                 .from('ai_agents')
                 .select('*')
@@ -255,7 +243,7 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 setTokensBalance(agentData.tokens_balance || 0);
             }
 
-        }, 2000); // Polling interval
+        }, 2000);
 
         return () => {
             clearInterval(pollInterval);
@@ -268,7 +256,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
         if (processedIdsRef.current.has(newMsg.id)) return;
         processedIdsRef.current.add(newMsg.id);
 
-        // Descriptografar a mensagem recebida em tempo real
         const { data: { user } } = await supabase.auth.getUser();
         if (user && newMsg.message) {
             newMsg.message = await decryptMessage(newMsg.message, user.id);
@@ -290,7 +277,7 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             }));
         }
 
-        fetchLeads(); // Refresh leads for latest message
+        fetchLeads();
     };
 
     useEffect(() => {
@@ -322,7 +309,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (activeLead) {
-            // Limpa mensagens IMEDIATAMENTE ao trocar de lead para não exibir flash do chat anterior
             setMessages([]);
             fetchMessages(activeLead.phone);
             setEditNameValue(activeLead.title);
@@ -356,7 +342,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             .order('updated_at', { ascending: false });
 
         if (!error && data) {
-            // Remove duplicatas de leads caso o webhook tenha lançado várias conversas com o mesmo número
             const uniqueLeadsMap = new Map();
             data.forEach(lead => {
                 if (!uniqueLeadsMap.has(lead.phone)) {
@@ -366,17 +351,14 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
 
             const uniqueLeads = Array.from(uniqueLeadsMap.values());
 
-            // Detecta o nome do próprio usuário: se 2+ leads com telefone diferente
-            // compartilham o mesmo título, esse título é claramente o nome do dono da conta
             const titleCount: Record<string, number> = {};
             uniqueLeads.forEach(lead => {
                 const t = (lead.title || '').trim().toLowerCase();
-                if (t && t !== lead.phone) { // Ignora títulos que já são telefone
+                if (t && t !== lead.phone) {
                     titleCount[t] = (titleCount[t] || 0) + 1;
                 }
             });
 
-            // Títulos que aparecem em 2+ leads diferentes são o nome do dono
             const ownerNames = new Set(
                 Object.entries(titleCount)
                     .filter(([_, count]) => count >= 2)
@@ -387,7 +369,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 const titleLower = (lead.title || '').trim().toLowerCase();
 
                 if (ownerNames.has(titleLower)) {
-                    // Corrige no banco de dados silenciosamente
                     supabase.from('crm_leads')
                         .update({ title: lead.phone })
                         .eq('id', lead.id)
@@ -413,7 +394,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             .order('created_at', { ascending: true });
 
         if (!error && data) {
-            // Descriptografar mensagens
             const decryptedData = await Promise.all(
                 data.map(async (msg: any) => ({
                     ...msg,
@@ -438,7 +418,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             if (data?.state === 'open' || data?.instance?.state === 'open') {
                 setStatus('connected');
 
-                // Tenta puxar o status do agente no banco silenciosamente
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
@@ -491,7 +470,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
     };
     const handleToggleIaAgent = async (checked: boolean) => {
         if (checked) {
-            // Apenas dispara a checagem mas não avisa nada
             supabase.functions.invoke('whatsapp', {
                 body: { action: 'create_instance' }
             });
@@ -518,7 +496,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 });
                 if (error) throw error;
 
-                // Sync com DB de agentes para as telas ficarem simultaneas
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     await supabase.from('ai_agents').update({ is_active: checked }).eq('user_id', user.id);
@@ -528,7 +505,7 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             } catch (error) {
                 console.error(error);
                 toast.error('Erro ao alternar o Agente de IA');
-                setUseIaAgent(!checked); // reverte a UI
+                setUseIaAgent(!checked);
             } finally {
                 setLoadingAction(false);
             }
@@ -652,17 +629,15 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Garantir que o título não seja o nome do próprio usuário (pushName do webhook)
             const userDisplayName = (user.user_metadata?.full_name || user.user_metadata?.name || '').trim().toLowerCase();
             const userFirstName = (user.user_metadata?.first_name || userDisplayName.split(' ')[0] || '').trim().toLowerCase();
             const titleLower = (title || '').trim().toLowerCase();
 
             let safeTitle = title || phone;
             if (titleLower && (titleLower === userFirstName || titleLower === userDisplayName)) {
-                safeTitle = phone; // Usa o telefone ao invés do nome do próprio usuário
+                safeTitle = phone;
             }
 
-            // Check DB directly in case state is stale
             const { data: dbLead } = await supabase
                 .from('crm_leads')
                 .select('*')
@@ -673,7 +648,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             if (dbLead) {
                 existingLead = dbLead;
             } else {
-                // Create it
                 const { data: newLead, error } = await supabase.from('crm_leads').insert({
                     user_id: user.id,
                     title: safeTitle,
@@ -753,7 +727,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             }]).select().single();
 
             if (!insertError && newMsg) {
-                // Mostrar texto descriptografado na UI
                 setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, message: tempText }]);
             }
         }
@@ -770,7 +743,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
 
     return (
         <div className="flex flex-col h-full w-full bg-card overflow-hidden relative">
-            {/* HEADER */}
             {activeLead ? (
                 <div className="flex items-center justify-between p-3 pl-12 border-b border-border bg-muted/20">
                     <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
@@ -900,7 +872,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 </div>
             )}
 
-            {/* NEW CHAT INLINE FORM */}
             {isAddingNew && !activeLead && status === 'connected' && (
                 <div className="p-3 border-b border-border bg-muted/10 animate-in slide-in-from-top-2">
                     <form onSubmit={handleCreateNewChat} className="space-y-3">
@@ -947,7 +918,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 </div>
             )}
 
-            {/* CONTENT */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full relative scroll-smooth">
                 {status === 'loading' && (
                     <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -1051,11 +1021,9 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 )}
             </div>
 
-            {/* INPUT SCENE */}
             {
                 status === 'connected' && activeLead && (
                     <div className="p-3 bg-muted/20 border-t border-border relative">
-                        {/* Emoji Picker Popover */}
                         {showEmojiPicker && (
                             <div className="absolute bottom-full left-4 mb-2 bg-background border border-border rounded-lg shadow-xl p-2 w-[220px] z-50">
                                 <div className="flex justify-between items-center mb-2 px-1">
@@ -1123,7 +1091,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 )
             }
 
-            {/* Modal Profissional de Confirmação de Exclusão de Chat */}
             <Dialog open={showDeleteChatConfirm} onOpenChange={setShowDeleteChatConfirm}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -1145,7 +1112,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Profissional de Confirmação de Exclusão de Cliente */}
             <Dialog open={showDeleteClientConfirm} onOpenChange={setShowDeleteClientConfirm}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -1167,7 +1133,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Profissional de Confirmação de Logout do WhatsApp */}
             <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -1188,7 +1153,6 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            {/* LOCK AGENT MODAL */}
             {showLockModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-card p-6 rounded-2xl border border-border shadow-2xl w-full max-w-[320px] animate-in zoom-in-95 duration-200">

@@ -36,7 +36,6 @@ const FAQSection = () => {
   return (
     <section id="faq" className="py-24 relative">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="text-center mb-16">
           <span className="text-primary text-sm font-semibold uppercase tracking-wider">
             FAQ
@@ -49,7 +48,6 @@ const FAQSection = () => {
           </p>
         </div>
 
-        {/* FAQ Accordion */}
         <div className="max-w-3xl mx-auto">
           <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, index) => (

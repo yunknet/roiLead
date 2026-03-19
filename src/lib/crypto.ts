@@ -6,12 +6,9 @@
  * (Vulnerabilidade do 'VITE_SALT' fixada)
  */
 
-// Deriva uma chave AES-256 de forma dinâmica usando dados intrínsecos do usuário
 async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();
     
-    // Opcional: Embaralhamento reverso do ID para criar um salt robusto e dinâmico, 
-    // sem depender de chaves globais armazenadas no painel.
     const dynamicSalt = userId.split('').reverse().join('') + userId;
     
     const keyMaterial = await crypto.subtle.importKey(
@@ -36,7 +33,6 @@ async function deriveKey(userId: string): Promise<CryptoKey> {
     );
 }
 
-// Converte ArrayBuffer para string Base64
 function bufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -46,7 +42,6 @@ function bufferToBase64(buffer: ArrayBuffer): string {
     return btoa(binary);
 }
 
-// Converte string Base64 para ArrayBuffer
 function base64ToBuffer(base64: string): ArrayBuffer {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -65,7 +60,7 @@ export async function encryptMessage(text: string, userId: string): Promise<stri
 
     const key = await deriveKey(userId);
     const encoder = new TextEncoder();
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV para GCM
+    const iv = crypto.getRandomValues(new Uint8Array(12));
 
     const encrypted = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
@@ -84,10 +79,8 @@ export async function encryptMessage(text: string, userId: string): Promise<stri
 export async function decryptMessage(encryptedText: string, userId: string): Promise<string> {
     if (!encryptedText) return encryptedText;
 
-    // Se não contém ":", provavelmente é uma mensagem legada não criptografada
     if (!encryptedText.includes(':')) return encryptedText;
 
-    // Verifica se parece ser base64:base64 (formato criptografado)
     const parts = encryptedText.split(':');
     if (parts.length !== 2) return encryptedText;
 
@@ -105,7 +98,6 @@ export async function decryptMessage(encryptedText: string, userId: string): Pro
 
         return new TextDecoder().decode(decrypted);
     } catch {
-        // Se falhou ao descriptografar, retorna o texto original (mensagem legada ou corrompida)
         return encryptedText;
     }
 }

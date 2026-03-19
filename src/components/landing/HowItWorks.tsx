@@ -4,9 +4,7 @@ export const HowItWorks = () => {
   return (
     <section className="py-16 md:py-24 bg-background relative overflow-hidden" id="como-funciona">
       <div className="container mx-auto px-4">
-        {/* Banner principal simulando a imagem */}
         <div className="flex flex-col lg:flex-row items-center justify-between bg-card rounded-3xl border border-border shadow-sm p-8 md:p-16 mb-20 gap-12 relative overflow-hidden">
-          {/* Fundo com gradiente sutil */}
           <div className="absolute top-0 right-0 w-full md:w-2/3 h-full bg-gradient-to-bl from-primary/10 via-background to-transparent pointer-events-none" />
 
           <div className="flex-1 space-y-6 md:space-y-8 z-10 max-w-2xl relative">
@@ -27,14 +25,11 @@ export const HowItWorks = () => {
           </div>
 
           <div className="relative w-full aspect-square max-w-[500px] items-center justify-center z-10 hidden md:flex flex-1">
-             {/* Círculos concêntricos */}
             <div className="absolute inset-0 rounded-full border border-dashed border-border/40 animate-[spin_40s_linear_infinite]" />
             <div className="absolute inset-10 rounded-full border border-dashed border-border/50 animate-[spin_30s_linear_infinite_reverse]" />
             <div className="absolute inset-20 rounded-full border border-dashed border-border/60 animate-[spin_20s_linear_infinite]" />
             <div className="absolute inset-32 rounded-full border border-dashed border-primary/30 animate-[spin_15s_linear_infinite_reverse]" />
             
-            {/* Ícones flutuantes distribuídos em diferentes órbitas */}
-            {/* Órbita externa */}
             <div className="absolute inset-0 animate-[spin_40s_linear_infinite]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shadow-lg animate-[spin_40s_linear_infinite_reverse]">
                 <span className="text-emerald-600 font-bold text-[10px]">B2B</span>
@@ -47,7 +42,6 @@ export const HowItWorks = () => {
               </div>
             </div>
 
-            {/* Órbita intermediária */}
             <div className="absolute inset-10 animate-[spin_30s_linear_infinite_reverse]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center shadow-lg animate-[spin_30s_linear_infinite]">
                 <span className="text-blue-600 font-bold text-[10px]">Leads</span>
@@ -57,7 +51,6 @@ export const HowItWorks = () => {
               </div>
             </div>
 
-            {/* Órbita interna */}
             <div className="absolute inset-20 animate-[spin_20s_linear_infinite]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center shadow-lg animate-[spin_20s_linear_infinite_reverse]">
                 <span className="text-purple-600 font-bold text-[10px]">IA</span>
@@ -67,7 +60,6 @@ export const HowItWorks = () => {
               </div>
             </div>
             
-            {/* Círculo central gradiante com Logo */}
             <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full bg-white dark:bg-card flex flex-col items-center justify-center shadow-[0_0_80px_-15px_rgba(16,185,129,0.3)] z-20 border border-border">
               <div className="flex items-center text-3xl md:text-4xl font-normal tracking-tighter transition-transform hover:scale-110 duration-300" style={{ fontFamily: "'Varela Round', sans-serif" }}>
                 <span style={{ color: '#81BB3D' }}>roi</span>
@@ -79,7 +71,6 @@ export const HowItWorks = () => {
           </div>
         </div>
 
-        {/* Textos explicativos */}
         <div className="max-w-4xl mx-auto space-y-10 text-lg text-muted-foreground leading-relaxed">
           <div className="text-center mb-16">
             <h3 className="text-3xl md:text-5xl font-extrabold text-foreground tracking-tight flex flex-wrap items-center justify-center gap-x-3 gap-y-1">

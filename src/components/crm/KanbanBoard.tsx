@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag } from 'lucide-react';
+import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { LeadProfileModal } from './LeadProfileModal';
@@ -20,9 +20,32 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
     const [selectedLead, setSelectedLead] = useState<any>(null);
     const [leadToDelete, setLeadToDelete] = useState<any>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [crmColumns, setCrmColumns] = useState(COLUMNS);
+    const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const [editingColumnTitle, setEditingColumnTitle] = useState('');
 
     useEffect(() => {
-        fetchLeads();
+        const initBoard = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: settings } = await supabase
+                    .from('crm_settings')
+                    .select('columns')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (settings?.columns && Array.isArray(settings.columns) && settings.columns.length > 0) {
+                    setCrmColumns(settings.columns as any);
+                } else {
+                    const saved = localStorage.getItem('@roilead-crm-columns');
+                    if (saved) {
+                        try { setCrmColumns(JSON.parse(saved)); } catch (e) { }
+                    }
+                }
+            }
+            await fetchLeads();
+        };
+        initBoard();
     }, []);
 
     const fetchLeads = async () => {
@@ -145,6 +168,31 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         }
     };
 
+    const handleSaveColumnName = async (id: string) => {
+        const newTitle = editingColumnTitle.trim() || COLUMNS.find(c => c.id === id)?.title || '';
+        const newCols = crmColumns.map(c => c.id === id ? { ...c, title: newTitle } : c);
+        setCrmColumns(newCols);
+        setEditingColumnId(null);
+        
+        // Fallback rápido via cache local
+        localStorage.setItem('@roilead-crm-columns', JSON.stringify(newCols));
+
+        // Persistência unificada no banco
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { error } = await supabase.from('crm_settings').upsert({
+                user_id: user.id,
+                columns: newCols,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+            
+            if (error) {
+                console.error("Erro ao salvar configuração do CRM:", error);
+                toast.error("Erro ao sincronizar nome da coluna com a nuvem.");
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -161,7 +209,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             </div>
 
             <div className="flex overflow-x-auto pb-4 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
-                {COLUMNS.map(column => {
+                {crmColumns.map(column => {
                     const columnLeads = leads.filter(l => l.status === column.id || (column.id === 'new' && !l.status));
 
                     return (
@@ -171,9 +219,28 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, column.id)}
                         >
-                            <div className={`p-3 font-semibold text-sm rounded-t-xl border-b flex items-center justify-between ${column.color}`}>
-                                <span>{column.title}</span>
-                                <span className="bg-background/50 px-2 py-0.5 rounded-full text-xs">{columnLeads.length}</span>
+                            <div className={`p-3 font-semibold text-sm rounded-t-xl border-b flex items-center justify-between group ${column.color}`}>
+                                {editingColumnId === column.id ? (
+                                    <input 
+                                        type="text" 
+                                        value={editingColumnTitle} 
+                                        onChange={e => setEditingColumnTitle(e.target.value)} 
+                                        onBlur={() => handleSaveColumnName(column.id)}
+                                        onKeyDown={e => e.key === 'Enter' && handleSaveColumnName(column.id)}
+                                        className="bg-background/80 text-foreground px-2 py-0.5 rounded outline-none border border-border/50 flex-1 mr-2 text-xs h-7"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <span 
+                                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => { setEditingColumnId(column.id); setEditingColumnTitle(column.title); }}
+                                        title="Clique para renomear coluna"
+                                    >
+                                        {column.title}
+                                        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </span>
+                                )}
+                                <span className="bg-background/50 px-2 py-0.5 rounded-full text-xs shrink-0">{columnLeads.length}</span>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-3 space-y-3">

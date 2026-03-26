@@ -3,8 +3,8 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Loader2, Waves, UserPlus, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const NICHES = ['Consórcio', 'Seguros', 'Plano de Saúde'] as const;
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+const NICHES = ['Consórcio'] as const;
 type Niche = typeof NICHES[number];
 type SharkStatus = 'novos' | 'contatados' | 'negociacao' | 'fechados' | 'perdidos';
 
@@ -23,9 +23,12 @@ interface SharkLead {
 export function SharkTank() {
     const [view, setView] = useState<'selection' | 'board'>('selection');
     const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [leads, setLeads] = useState<SharkLead[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [loadingAccess, setLoadingAccess] = useState(false);
+    const [loadingCheckout, setLoadingCheckout] = useState(false);
 
     useEffect(() => {
         const init = async () => {
@@ -100,7 +103,23 @@ export function SharkTank() {
         window.open(`https://wa.me/${cleanPhone}`, '_blank');
     };
 
-    const [loadingAccess, setLoadingAccess] = useState(false);
+    const handleCheckoutClick = async () => {
+        setLoadingCheckout(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('get-shark-link');
+            if (error) throw error;
+            if (data?.link) {
+                window.open(data.link, "_blank");
+            } else {
+                toast.error("Link de checkout não configurado.");
+            }
+        } catch (error) {
+            console.error("Erro ao pegar link da Hubla:", error);
+            toast.error("Erro ao redirecionar para o pagamento.");
+        } finally {
+            setLoadingCheckout(false);
+        }
+    };
 
     const handleSelectNiche = async (niche: Niche) => {
         setLoadingAccess(true);
@@ -108,34 +127,37 @@ export function SharkTank() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data: sub, error } = await supabase
-                .from('subscriptions')
-                .select('plan_name, subscription_status, payment_status, expires_at')
-                .ilike('email', user.email || '')
-                .ilike('plan_name', `%Shark Tank%`)
-                .ilike('plan_name', `%${niche}%`)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            // NOVA REGRA: O acesso ao Shark Tank não tem vínculo com a tabela subscriptions.
+            // Para testar, verificaremos se o usuário tem o access_status = 'SHARK_PAID' (apenas um exemplo)
+            // ou se ele existe na tabela shark_tank_users (que gerenciará isso no futuro).
+            // COMO O BANCO NÃO PODE SER ALTERADO AGORA, simularemos o bloqueio (isPaid = false).
+            let isPaid = false; 
 
-            if (error) throw error;
+            // Tenta buscar de uma tabela dedicada (que será criada depois pelo webhook)
+            try {
+                const { data: sharkUser, error: sharkErr } = await supabase
+                    .from('shark_tank_access')
+                    .select('status')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                
+                if (sharkUser?.status === 'active') {
+                    isPaid = true;
+                }
+            } catch (ignore) {
+                // Tabela não existe ainda, isPaid continua false
+            }
 
-            const isTimeValid = sub?.expires_at ? new Date(sub.expires_at) > new Date() : true;
-            const hasAccess = sub && isTimeValid && (
-                sub.subscription_status === 'active' ||
-                sub.payment_status?.toUpperCase() === 'PAID' ||
-                sub.subscription_status?.toLowerCase() === 'paid'
-            );
-
-            if (hasAccess) {
+            if (isPaid) {
                 setSelectedNiche(niche);
                 setView('board');
                 fetchLeads();
             } else {
-                toast.error(`Acesso Negado: Para pescar leads de ${niche}, você precisa adquirir este nicho.`);
+                // Ao invés de travar com toast de erro, abrimos o Modal Bonitão chamando pra assinar!
+                setShowPaymentModal(true);
             }
         } catch (err: any) {
-            console.error("Erro ao verificar assinatura:", err);
+            console.error("Erro ao verificar assinatura do Shark Tank:", err);
             toast.error("Erro ao validar acesso.");
         } finally {
             setLoadingAccess(false);
@@ -197,9 +219,53 @@ export function SharkTank() {
                         </div>
                     ))}
                 </div>
+
+                <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-2xl text-blue-500">
+                                <Waves className="w-6 h-6" />
+                                Acesso Restrito
+                            </DialogTitle>
+                            <DialogDescription className="text-base mt-2">
+                                Para pescar e bater papo com os leads milionários do Shark Tank de <b>Consórcio</b>, você precisa assinar o módulo exclusivo.
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="flex flex-col gap-4 py-4">
+                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-sm text-foreground space-y-2">
+                                <p className="font-semibold text-blue-600 dark:text-blue-400">🎣 O que você ganha?</p>
+                                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                                    <li>Acesso ao board de leads de tráfego pago em tempo real.</li>
+                                    <li>Direito a pescar e ser o dono exclusivo de dezenas de leads.</li>
+                                    <li>Funil de vendas e atalhos direto para o WhatsApp.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <DialogFooter className="flex-col sm:flex-row gap-2">
+                            <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
+                                Agora não
+                            </Button>
+                            <Button 
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                                disabled={loadingCheckout}
+                                onClick={handleCheckoutClick}
+                            >
+                                {loadingCheckout ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                Assinar Shark Tank Hubla
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         );
     }
+
+    const lastClaimedLead = filteredLeads
+        .filter(l => l.owner_id && l.claimed_at)
+        .sort((a, b) => new Date(b.claimed_at!).getTime() - new Date(a.claimed_at!).getTime())[0];
+    const isUserBlockedFromPicking = lastClaimedLead?.owner_id === currentUserId;
 
     return (
         <div className="flex flex-col h-full bg-background p-4 sm:p-6 text-foreground overflow-hidden w-full">
@@ -247,9 +313,15 @@ export function SharkTank() {
                                                     <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted p-1.5 rounded w-fit">
                                                         <Lock className="w-3 h-3" /> Número Oculto
                                                     </div>
-                                                    <Button onClick={() => handleClaimLead(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-                                                        🎣 Pescar Lead
-                                                    </Button>
+                                                    {isUserBlockedFromPicking ? (
+                                                        <Button disabled size="sm" className="w-full font-bold bg-muted text-muted-foreground shadow-none">
+                                                            ⏳ Aguardando próximo tubarão...
+                                                        </Button>
+                                                    ) : (
+                                                        <Button onClick={() => handleClaimLead(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+                                                            🎣 Pescar Lead
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-3">

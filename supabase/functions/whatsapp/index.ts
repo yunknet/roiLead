@@ -2,9 +2,12 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Max-Age': '86400', // Cache de 24 horas para o OPTIONS preflight
 };
+
 serve(async (req) => {
+  // Isso diz ao navegador: "Pode ficar 24h sem me perguntar OPTIONS de novo"
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: corsHeaders

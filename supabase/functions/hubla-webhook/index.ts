@@ -98,7 +98,7 @@ serve(async (req: Request) => {
       // --- FLUXO NORMAL DE ASSINATURA ---
       const tokensToAdd = 0; // Nesta função agora é sempre 0 (tokens são na huba-webhook-agente)
       const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
-      
+
       const { data: existingSubStatus } = await supabase
         .from("subscriptions")
         .select("payment_status")
@@ -110,14 +110,12 @@ serve(async (req: Request) => {
       console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Já processado: ${alreadyPaid}`)
 
       let isNewUser = false
+      const safeFirstName = firstName ? firstName.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '') : "cliente";
+      const defaultPassword = `${safeFirstName}12345`;
 
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
         let userId: string | null = null
-        // Cria uma senha dinâmica: Pega o primeiro nome em minúsculas e sem acentos + "12345"
-        // Exemplo: "João" vira "joao12345", evitando problemas de digitação no celular
-        const safeFirstName = firstName ? firstName.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '') : "cliente";
-        const defaultPassword = `${safeFirstName}12345`;
 
         // Busca de forma elástica, ignorando letras maiúsculas/minúsculas
         const { data: userProfile } = await supabase

@@ -86,7 +86,7 @@ serve(async (req) => {
     // NEW: Stop processing immediately if it's a group message to avoid sending to n8n
     const isGroup = messages.some(msg => msg.key?.remoteJid?.includes('@g.us'));
     if (isGroup) {
-      console.log('Ignore group message from instance:', instanceStr);
+      // console.log('Ignore group message from instance:', instanceStr);
       return new Response(JSON.stringify({ message: 'Ignored group message' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
@@ -107,43 +107,22 @@ serve(async (req) => {
         text = msg.message.templateButtonReplyMessage.selectedDisplayText;
       }
       if (!text) continue;
-      console.log('Processing message from:', phone, 'Text:', text, 'User:', userId);
-      // Handle Media Base64 if available
-      let mediaUrl = null;
+      // OTIMIZAÇÃO DE CPU: Pulamos o download e processamento de Base64 de mídias (fotos/áudios)
+      // para evitar que o servidor MICRO trave com mensagens grandes.
       const msgType = msg.message?.imageMessage ? 'image' : msg.message?.audioMessage ? 'audio' : msg.message?.videoMessage ? 'video' : 'text';
-      let rawBase64 = msg.message?.base64 || msg.base64 || msg.message?.audioMessage?.base64 || msg.message?.imageMessage?.base64 || msg.message?.videoMessage?.base64 || data?.base64;
-      if (!rawBase64 && msgType !== 'text') {
-        try {
-          const evoUrl = Deno.env.get('EVOLUTION_API_URL');
-          const evoKey = Deno.env.get('EVOLUTION_GLOBAL_KEY');
-          const mediaRes = await fetch(`${evoUrl}/chat/getBase64FromMediaMessage/${instanceStr}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': evoKey
-            },
-            body: JSON.stringify({
-              message: msg
-            })
-          });
-          const mediaData = await mediaRes.json();
-          if (mediaData.base64) rawBase64 = mediaData.base64;
-          if (!mediaData.base64 && mediaData.message?.base64) rawBase64 = mediaData.message.base64;
-        } catch (e) {
-          console.error('Failed to fetch media base64:', e);
-        }
+      let mediaUrl = null;
+      
+      /* 
+      // Trecho pesado comentado para economizar CPU:
+      let rawBase64 = ... processo de download ...
+      mediaUrl = `data:${safeMimeType};base64,${cleanBase64}`; 
+      */
+
+      // Placeholder amigável para preservar performance
+      if (msgType !== 'text') {
+        text = text || (msgType === 'image' ? '📷 Foto' : msgType === 'audio' ? '🎤 Áudio' : '🎥 Vídeo');
       }
-      if (rawBase64) {
-        let mimeType = 'application/octet-stream';
-        if (msg.message?.audioMessage) mimeType = msg.message.audioMessage.mimetype || 'audio/ogg';
-        else if (msg.message?.imageMessage) mimeType = msg.message.imageMessage.mimetype || 'image/jpeg';
-        else if (msg.message?.videoMessage) mimeType = msg.message.videoMessage.mimetype || 'video/mp4';
-        // Trim prefixes if necessary, but usually Evolution API returns raw base64 encoded strings
-        const cleanBase64 = rawBase64.replace(/^data:(.*,)?/, '');
-        // Chrome and Safari fail to load data URIs with spaces in the mime-type (e.g. "audio/ogg; codecs=opus")
-        const safeMimeType = mimeType.replace(/\s+/g, '');
-        mediaUrl = `data:${safeMimeType};base64,${cleanBase64}`;
-      }
+      
       // Encrypt the message text before saving to database
       const encryptedText = await encryptMessage(text, userId);
 
@@ -203,7 +182,7 @@ serve(async (req) => {
       const isLocked = agentData?.is_locked === 'sim';
       const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
-      if (isAgentActive && hasTokens && !isLocked && n8nWebhookUrl) {
+      if (isAgentActive && hasTokens && n8nWebhookUrl) {
         console.log(`Agente ATIVADO e com SALDO (${agentData.tokens_balance}). Repassando payload para o N8N: ${n8nWebhookUrl}`);
 
         const n8nResponse = await fetch(n8nWebhookUrl, {
@@ -220,7 +199,7 @@ serve(async (req) => {
           console.log(`Payload enviado ao n8n com sucesso (Usuário: ${userId})`);
         }
       } else {
-        const reason = !isAgentActive ? 'DESATIVADO' : !hasTokens ? 'SEM SALDO' : isLocked ? 'TRAVADO (PAUSE)' : 'N8N_URL vazia';
+        const reason = !isAgentActive ? 'DESATIVADO' : !hasTokens ? 'SEM SALDO' : 'N8N_URL vazia';
         console.log(`Agente não chamado. Motivo: ${reason}. Controle exclusivamente humano.`);
       }
     } catch (agentErr) {

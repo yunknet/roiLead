@@ -213,27 +213,15 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, handleNewMessage)
             .subscribe();
 
-        const pollInterval = setInterval(async () => {
+        // Polling loop removido para economizar recursos (agora dependemos 100% do Realtime acima)
+        // Somente checamos status do agente a cada 30 segundos
+        const checkAgentInterval = setInterval(async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data: messagesData, error: messagesError } = await supabase
-                .from('chat_messages')
-                .select('*')
-                .eq('user_id', user.id)
-                .gt('created_at', lastPolledRef.current)
-                .order('created_at', { ascending: true });
-
-            if (!messagesError && messagesData && messagesData.length > 0) {
-                const maxDate = new Date(Math.max(...messagesData.map(m => new Date(m.created_at).getTime())));
-                lastPolledRef.current = maxDate.toISOString();
-
-                messagesData.forEach(msg => handleNewMessage({ new: msg }));
-            }
-
             const { data: agentData } = await supabase
                 .from('ai_agents')
-                .select('*')
+                .select('is_active, is_locked, tokens_balance')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
@@ -242,11 +230,10 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
                 setIsLocked(agentData.is_locked === 'sim');
                 setTokensBalance(agentData.tokens_balance || 0);
             }
-
-        }, 2000);
+        }, 30000);
 
         return () => {
-            clearInterval(pollInterval);
+            clearInterval(checkAgentInterval);
             supabase.removeChannel(messagesSubscription);
         };
     }, []);
@@ -307,22 +294,17 @@ export function WhatsappChat({ initialContact, onNavigateToAgent }: { initialCon
     }, [status, qrCode]);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
         if (activeLead) {
             setMessages([]);
             fetchMessages(activeLead.phone);
             setEditNameValue(activeLead.title);
             setIsEditingName(false);
-
-            interval = setInterval(() => {
-                fetchMessages(activeLead.phone, true);
-            }, 5000);
+            
+            // Intervalo de polling de mensagens removido.
+            // O componente agora recebe tudo instantaneamente pelo Supabase Realtime!
         } else {
             setMessages([]);
         }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
     }, [activeLead]);
 
     useEffect(() => {

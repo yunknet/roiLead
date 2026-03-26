@@ -41,18 +41,20 @@ export function HeroRoiLead() {
                     Receba contatos prontos para prospectar.
                 </p>
 
-                <div className="flex flex-col items-center justify-center gap-4 mb-8 animate-slide-up px-4">
+                <div className="w-full max-w-[90vw] md:max-w-7xl mx-auto mb-8 px-2 sm:px-6 lg:px-8 xl:px-0 animate-slide-up">
+                    <VturbVideo />
+                </div>
+
+                <div className="flex flex-col items-center justify-center gap-4 mb-12 animate-slide-up px-4">
                     <Button
                         variant="hero"
                         size="xl"
                         className="group w-full sm:w-auto"
+                        onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
                     >
                         Começar Agora
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
-                </div>
-                <div className="w-full max-w-[90vw] md:max-w-7xl mx-auto mb-12 px-2 sm:px-6 lg:px-8 xl:px-0 animate-slide-up">
-                    <VturbVideo />
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 animate-fade-in text-muted-foreground font-medium">

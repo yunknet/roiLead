@@ -41,24 +41,18 @@ export function HeroRoiLead() {
                     Receba contatos prontos para prospectar.
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-slide-up px-4">
+                <div className="flex flex-col items-center justify-center gap-4 mb-8 animate-slide-up px-4">
                     <Button
                         variant="hero"
                         size="xl"
                         className="group w-full sm:w-auto"
-                        onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
                     >
                         Começar Agora
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
-                    <Button
-                        variant="heroOutline"
-                        size="xl"
-                        className="w-full sm:w-auto"
-                        onClick={() => document.getElementById("video-section")?.scrollIntoView({ behavior: "smooth" })}
-                    >
-                        Ver como funciona
-                    </Button>
+                </div>
+                <div className="w-full max-w-[90vw] md:max-w-7xl mx-auto mb-12 px-2 sm:px-6 lg:px-8 xl:px-0 animate-slide-up">
+                    <VturbVideo />
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 animate-fade-in text-muted-foreground font-medium">
@@ -352,3 +346,23 @@ export function HeroRoiLead() {
         </div>
     );
 }
+
+const VturbVideo = () => {
+  useEffect(() => {
+    const scriptId = "vturb-script-69c57ed15341b955f71f8592";
+    if (!document.getElementById(scriptId)) {
+        const s = document.createElement("script");
+        s.id = scriptId;
+        s.src = "https://scripts.converteai.net/9b95671b-5a37-4971-bb6c-6d970b6b4a27/players/69c57ed15341b955f71f8592/v4/player.js";
+        s.async = true;
+        document.head.appendChild(s);
+    }
+  }, []);
+
+  return (
+    <div className="w-full relative shadow-2xl rounded-2xl overflow-hidden mx-auto" style={{ aspectRatio: '16/9' }}>
+      {/* @ts-expect-error Vturb custom element */}
+      <vturb-smartplayer id="vid-69c57ed15341b955f71f8592" style={{ display: "block", margin: "0 auto", width: "100%", height: "100%" }}></vturb-smartplayer>
+    </div>
+  );
+};

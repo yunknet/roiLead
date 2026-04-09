@@ -38,7 +38,7 @@ const plans = [
       "Suporte prioritário",
       "Histórico ilimitado",
       "Acesso imediato",
-      "Bônus 🎁"
+      <strong>300 Créditos Grátis no Agente de IA 🎁</strong>
     ],
     popular: true,
   },
@@ -130,7 +130,7 @@ const PricingSection = () => {
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-center gap-3 text-sm">
                     <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="text-muted-foreground">{feature}</span>
+                    <span className={plan.id === 'anual' ? "text-foreground font-bold" : "text-muted-foreground"}>{feature}</span>
                   </li>
                 ))}
               </ul>

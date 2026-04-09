@@ -38,7 +38,7 @@ const plans = [
             "Suporte prioritário",
             "Histórico ilimitado",
             "Acesso imediato",
-            "Bônus 🎁"
+            <strong>300 Créditos Grátis no Agente de IA 🎁</strong>
         ],
         popular: true,
     }
@@ -168,7 +168,7 @@ const Subscription = () => {
 
                             <ul className="space-y-3 mb-8">
                                 {plan.features.map((feature, index) => (
-                                    <li key={index} className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    <li key={index} className={`flex items-center gap-3 text-sm ${plan.id === 'anual' ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
                                         <Check className="w-4 h-4 text-primary flex-shrink-0" /> {feature}
                                     </li>
                                 ))}

@@ -1,0 +1,11 @@
+﻿
+C:\Users\netso\Projetos\roiLead_git\roiLead\src\components\crm\SharkTank.tsx
+   66:25  error  Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   85:23  error  Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   86:17  error  'msg' is never reassigned. Use 'const' instead                                                                               prefer-const
+  141:23  error  Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+  168:51  error  React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+
+Ô£û 5 problems (5 errors, 0 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

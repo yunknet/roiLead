@@ -84,7 +84,7 @@ const plans = [
       "Suporte prioritário",
       "Histórico ilimitado",
       "Acesso imediato",
-      "Bônus 🎁"
+      <strong>300 Créditos Grátis no Agente de IA 🎁</strong>
     ],
     popular: true,
   }
@@ -916,7 +916,7 @@ const Dashboard = () => {
                           <div className="flex-1 flex flex-col justify-end">
                             <ul className="space-y-3 mb-6">
                               {plan.features.map((feature, i) => (
-                                <li key={i} className="flex items-center gap-3 text-sm text-foreground/80">
+                                <li key={i} className={`flex items-center gap-3 text-sm ${plan.id === 'anual' ? 'text-foreground font-bold' : 'text-foreground/80'}`}>
                                   <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
                                     <Check className="w-3 h-3 text-primary" />
                                   </div>

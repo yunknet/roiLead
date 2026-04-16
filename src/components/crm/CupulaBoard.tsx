@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const NICHES = ['Consórcio'] as const;
@@ -20,6 +20,119 @@ interface SharkLead {
     claimed_at: string | null;
 }
 
+// ============ COMPONENTE DE TIMER INDEPENDENTE ============
+function LeadQueueCard({ 
+    lead, 
+    turnInfo, 
+    clockOffset, 
+    currentUserId, 
+    unclaimedLeads,
+    onClaim,
+    playNotification 
+}: { 
+    lead: SharkLead;
+    turnInfo: any;
+    clockOffset: number;
+    currentUserId: string | null;
+    unclaimedLeads: SharkLead[];
+    onClaim: (id: string) => void;
+    playNotification: () => void;
+}) {
+    const [tickVal, setTickVal] = useState(0);
+    const notifiedRef = useRef(false);
+
+    // Cada card tem seu PRÓPRIO setInterval — 100% independente
+    useEffect(() => {
+        const interval = setInterval(() => setTickVal(t => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Calcula a cada render (forçado pelo tick)
+    // Supabase retorna timestamps com offset do fuso (-03:00), mas o valor É UTC.
+    // Forçamos parsing como UTC trocando qualquer offset por 'Z'.
+    const rawTs = lead.created_at.replace(/[+-]\d{2}:\d{2}$/, 'Z');
+    const createdAtMs = new Date(rawTs).getTime();
+    const nowMs = Date.now();
+    const serverNow = nowMs - clockOffset;
+    let elapsedSec = (serverNow - createdAtMs) / 1000;
+    if (elapsedSec < 0) elapsedSec = 0;
+
+    const TURN_DURATION = 180;
+    const secondsIntoTurn = elapsedSec % TURN_DURATION;
+    const timeLeftSec = Math.max(0, Math.floor(TURN_DURATION - secondsIntoTurn));
+
+    let ownership: any = null;
+    if (turnInfo?.active_users?.length) {
+        const leadIndex = unclaimedLeads.findIndex(l => l.id === lead.id);
+        if (leadIndex !== -1) {
+            const _active = turnInfo.active_users;
+            const skips = Math.floor(elapsedSec / TURN_DURATION);
+            const ownerIndex = (turnInfo.base_turn_index + leadIndex + skips) % _active.length;
+            const owner = _active[ownerIndex];
+
+            const currentUserIndex = _active.findIndex((u: any) => u.user_id === currentUserId);
+            let position = 0;
+            if (currentUserIndex !== -1) {
+                position = (currentUserIndex - ownerIndex + _active.length) % _active.length + 1;
+            }
+
+            ownership = {
+                owner_id: owner.user_id,
+                owner_name: owner.name,
+                timeLeftSec,
+                total_active: _active.length,
+                my_position: position
+            };
+        }
+    }
+
+    const isMyTurn = ownership?.owner_id === currentUserId;
+
+    useEffect(() => {
+        if (isMyTurn && !notifiedRef.current) { playNotification(); notifiedRef.current = true; }
+        if (!isMyTurn) notifiedRef.current = false;
+    }, [isMyTurn]);
+
+    const m = Math.floor(timeLeftSec / 60);
+    const s = timeLeftSec % 60;
+    const timerStr = `${m}:${s.toString().padStart(2, '0')}`;
+
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted p-1.5 rounded w-fit">
+                <Lock className="w-3 h-3" /> Número Oculto
+            </div>
+            
+            {ownership && (
+                <div className={`text-center font-bold px-3 py-2.5 rounded-lg border shadow-sm flex flex-col items-center gap-0.5 mt-1 mb-2 ${isMyTurn ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-muted/80 text-muted-foreground border-border/50'}`}>
+                    <span className="text-[10px] uppercase tracking-wider opacity-70 font-semibold mb-0.5">Status da Fila</span>
+                    <span className="text-sm">
+                        {isMyTurn ? `🎯 Sua vez, ${ownership.owner_name}!` : `⏳ Vez dele(a): ${ownership.owner_name}`}
+                    </span>
+                    <span className="text-xs flex items-center justify-center gap-1 mt-1 opacity-90 px-2 py-0.5 rounded-full bg-background border border-foreground/10">
+                        <Clock className="w-3 h-3" /> Expira em {timerStr}
+                    </span>
+                    {!isMyTurn && (
+                        <span className="text-xs mt-1.5 border-t border-border/60 pt-1 w-full opacity-80 text-center font-medium">
+                            {ownership.total_active} ativos. Sua vez será a {ownership.my_position}ª
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {!isMyTurn ? (
+                <Button disabled size="sm" className="w-full font-bold bg-muted text-muted-foreground shadow-none">
+                    ⏳ Aguardando...
+                </Button>
+            ) : (
+                <Button onClick={() => onClaim(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+                    🎯 Capturar Lead
+                </Button>
+            )}
+        </div>
+    );
+}
+
 export function CupulaBoard() {
     const [view, setView] = useState<'selection' | 'board'>('selection');
     const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null);
@@ -31,63 +144,70 @@ export function CupulaBoard() {
     const [loadingCheckout, setLoadingCheckout] = useState(false);
     const [turnInfo, setTurnInfo] = useState<any>(null);
     const [clockOffset, setClockOffset] = useState<number>(0);
-    const [currentTime, setCurrentTime] = useState(Date.now());
+    const clockOffsetRef = useRef<number>(0);
+    const [customNames, setCustomNames] = useState<Record<string, string>>({});
+    const [editingColumn, setEditingColumn] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState("");
+    const [soundEnabled, setSoundEnabled] = useState(() => {
+        return localStorage.getItem('cupula_sound_enabled') !== 'false';
+    });
+    const soundEnabledRef = useRef(true);
+    soundEnabledRef.current = localStorage.getItem('cupula_sound_enabled') !== 'false';
 
-    useEffect(() => {
-        const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
-        return () => clearInterval(interval);
-    }, []);
+    // Som de notificação via Web Audio API (funciona offline, sem CORS)
+    const playNotification = () => {
+        if (!soundEnabledRef.current) return;
+        try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.frequency.value = 880;
+            osc1.type = 'sine';
+            gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+            osc1.start(ctx.currentTime);
+            osc1.stop(ctx.currentTime + 0.15);
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.frequency.value = 1100;
+            osc2.type = 'sine';
+            gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.2);
+            gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc2.start(ctx.currentTime + 0.2);
+            osc2.stop(ctx.currentTime + 0.4);
+            setTimeout(() => ctx.close(), 1000);
+        } catch (e) {
+            console.error("Erro ao tocar som:", e);
+        }
+    };
+
+    const toggleSound = () => {
+        const newValue = !soundEnabled;
+        setSoundEnabled(newValue);
+        soundEnabledRef.current = newValue;
+        localStorage.setItem('cupula_sound_enabled', newValue.toString());
+        if (newValue) {
+            playNotification();
+        }
+        toast.info(newValue ? "Notificações sonoras ativadas 🔊" : "Notificações sonoras desativadas 🔇");
+    };
 
     const formatTime = (ms: number) => {
-        const secs = Math.ceil(ms / 1000);
-        const m = Math.floor(secs / 60);
-        const s = secs % 60;
+        const totalSec = Math.max(0, Math.floor(ms / 1000));
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Calculate dynamically for deterministic per-lead queue logic
-    const unclaimedLeads = leads
+    // Leads não capturados (novos sem dono)
+    const unclaimedLeads = useMemo(() => leads
         .filter(l => l.status === 'novos' && !l.owner_id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
 
-    const getLeadOwnership = (leadId: string) => {
-        if (!turnInfo || !turnInfo.active_users || turnInfo.active_users.length === 0) return null;
-        
-        const leadIndex = unclaimedLeads.findIndex(l => l.id === leadId);
-        if (leadIndex === -1) return null;
-
-        const lead = unclaimedLeads[leadIndex];
-        
-        // Puffer de 10s para garantir que o timer comece a ticar imediatamente
-        const serverTimestamp = currentTime - (clockOffset || 0) + 10000;
-        let elapsedSec = (serverTimestamp - new Date(lead.created_at).getTime()) / 1000;
-        
-        if (elapsedSec < 0) elapsedSec = 0;
-
-        const _active = turnInfo.active_users;
-        const TURN_DURATION = 180; // 3 minutos
-        
-        const skips = Math.floor(elapsedSec / TURN_DURATION);
-        const ownerIndex = (turnInfo.base_turn_index + leadIndex + skips) % _active.length;
-        const owner = _active[ownerIndex];
-
-        const timeLeftMs = Math.max(0, (TURN_DURATION - (elapsedSec % TURN_DURATION)) * 1000);
-
-        const currentUserIndex = _active.findIndex((u: any) => u.user_id === currentUserId);
-        
-        let position = 0;
-        if (currentUserIndex !== -1) {
-            position = (currentUserIndex - ownerIndex + _active.length) % _active.length + 1;
-        }
-
-        return {
-            owner_id: owner.user_id,
-            owner_name: owner.name,
-            timeLeftMs,
-            total_active: _active.length,
-            my_position: position
-        };
-    };
 
     useEffect(() => {
         const init = async () => {
@@ -130,8 +250,24 @@ export function CupulaBoard() {
             if (!queueErr && queueData) {
                 setTurnInfo(queueData);
                 if (queueData.server_now) {
-                    setClockOffset(Date.now() - queueData.server_now);
+                    const offset = Date.now() - queueData.server_now;
+                    setClockOffset(offset);
+                    clockOffsetRef.current = offset;
                 }
+            }
+
+            // Busca configurações de nomes de colunas
+            const { data: settingsData } = await supabase
+                .from('cupula_settings')
+                .select('column_id, custom_name')
+                .eq('niche', selectedNiche);
+
+            if (settingsData) {
+                const namesMap: Record<string, string> = {};
+                settingsData.forEach(item => {
+                    namesMap[item.column_id] = item.custom_name;
+                });
+                setCustomNames(namesMap);
             }
         } catch (error: any) {
             console.error("Erro ao puxar leads da Cúpula:", error);
@@ -148,13 +284,62 @@ export function CupulaBoard() {
             if (error) {
                 console.error("Erro no RPC claim_cupula_lead:", error);
                 toast.error(error.message || "Erro desconhecido ao pegar o lead.");
-            } else {
-                toast.success("Lead capturado com sucesso!");
-                fetchLeads();
+                return;
             }
-        } catch (err: any) {
-            let msg = err.message || "Erro";
-            toast.error(msg);
+
+            toast.success("Lead capturado com sucesso!");
+            fetchLeads();
+        } catch (error: any) {
+            console.error("Erro ao capturar lead:", error);
+            toast.error("Erro ao processar captura.");
+        }
+    };
+
+    const handleDeleteLead = async (leadId: string) => {
+        if (!window.confirm("Tem certeza que deseja deletar este lead do seu CRM?")) return;
+
+        try {
+            const { error } = await supabase
+                .from('cupula_leads')
+                .delete()
+                .eq('id', leadId)
+                .eq('owner_id', currentUserId);
+
+            if (error) throw error;
+
+            toast.success("Lead removido com sucesso!");
+            fetchLeads();
+        } catch (error: any) {
+            console.error("Erro ao deletar lead:", error);
+            toast.error("Erro ao deletar lead.");
+        }
+    };
+
+    const handleUpdateColumnName = async (columnId: string) => {
+        if (!editValue.trim()) {
+            setEditingColumn(null);
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('cupula_settings')
+                .upsert({
+                    user_id: currentUserId,
+                    niche: selectedNiche,
+                    column_id: columnId,
+                    custom_name: editValue.trim(),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id,niche,column_id' });
+
+            if (error) throw error;
+
+            setCustomNames(prev => ({ ...prev, [columnId]: editValue.trim() }));
+            setEditingColumn(null);
+            toast.success("Etapa renomeada!");
+        } catch (error: any) {
+            console.error("Erro ao atualizar nome da coluna:", error);
+            toast.error("Erro ao renomear etapa.");
         }
     };
 
@@ -356,9 +541,20 @@ export function CupulaBoard() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 shrink-0">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={toggleSound}
+                            className={`flex items-center gap-2 ${soundEnabled ? 'text-blue-500 border-blue-200' : 'text-muted-foreground'}`}
+                        >
+                            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                            <span className="hidden sm:inline">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setView('selection')} className="text-muted-foreground hover:text-foreground p-0 h-auto">
                             ← Trocar Nicho
                         </Button>
+                    </div>
                         <h2 className="text-2xl font-bold flex items-center gap-2">
                             Cúpula de {selectedNiche}
                         </h2>
@@ -397,11 +593,47 @@ export function CupulaBoard() {
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}
                         >
-                            <div className={`p-4 border-b ${col.color} border-x-0 border-t-0 font-semibold flex items-center justify-between shadow-sm bg-opacity-50`}>
-                                <span>{col.title}</span>
-                                <span className="bg-background/50 text-foreground px-2 py-0.5 rounded-full text-xs">
-                                    {colLeads.length}
-                                </span>
+                            <div className={`p-4 border-b ${col.color} border-x-0 border-t-0 font-semibold flex items-center justify-between shadow-sm bg-opacity-50 group`}>
+                                {editingColumn === col.id ? (
+                                    <div className="flex items-center gap-1 w-full">
+                                        <input 
+                                            autoFocus
+                                            className="bg-background border border-primary/30 rounded px-2 py-0.5 text-sm w-full outline-none focus:border-primary"
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleUpdateColumnName(col.id);
+                                                if (e.key === 'Escape') setEditingColumn(null);
+                                            }}
+                                        />
+                                        <button onClick={() => handleUpdateColumnName(col.id)} className="p-1 hover:text-green-500">
+                                            <Check className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => setEditingColumn(null)} className="p-1 hover:text-red-500">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2">
+                                            <span>{customNames[col.id] || col.title}</span>
+                                            {col.id !== 'novos' && (
+                                                <button 
+                                                    onClick={() => {
+                                                        setEditingColumn(col.id);
+                                                        setEditValue(customNames[col.id] || col.title);
+                                                    }}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    <Edit2 className="w-3 h-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <span className="bg-background/50 text-foreground px-2 py-0.5 rounded-full text-xs">
+                                            {colLeads.length}
+                                        </span>
+                                    </>
+                                )}
                             </div>
 
                             <div className="flex-1 p-3 overflow-y-auto space-y-3 flex flex-col custom-scrollbar">
@@ -419,50 +651,32 @@ export function CupulaBoard() {
                                             }}
                                             className={`bg-background p-4 rounded-lg shadow-sm border border-border hover:border-primary/50 transition-colors flex flex-col gap-3 ${(isMine && col.id !== 'novos') ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                         >
-                                            <div className="font-medium text-foreground text-sm truncate">
-                                                {lead.name}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="font-medium text-foreground text-sm truncate">
+                                                    {lead.name}
+                                                </div>
+                                                {isMine && (
+                                                    <button 
+                                                        onClick={() => handleDeleteLead(lead.id)}
+                                                        className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                                        title="Remover do CRM"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
 
-                                            {col.id === 'novos' ? (() => {
-                                                const ownership = getLeadOwnership(lead.id);
-                                                const isMyTurnForThisLead = ownership?.owner_id === currentUserId;
-                                                
-                                                return (
-                                                <div className="flex flex-col gap-2">
-                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted p-1.5 rounded w-fit">
-                                                        <Lock className="w-3 h-3" /> Número Oculto
-                                                    </div>
-                                                    
-                                                    {ownership && (
-                                                        <div className={`text-center font-bold px-3 py-2.5 rounded-lg border shadow-sm flex flex-col items-center gap-0.5 mt-1 mb-2 ${isMyTurnForThisLead ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-muted/80 text-muted-foreground border-border/50'}`}>
-                                                            <span className="text-[10px] uppercase tracking-wider opacity-70 font-semibold mb-0.5">Status da Fila</span>
-                                                            <span className="text-sm">
-                                                                {isMyTurnForThisLead ? `🎯 Sua vez, ${ownership.owner_name}!` : `⏳ Vez dele(a): ${ownership.owner_name}`}
-                                                            </span>
-                                                            {ownership.timeLeftMs > 0 && (
-                                                                <span className="text-xs flex items-center justify-center gap-1 mt-1 opacity-90 px-2 py-0.5 rounded-full bg-background border border-foreground/10">
-                                                                    <Clock className="w-3 h-3" /> Expira em {formatTime(ownership.timeLeftMs)}
-                                                                </span>
-                                                            )}
-                                                            {!isMyTurnForThisLead && (
-                                                                <span className="text-xs mt-1.5 border-t border-border/60 pt-1 w-full opacity-80 text-center font-medium">
-                                                                    {ownership.total_active} ativos. Sua vez será a {ownership.my_position}ª
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {!isMyTurnForThisLead ? (
-                                                        <Button disabled size="sm" className="w-full font-bold bg-muted text-muted-foreground shadow-none">
-                                                            ⏳ Aguardando...
-                                                        </Button>
-                                                    ) : (
-                                                        <Button onClick={() => handleClaimLead(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-                                                            🎯 Capturar Lead
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            )})() : (
+                                            {col.id === 'novos' ? (
+                                                <LeadQueueCard
+                                                    lead={lead}
+                                                    turnInfo={turnInfo}
+                                                    clockOffset={clockOffsetRef.current}
+                                                    currentUserId={currentUserId}
+                                                    unclaimedLeads={unclaimedLeads}
+                                                    onClaim={handleClaimLead}
+                                                    playNotification={playNotification}
+                                                />
+                                            ) : (
                                                 <div className="flex flex-col gap-3">
                                                     {isMine ? (
                                                         <div className="flex flex-col gap-2">

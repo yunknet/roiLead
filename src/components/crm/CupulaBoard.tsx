@@ -540,26 +540,29 @@ export function CupulaBoard() {
         <div className="flex flex-col h-full bg-background p-4 sm:p-6 text-foreground overflow-hidden w-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 shrink-0">
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-4">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setView('selection')} 
+                            className="text-muted-foreground hover:text-foreground p-0 h-auto flex items-center gap-1"
+                        >
+                            ← <span className="text-xs">Trocar Nicho</span>
+                        </Button>
+                        <h2 className="text-2xl font-bold text-foreground">
+                            Cúpula de {selectedNiche}
+                        </h2>
                         <Button 
                             variant="outline" 
                             size="sm" 
                             onClick={toggleSound}
-                            className={`flex items-center gap-2 ${soundEnabled ? 'text-blue-500 border-blue-200' : 'text-muted-foreground'}`}
+                            className={`flex items-center gap-2 rounded-full px-4 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
                         >
                             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                            <span className="hidden sm:inline">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setView('selection')} className="text-muted-foreground hover:text-foreground p-0 h-auto">
-                            ← Trocar Nicho
+                            <span className="text-xs font-semibold">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
                         </Button>
                     </div>
-                        <h2 className="text-2xl font-bold flex items-center gap-2">
-                            Cúpula de {selectedNiche}
-                        </h2>
-                    </div>
-                    <p className="text-muted-foreground text-sm ml-0 sm:ml-10">
+                    <p className="text-muted-foreground text-sm">
                         Dispute os leads enviados por tráfego pago.
                     </p>
                 </div>

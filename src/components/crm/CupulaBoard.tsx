@@ -371,7 +371,10 @@ export function CupulaBoard() {
 
             <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden w-full pb-4 items-start">
                 {columns.map(col => {
-                    const colLeads = filteredLeads.filter(l => l.status === col.id);
+                    const colLeads = filteredLeads.filter(l => 
+                        l.status === col.id && 
+                        (col.id === 'novos' || l.owner_id === currentUserId)
+                    );
                     const canDrop = col.id !== 'novos';
 
                     const handleDragOver = (e: React.DragEvent) => {

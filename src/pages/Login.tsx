@@ -25,7 +25,8 @@ const Login = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        const redirectTo = searchParams.get("redirect") || "/dashboard";
+        navigate(redirectTo);
       }
     };
     checkSession();
@@ -33,10 +34,11 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      const redirectTo = searchParams.get("redirect") || "/dashboard";
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}${redirectTo}`,
         },
       });
       if (error) throw error;
@@ -58,7 +60,8 @@ const Login = () => {
       if (error) throw error;
 
       toast.success("Login realizado com sucesso!");
-      navigate("/dashboard");
+      const redirectTo = searchParams.get("redirect") || "/dashboard";
+      navigate(redirectTo);
     } catch (error: any) {
       console.error(error);
       toast.error(error.message === "Invalid login credentials"

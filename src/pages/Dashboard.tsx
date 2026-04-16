@@ -38,13 +38,20 @@ import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { WhatsappChat } from "@/components/crm/WhatsappChat";
 import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
-import { SharkTank } from "@/components/crm/SharkTank";
+
+
+const CupulaIcon = () => (
+  <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center -ml-1.5 mr-1 flex-shrink-0">
+    <img src="/cupula-icon.png" alt="Cúpula" className="w-full h-full object-contain dark:hidden" />
+    <img src="/cupula-icon-dark.png" alt="Cúpula" className="w-full h-full object-contain hidden dark:block" />
+  </div>
+);
 
 const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
   { icon: Bot, label: "Agente IA", id: "agent", isNew: true },
-  { icon: Waves, label: "Shark Tank", id: "shark_tank", isNew: true },
+  { icon: CupulaIcon, label: "Cúpula de Leads", id: "cupula_leads", isNew: true },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -1159,9 +1166,28 @@ const Dashboard = () => {
               </div>
             )}
 
-            {activeMenu === "shark_tank" && (
-              <div className="flex-1 overflow-y-auto h-full flex flex-col w-full">
-                <SharkTank />
+            {activeMenu === "cupula_leads" && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full flex flex-col items-center justify-center text-center bg-muted/20">
+                <div className="max-w-2xl bg-card border border-border p-8 sm:p-12 rounded-3xl shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-12 bg-blue-500/5 blur-3xl rounded-full" />
+                  <div className="absolute bottom-0 left-0 p-12 bg-primary/5 blur-3xl rounded-full" />
+                  
+                  <div className="relative z-10">
+                    <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <img src="/cupula-icon.png" alt="Cúpula" className="w-16 h-16 object-contain dark:hidden" />
+                      <img src="/cupula-icon-dark.png" alt="Cúpula" className="w-16 h-16 object-contain hidden dark:block" />
+                    </div>
+                    <h2 className="text-3xl font-bold mb-4 text-foreground">A Cúpula de Leads</h2>
+                    <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                      Um ecossistema exclusivo onde leads gerados através de tráfego pago são distribuídos de forma <strong>100% justa e rotativa</strong>. Entre para a Cúpula, acompanhe a fila inteligente e receba clientes altamente qualificados direto no seu CRM assim que chegar a sua vez.
+                    </p>
+                    <Link to="/cupula-de-leads">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto h-12 px-8 text-lg font-medium shadow-lg shadow-blue-600/20">
+                        Acessar a Cúpula de Leads
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
 

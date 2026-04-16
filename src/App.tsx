@@ -17,6 +17,7 @@ import CompleteRegistration from "./pages/CompleteRegistration";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import AboutUs from "./pages/AboutUs";
+import CupulaLeads from "./pages/CupulaLeads";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/complete-registration" element={<CompleteRegistration />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/sobre" element={<AboutUs />} />
+            <Route path="/cupula-de-leads" element={<CupulaLeads />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

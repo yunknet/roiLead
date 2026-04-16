@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const token = url.searchParams.get('token');
-    const secret = Deno.env.get('HUBLA_WEBHOOK_SECRET');
+    const secret = Deno.env.get('CUPULA_HUBLA');
 
     if (token !== secret) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
@@ -24,7 +24,7 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log('💰 Webhook Hubla (Shark Tank) Recebido:', JSON.stringify(payload));
+    console.log('💰 Webhook Hubla (Cúpula) Recebido:', JSON.stringify(payload));
     
     // Instancia cliente admin do Supabase (bypass RLS)
     const supabaseClient = createClient(
@@ -64,10 +64,9 @@ serve(async (req) => {
 
     const userId = profile ? profile.id : null;
 
-    // Atualiza ou insere na tabela shark_tank_access
-    // Atenção: a tabela shark_tank_access deverá ser criada depois no seu banco de dados
+    // Atualiza ou insere na tabela cupula_access
     const { error: upsertError } = await supabaseClient
-      .from('shark_tank_access')
+      .from('cupula_access')
       .upsert({
         email: email.toLowerCase(), // salva limpo
         user_id: userId,
@@ -82,7 +81,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Acesso ao Shark Tank definido como '${subscriptionStatus}' para o email ${email}`
+      message: `Acesso à Cúpula definido como '${subscriptionStatus}' para o email ${email}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200

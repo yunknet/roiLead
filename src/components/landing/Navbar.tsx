@@ -61,6 +61,11 @@ const Navbar = () => {
                   {session ? "Dashboard" : "Entrar"}
                 </Button>
               </Link>
+              <Link to={session ? "/cupula-de-leads" : "/login?redirect=/cupula-de-leads"}>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
+                  Cúpula de Leads
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -92,6 +97,9 @@ const Navbar = () => {
               </a>
               <Link to={session ? "/dashboard" : "/login"} onClick={() => setIsOpen(false)}>
                 <Button variant="hero" className="w-full">{session ? "Dashboard" : "Entrar"}</Button>
+              </Link>
+              <Link to={session ? "/cupula-de-leads" : "/login?redirect=/cupula-de-leads"} onClick={() => setIsOpen(false)}>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">Cúpula de Leads</Button>
               </Link>
             </div>
           </div>

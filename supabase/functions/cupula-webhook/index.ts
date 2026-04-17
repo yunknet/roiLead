@@ -94,17 +94,20 @@ serve(async (req: Request) => {
         let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         
         // Limpa prefixos comuns para deixar o CRM mais direto
-        label = label.replace(/^Escolha [Oo] /i, '')
-                     .replace(/^Selecione [Oo] /i, '')
-                     .replace(/^Qual [Oo] /i, '');
-
-        extraSpecs.push(`🔸 ${label}: ${value}`);
+        if (label && value) {
+          const cleanLabel = label
+            .replace(/^Escolha [Oo] /i, '')
+            .replace(/^Selecione [Oo] /i, '')
+            .replace(/^Qual [Oo] /i, '');
+          
+          extraSpecs.push(`🔸 ${cleanLabel}: ${value}`);
+        }
       }
     }
 
     const finalNotes = extraSpecs.length > 0 
-      ? extraSpecs.join(" | ") 
-      : "";
+      ? `Email: ${email} | ${extraSpecs.join(" | ")}` 
+      : `Email: ${email}`;
 
     // Insere o Lead diretamente na tabela exclusiva da Cúpula de Leads!
     const { error } = await supabase

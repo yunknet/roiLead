@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const NICHES = ['Consórcio'] as const;
@@ -110,14 +110,20 @@ function LeadQueueCard({
             
             {lead.notes && (
                 <div className="text-xs text-muted-foreground bg-blue-50/50 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-500/10 italic leading-relaxed">
-                    {/* Oculta o e-mail se estiver na fila */}
+                    {/* Oculta o e-mail se estiver na fila e limpa labels */}
                     {lead.notes.split('|').map((part, idx) => {
-                        if (part.includes('📧')) {
+                        const isEmail = part.includes('📧') || part.includes('Email:');
+                        if (isEmail) {
                             return <div key={idx} className="flex items-center gap-1 opacity-50"><Lock className="w-2.5 h-2.5" /> E-mail oculto</div>
                         }
-                        // Limpa o prefixo "Escolha O/o" diretamente na exibição
-                        const cleanPart = part.trim().replace(/ Escolha [Oo] /i, ' ');
-                        return <div key={idx}>{cleanPart}</div>
+                        const cleanPart = part.trim()
+                            .replace(/🔸 /g, '')
+                            .replace(/^Escolha [Oo]\s*/gi, '')
+                            .replace(/^Selecione [Oo]\s*/gi, '')
+                            .replace(/Tipo De Consórcio: /i, '')
+                            .replace(/🔸/g, '');
+
+                        return <div key={idx} className="font-bold text-foreground/80 flex items-center gap-1.5">🔸 {cleanPart}</div>
                     })}
                 </div>
             )}
@@ -228,31 +234,32 @@ function CapturedLeadCard({
                 </div>
 
             {lead.notes && (
-                <div className="flex flex-col gap-1">
-                    <div className={`text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[1000px] bg-blue-50/20' : 'max-h-[85px]'}`}>
-                        <div className="font-bold uppercase text-[9px] mb-1.5 opacity-60 flex items-center gap-1">
-                            📋 Especificações
-                        </div>
-                        <div className="space-y-1">
-                            {lead.notes.split('|').map((part, idx) => (
-                                <div key={idx} className={expanded ? 'break-words' : 'truncate'}>
-                                    {part.trim().replace(/ Escolha [Oo] /i, ' ')}
-                                </div>
-                            ))}
-                        </div>
+                <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden">
+                    <div className="font-bold uppercase text-[9px] mb-1.5 opacity-60 flex items-center gap-1">
+                        📋 Especificações
                     </div>
-                    {lead.notes.length > 50 && (
-                        <button 
-                            onClick={() => setExpanded(!expanded)}
-                            className="text-[10px] font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1 mt-1 ml-1 transition-colors"
-                        >
-                            {expanded ? (
-                                <><X className="w-3 h-3" /> Ver menos</>
-                            ) : (
-                                <><Edit2 className="w-3 h-3" /> Ver especificações completas</>
-                            )}
-                        </button>
-                    )}
+                    <div className="space-y-1">
+                        {lead.notes.split('|').map((part, idx) => {
+                            const isEmail = part.includes('📧') || part.includes('Email:');
+                            if (isEmail) {
+                                return (
+                                    <div key={idx} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+                                        <Mail className="w-3.5 h-3.5" />
+                                        {part.replace('📧', '').replace('Email:', '').trim()}
+                                    </div>
+                                )
+                            }
+                            // Limpa o prefixo de consórcio e mostra apenas o valor
+                            const cleanPart = part.trim()
+                                .replace(/🔸 /g, '')
+                                .replace(/^Escolha [Oo]\s*/gi, '')
+                                .replace(/^Selecione [Oo]\s*/gi, '')
+                                .replace(/Tipo De Consórcio: /i, '')
+                                .replace(/🔸/g, '');
+                            
+                            return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
+                        })}
+                    </div>
                 </div>
             )}
 
@@ -452,8 +459,6 @@ export function CupulaBoard() {
     };
 
     const handleDeleteLead = async (leadId: string) => {
-        if (!window.confirm("Tem certeza que deseja deletar este lead do seu CRM?")) return;
-
         try {
             const { error } = await supabase
                 .from('cupula_leads')

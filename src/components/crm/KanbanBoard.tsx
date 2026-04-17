@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag, Edit2 } from 'lucide-react';
+import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag, Edit2, Timer, TimerOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { LeadProfileModal } from './LeadProfileModal';
@@ -23,6 +23,8 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
     const [crmColumns, setCrmColumns] = useState(COLUMNS);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState('');
+    const [autoLostEnabled, setAutoLostEnabled] = useState(true);
+    const autoLostRef = useRef(true);
 
     useEffect(() => {
         const initBoard = async () => {
@@ -30,7 +32,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             if (user) {
                 const { data: settings } = await supabase
                     .from('crm_settings')
-                    .select('columns')
+                    .select('columns, auto_lost_enabled')
                     .eq('user_id', user.id)
                     .maybeSingle();
 
@@ -40,6 +42,20 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                     const saved = localStorage.getItem('@roilead-crm-columns');
                     if (saved) {
                         try { setCrmColumns(JSON.parse(saved)); } catch (e) { }
+                    }
+                }
+
+                // Carregar preferência de auto-lost
+                if (settings?.auto_lost_enabled !== undefined && settings?.auto_lost_enabled !== null) {
+                    setAutoLostEnabled(settings.auto_lost_enabled);
+                    autoLostRef.current = settings.auto_lost_enabled;
+                } else {
+                    // Fallback localStorage
+                    const savedAutoLost = localStorage.getItem('@roilead-auto-lost');
+                    if (savedAutoLost !== null) {
+                        const val = savedAutoLost === 'true';
+                        setAutoLostEnabled(val);
+                        autoLostRef.current = val;
                     }
                 }
             }
@@ -91,7 +107,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                     l = { ...l, title: l.phone };
                 }
 
-                if (l.status && l.status !== 'won' && l.status !== 'lost') {
+                if (autoLostRef.current && l.status && l.status !== 'won' && l.status !== 'lost') {
                     const timeDiffHours = (now - new Date(l.updated_at).getTime()) / (1000 * 60 * 60);
                     if (timeDiffHours >= 24) {
                         hasUpdates = true;
@@ -193,6 +209,34 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         }
     };
 
+    const toggleAutoLost = async () => {
+        const newValue = !autoLostEnabled;
+        setAutoLostEnabled(newValue);
+        autoLostRef.current = newValue;
+        localStorage.setItem('@roilead-auto-lost', newValue.toString());
+
+        // Persistir no banco
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('crm_settings').upsert({
+                user_id: user.id,
+                auto_lost_enabled: newValue,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+        }
+
+        toast.info(
+            newValue 
+                ? '⏰ Leads inativos por 24h serão movidos automaticamente para Perdidos.' 
+                : '✋ Modo manual ativado. Leads só vão para Perdidos se você mover manualmente.'
+        );
+
+        // Re-fetch se ligou de volta (para aplicar regras)
+        if (newValue) {
+            fetchLeads();
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -204,8 +248,34 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
     return (
         <div className="flex flex-col space-y-6">
             <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold text-foreground">CRM - Funil de Vendas</h2>
-                <p className="text-muted-foreground">Arraste os cards para alterar a etapa do lead no funil de vendas.</p>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-foreground">CRM - Funil de Vendas</h2>
+                        <p className="text-muted-foreground text-sm">Arraste os cards para alterar a etapa do lead no funil de vendas.</p>
+                    </div>
+                    <button
+                        onClick={toggleAutoLost}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs border transition-all shrink-0 ${
+                            autoLostEnabled 
+                                ? 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20' 
+                                : 'bg-muted/30 border-border hover:bg-muted/60'
+                        }`}
+                    >
+                        <div className={`w-9 h-5 rounded-full relative transition-colors ${autoLostEnabled ? 'bg-red-500' : 'bg-muted-foreground/30'}`}>
+                            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${autoLostEnabled ? 'left-[18px]' : 'left-0.5'}`} />
+                        </div>
+                        <div className="text-left">
+                            <div className={`font-semibold ${autoLostEnabled ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                {autoLostEnabled ? 'Perda automática ativada' : 'Perda automática desativada'}
+                            </div>
+                            <div className="text-muted-foreground text-[10px] leading-tight mt-0.5">
+                                {autoLostEnabled 
+                                    ? 'Leads sem contato em 24h vão para Perdidos' 
+                                    : 'Leads só vão para Perdidos manualmente'}
+                            </div>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             <div className="flex overflow-x-auto pb-4 gap-6 h-[calc(100vh-250px)] min-h-[500px]">

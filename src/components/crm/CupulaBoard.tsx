@@ -152,6 +152,143 @@ function LeadQueueCard({
     );
 }
 
+function WhatsAppIcon(props: any) {
+    return (
+        <svg 
+            viewBox="0 0 24 24" 
+            fill="currentColor" 
+            className={props.className}
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+    );
+}
+
+function CapturedLeadCard({ 
+    lead, 
+    isMine, 
+    onDelete, 
+    onChat 
+}: { 
+    lead: SharkLead; 
+    isMine: boolean; 
+    onDelete: (id: string) => void;
+    onChat: (lead: SharkLead) => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    return (
+        <>
+            {/* Modal de Confirmação de Exclusão Customizado */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 className="w-6 h-6" />
+                        </div>
+                        <DialogTitle className="text-xl">Deletar Lead?</DialogTitle>
+                        <DialogDescription className="text-base pt-2">
+                            Você tem certeza que deseja remover <b>{lead.name}</b> do seu CRM? Esta ação não pode ser desfeita.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 mt-4">
+                        <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="flex-1">
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={() => { onDelete(lead.id); setShowDeleteConfirm(false); }}
+                            className="flex-1 bg-red-600 hover:bg-red-700"
+                        >
+                            Confirmar Exclusão
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <div 
+                className={`group bg-background p-4 rounded-xl shadow-sm border border-border hover:border-primary/40 transition-all flex flex-col gap-3 ${isMine ? 'cursor-grab active:cursor-grabbing border-l-4 border-l-blue-500 shadow-md' : 'opacity-80'}`}
+            >
+                <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-foreground text-sm truncate flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isMine ? 'bg-green-500 animate-pulse' : 'bg-muted'}`} />
+                        {lead.name}
+                    </div>
+                    {isMine && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+                            className="text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all p-2 rounded-lg"
+                            title="Remover do CRM"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+
+            {lead.notes && (
+                <div className="flex flex-col gap-1">
+                    <div className={`text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[1000px] bg-blue-50/20' : 'max-h-[85px]'}`}>
+                        <div className="font-bold uppercase text-[9px] mb-1.5 opacity-60 flex items-center gap-1">
+                            📋 Especificações
+                        </div>
+                        <div className="space-y-1">
+                            {lead.notes.split('|').map((part, idx) => (
+                                <div key={idx} className={expanded ? 'break-words' : 'truncate'}>
+                                    {part.trim().replace(/ Escolha [Oo] /i, ' ')}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {lead.notes.length > 50 && (
+                        <button 
+                            onClick={() => setExpanded(!expanded)}
+                            className="text-[10px] font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1 mt-1 ml-1 transition-colors"
+                        >
+                            {expanded ? (
+                                <><X className="w-3 h-3" /> Ver menos</>
+                            ) : (
+                                <><Edit2 className="w-3 h-3" /> Ver especificações completas</>
+                            )}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+                {isMine ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
+                            <Lock className="w-3 h-3" /> Contato Liberado
+                        </div>
+                        <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
+                            {lead.phone}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-xs text-muted-foreground bg-muted p-3 rounded-xl text-center flex items-center justify-center gap-2 border border-dashed border-border opacity-70">
+                        <Lock className="w-3.5 h-3.5 opacity-50" /> 
+                        <span>Capturado por outro membro</span>
+                    </div>
+                )}
+
+                {isMine && (
+                    <Button 
+                        onClick={() => onChat(lead)} 
+                        size="sm" 
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <WhatsAppIcon className="w-4 h-4" />
+                        Chamar no WhatsApp
+                    </Button>
+                )}
+            </div>
+        </div>
+        </>
+    );
+}
+
 export function CupulaBoard() {
     const [view, setView] = useState<'selection' | 'board'>('selection');
     const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null);
@@ -662,48 +799,13 @@ export function CupulaBoard() {
                                 {colLeads.map(lead => {
                                     const isMine = currentUserId && lead.owner_id === currentUserId;
 
-                                    return (
-                                        <div 
-                                            key={lead.id} 
-                                            draggable={isMine && col.id !== 'novos'}
-                                            onDragStart={(e) => {
-                                                if (isMine && col.id !== 'novos') {
-                                                    e.dataTransfer.setData('leadId', lead.id);
-                                                }
-                                            }}
-                                            className={`bg-background p-4 rounded-lg shadow-sm border border-border hover:border-primary/50 transition-colors flex flex-col gap-3 ${(isMine && col.id !== 'novos') ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
+                                    if (col.id === 'novos') {
+                                        return (
+                                            <div key={lead.id} className="bg-background p-4 rounded-xl shadow-sm border border-border flex flex-col gap-3">
                                                  <div className="font-bold text-foreground text-sm truncate flex items-center gap-2">
                                                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                                      {lead.name}
                                                  </div>
-                                                 {isMine && (
-                                                     <button 
-                                                         onClick={() => handleDeleteLead(lead.id)}
-                                                         className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg"
-                                                         title="Remover do CRM"
-                                                     >
-                                                         <Trash2 className="w-4 h-4" />
-                                                     </button>
-                                                 )}
-                                             </div>
-
-                                             {/* Só mostra especificações aqui se NÃO for um lead novo (na fila), pois o LeadQueueCard já cuida disso com privacidade */}
-                                             {(lead.notes && col.id !== 'novos') && (
-                                                 <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden">
-                                                     <div className="font-bold uppercase text-[9px] mb-1 opacity-60 flex items-center gap-1">
-                                                         📋 Especificações
-                                                     </div>
-                                                     {lead.notes.split('|').map((part, idx) => (
-                                                         <div key={idx} className="truncate">
-                                                             {part.trim().replace(/ Escolha [Oo] /i, ' ')}
-                                                         </div>
-                                                     ))}
-                                                 </div>
-                                             )}
-
-                                             {col.id === 'novos' ? (
                                                  <LeadQueueCard
                                                      lead={lead}
                                                      turnInfo={turnInfo}
@@ -713,36 +815,26 @@ export function CupulaBoard() {
                                                      onClaim={handleClaimLead}
                                                      playNotification={playNotification}
                                                  />
-                                             ) : (
-                                                 <div className="flex flex-col gap-3">
-                                                     {isMine ? (
-                                                         <div className="flex flex-col gap-2">
-                                                             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
-                                                                 <Lock className="w-3 h-3" /> Contato Liberado
-                                                             </div>
-                                                             <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
-                                                                 {lead.phone}
-                                                             </div>
-                                                         </div>
-                                                     ) : (
-                                                         <div className="text-xs text-muted-foreground bg-muted p-3 rounded-xl text-center flex items-center justify-center gap-2 border border-dashed border-border">
-                                                             <Lock className="w-3.5 h-3.5 opacity-50" /> 
-                                                             <span>Capturado por outro membro</span>
-                                                         </div>
-                                                     )}
+                                            </div>
+                                        );
+                                    }
 
-                                                     {isMine && (
-                                                         <Button 
-                                                            onClick={() => handleChat(lead)} 
-                                                            size="sm" 
-                                                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                        >
-                                                            <Waves className="w-4 h-4 rotate-90" />
-                                                            Chamar no WhatsApp
-                                                         </Button>
-                                                     )}
-                                                 </div>
-                                             )}
+                                    return (
+                                        <div 
+                                            key={lead.id} 
+                                            draggable={isMine}
+                                            onDragStart={(e) => {
+                                                if (isMine) {
+                                                    e.dataTransfer.setData('leadId', lead.id);
+                                                }
+                                            }}
+                                        >
+                                            <CapturedLeadCard 
+                                                lead={lead}
+                                                isMine={isMine === true}
+                                                onDelete={handleDeleteLead}
+                                                onChat={handleChat}
+                                            />
                                         </div>
                                     );
                                 })}

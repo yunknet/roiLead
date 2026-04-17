@@ -706,12 +706,22 @@ const Dashboard = () => {
               Bem-vindo, <span className="text-primary">{userProfile?.firstName}</span>!
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <ModeToggle />
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
+          <div className="flex items-center gap-4">
+            <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setActiveMenu("cupula_leads")}
+                className="hidden sm:flex bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-lg px-4 shadow-sm transition-all"
+            >
+                Cúpula de Leads
             </Button>
+            <div className="flex items-center gap-2">
+                <ModeToggle />
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+                </Button>
+            </div>
           </div>
         </header>
 

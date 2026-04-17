@@ -576,7 +576,7 @@ export function CupulaBoard() {
     };
 
     const handleAccessRequest = () => {
-        const message = encodeURIComponent("Olá! Gostaria de solicitar acesso à Cúpula de Leads de Consórcio.");
+        const message = encodeURIComponent("Olá! Gostaria de saber mais e solicitar acesso à Cúpula de Leads de Consórcio.");
         window.open(`https://wa.me/5511922967021?text=${message}`, '_blank');
     };
 
@@ -666,7 +666,6 @@ export function CupulaBoard() {
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2 text-2xl text-blue-500">
-                                <Waves className="w-6 h-6" />
                                 Acesso Restrito
                             </DialogTitle>
                             <DialogDescription className="text-base mt-2">

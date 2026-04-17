@@ -98,35 +98,54 @@ function LeadQueueCard({
     const timerStr = `${m}:${s.toString().padStart(2, '0')}`;
 
     return (
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted p-1.5 rounded w-fit">
-                <Lock className="w-3 h-3" /> Número Oculto
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded-md uppercase tracking-wider">
+                    <Lock className="w-3 h-3" /> Dados ocultos
+                </div>
+                <div className="text-[10px] text-muted-foreground font-medium">
+                    Chegou há {Math.floor(elapsedSec / 60)}m
+                </div>
             </div>
             
+            {lead.notes && (
+                <div className="text-xs text-muted-foreground bg-blue-50/50 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-500/10 italic leading-relaxed">
+                    {/* Oculta o e-mail se estiver na fila */}
+                    {lead.notes.split('|').map((part, idx) => {
+                        if (part.includes('📧')) {
+                            return <div key={idx} className="flex items-center gap-1 opacity-50"><Lock className="w-2.5 h-2.5" /> E-mail oculto</div>
+                        }
+                        // Limpa o prefixo "Escolha O/o" diretamente na exibição
+                        const cleanPart = part.trim().replace(/ Escolha [Oo] /i, ' ');
+                        return <div key={idx}>{cleanPart}</div>
+                    })}
+                </div>
+            )}
+            
             {ownership && (
-                <div className={`text-center font-bold px-3 py-2.5 rounded-lg border shadow-sm flex flex-col items-center gap-0.5 mt-1 mb-2 ${isMyTurn ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-muted/80 text-muted-foreground border-border/50'}`}>
-                    <span className="text-[10px] uppercase tracking-wider opacity-70 font-semibold mb-0.5">Status da Fila</span>
+                <div className={`text-center font-bold px-3 py-3 rounded-xl border shadow-sm flex flex-col items-center gap-1 mt-1 mb-1 transition-all ${isMyTurn ? 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400 text-white shadow-blue-200 dark:shadow-none' : 'bg-muted/80 text-muted-foreground border-border/50'}`}>
+                    <span className={`text-[9px] uppercase tracking-[0.15em] font-black mb-0.5 ${isMyTurn ? 'text-blue-100' : 'opacity-70'}`}>Status da Fila</span>
                     <span className="text-sm">
-                        {isMyTurn ? `🎯 Sua vez, ${ownership.owner_name}!` : `⏳ Vez dele(a): ${ownership.owner_name}`}
+                        {isMyTurn ? `🎯 Sua vez, ${ownership.owner_name}!` : `⏳ Vez de: ${ownership.owner_name}`}
                     </span>
-                    <span className="text-xs flex items-center justify-center gap-1 mt-1 opacity-90 px-2 py-0.5 rounded-full bg-background border border-foreground/10">
-                        <Clock className="w-3 h-3" /> Expira em {timerStr}
-                    </span>
+                    <div className={`text-xs flex items-center justify-center gap-1.5 mt-1 px-3 py-1 rounded-full border ${isMyTurn ? 'bg-white/20 border-white/30 text-white' : 'bg-background border-foreground/10'}`}>
+                        <Clock className="w-3.5 h-3.5" /> <span className="font-mono">Expira em {timerStr}</span>
+                    </div>
                     {!isMyTurn && (
-                        <span className="text-xs mt-1.5 border-t border-border/60 pt-1 w-full opacity-80 text-center font-medium">
-                            {ownership.total_active} ativos. Sua vez será a {ownership.my_position}ª
-                        </span>
+                        <div className="text-[10px] mt-2 border-t border-border/60 pt-2 w-full opacity-80 text-center font-medium">
+                            {ownership.total_active} corretores ativos • Posição: {ownership.my_position}º
+                        </div>
                     )}
                 </div>
             )}
 
             {!isMyTurn ? (
-                <Button disabled size="sm" className="w-full font-bold bg-muted text-muted-foreground shadow-none">
+                <Button disabled size="sm" className="w-full font-bold bg-muted text-muted-foreground/50 h-10 rounded-xl border-none">
                     ⏳ Aguardando...
                 </Button>
             ) : (
-                <Button onClick={() => onClaim(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-                    🎯 Capturar Lead
+                <Button onClick={() => onClaim(lead.id)} size="sm" className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 dark:shadow-none h-10 rounded-xl transition-all active:scale-95">
+                    🚀 CAPTURAR AGORA
                 </Button>
             )}
         </div>
@@ -655,51 +674,75 @@ export function CupulaBoard() {
                                             className={`bg-background p-4 rounded-lg shadow-sm border border-border hover:border-primary/50 transition-colors flex flex-col gap-3 ${(isMine && col.id !== 'novos') ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                         >
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="font-medium text-foreground text-sm truncate">
-                                                    {lead.name}
-                                                </div>
-                                                {isMine && (
-                                                    <button 
-                                                        onClick={() => handleDeleteLead(lead.id)}
-                                                        className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                                        title="Remover do CRM"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
+                                                 <div className="font-bold text-foreground text-sm truncate flex items-center gap-2">
+                                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                     {lead.name}
+                                                 </div>
+                                                 {isMine && (
+                                                     <button 
+                                                         onClick={() => handleDeleteLead(lead.id)}
+                                                         className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg"
+                                                         title="Remover do CRM"
+                                                     >
+                                                         <Trash2 className="w-4 h-4" />
+                                                     </button>
+                                                 )}
+                                             </div>
 
-                                            {col.id === 'novos' ? (
-                                                <LeadQueueCard
-                                                    lead={lead}
-                                                    turnInfo={turnInfo}
-                                                    clockOffset={clockOffsetRef.current}
-                                                    currentUserId={currentUserId}
-                                                    unclaimedLeads={unclaimedLeads}
-                                                    onClaim={handleClaimLead}
-                                                    playNotification={playNotification}
-                                                />
-                                            ) : (
-                                                <div className="flex flex-col gap-3">
-                                                    {isMine ? (
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="text-sm font-mono bg-primary/10 text-primary p-2 rounded text-center">
-                                                                {lead.phone}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-xs text-muted-foreground bg-muted p-2 rounded text-center truncate">
-                                                            🔒 Capturado por outro membro
-                                                        </div>
-                                                    )}
+                                             {/* Só mostra especificações aqui se NÃO for um lead novo (na fila), pois o LeadQueueCard já cuida disso com privacidade */}
+                                             {(lead.notes && col.id !== 'novos') && (
+                                                 <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden">
+                                                     <div className="font-bold uppercase text-[9px] mb-1 opacity-60 flex items-center gap-1">
+                                                         📋 Especificações
+                                                     </div>
+                                                     {lead.notes.split('|').map((part, idx) => (
+                                                         <div key={idx} className="truncate">
+                                                             {part.trim().replace(/ Escolha [Oo] /i, ' ')}
+                                                         </div>
+                                                     ))}
+                                                 </div>
+                                             )}
 
-                                                    {isMine && (
-                                                        <Button onClick={() => handleChat(lead)} size="sm" variant="outline" className="w-full border-green-500/50 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 mt-1">
-                                                            WhatsApp
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            )}
+                                             {col.id === 'novos' ? (
+                                                 <LeadQueueCard
+                                                     lead={lead}
+                                                     turnInfo={turnInfo}
+                                                     clockOffset={clockOffsetRef.current}
+                                                     currentUserId={currentUserId}
+                                                     unclaimedLeads={unclaimedLeads}
+                                                     onClaim={handleClaimLead}
+                                                     playNotification={playNotification}
+                                                 />
+                                             ) : (
+                                                 <div className="flex flex-col gap-3">
+                                                     {isMine ? (
+                                                         <div className="flex flex-col gap-2">
+                                                             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
+                                                                 <Lock className="w-3 h-3" /> Contato Liberado
+                                                             </div>
+                                                             <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
+                                                                 {lead.phone}
+                                                             </div>
+                                                         </div>
+                                                     ) : (
+                                                         <div className="text-xs text-muted-foreground bg-muted p-3 rounded-xl text-center flex items-center justify-center gap-2 border border-dashed border-border">
+                                                             <Lock className="w-3.5 h-3.5 opacity-50" /> 
+                                                             <span>Capturado por outro membro</span>
+                                                         </div>
+                                                     )}
+
+                                                     {isMine && (
+                                                         <Button 
+                                                            onClick={() => handleChat(lead)} 
+                                                            size="sm" 
+                                                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                        >
+                                                            <Waves className="w-4 h-4 rotate-90" />
+                                                            Chamar no WhatsApp
+                                                         </Button>
+                                                     )}
+                                                 </div>
+                                             )}
                                         </div>
                                     );
                                 })}

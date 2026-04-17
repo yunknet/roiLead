@@ -76,6 +76,36 @@ serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: "Telefone não informado." }), { status: 400 })
     }
 
+    // --- CAPTURA INTELIGENTE DE CAMPOS PERSONALIZADOS ---
+    // Filtramos os campos conhecidos para pegar apenas as perguntas extras do formulário
+    const standardKeys = [
+      "Full name", "full_name", "name", "First name", "first_name", "first name",
+      "Last name", "last_name", "last name", "Email", "email", "phone_number", 
+      "phone", "whatsapp", "niche", "is_test", "token", "ad_id", "form_id", "id"
+    ];
+
+    const extraSpecs: string[] = [];
+    if (email) extraSpecs.push(`📧 ${email}`);
+
+    for (const [key, value] of Object.entries(payload)) {
+      // Se não for uma chave padrão e tiver valor
+      if (!standardKeys.includes(key) && value && typeof value === 'string' && value.length < 500) {
+        // Formata a chave para ficar mais legível
+        let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
+        // Limpa prefixos comuns para deixar o CRM mais direto
+        label = label.replace(/^Escolha [Oo] /i, '')
+                     .replace(/^Selecione [Oo] /i, '')
+                     .replace(/^Qual [Oo] /i, '');
+
+        extraSpecs.push(`🔸 ${label}: ${value}`);
+      }
+    }
+
+    const finalNotes = extraSpecs.length > 0 
+      ? extraSpecs.join(" | ") 
+      : "";
+
     // Insere o Lead diretamente na tabela exclusiva da Cúpula de Leads!
     const { error } = await supabase
       .from('cupula_leads')
@@ -83,7 +113,7 @@ serve(async (req: Request) => {
         niche: nicheFromFB,
         name: name,
         phone: cleanPhone,
-        notes: email ? `Email: ${email} | Origem: Formulário Meta Ads` : `Origem: Formulário Meta Ads`,
+        notes: finalNotes,
         status: 'novos'
       })
 

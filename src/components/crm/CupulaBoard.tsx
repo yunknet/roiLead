@@ -304,7 +304,6 @@ export function CupulaBoard() {
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [loadingAccess, setLoadingAccess] = useState(false);
-    const [loadingCheckout, setLoadingCheckout] = useState(false);
     const [turnInfo, setTurnInfo] = useState<any>(null);
     const [clockOffset, setClockOffset] = useState<number>(0);
     const clockOffsetRef = useRef<number>(0);
@@ -372,11 +371,38 @@ export function CupulaBoard() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
 
 
+    const checkAccess = async (userEmail?: string) => {
+        if (!userEmail) return false;
+        try {
+            const { data: sharkUser } = await supabase
+                .from('cupula_access')
+                .select('status')
+                .eq('email', userEmail)
+                .maybeSingle();
+            
+            if (sharkUser?.status === 'active') {
+                return true;
+            }
+            return false;
+        } catch (err) {
+            return false;
+        }
+    };
+
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setCurrentUserId(user.id);
+                // Verifica acesso logo no boot se já estiver com nicho selecionado
+                if (selectedNiche) {
+                    const hasAccess = await checkAccess(user.email);
+                    if (!hasAccess) {
+                        setSelectedNiche(null);
+                        setView('selection');
+                        setShowPaymentModal(true);
+                    }
+                }
             }
             fetchLeads();
         };
@@ -396,10 +422,23 @@ export function CupulaBoard() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [selectedNiche]);
 
     const fetchLeads = async () => {
         try {
+            // Se estiver no board, valida o acesso a cada refresh de leads
+            if (view === 'board') {
+                const { data: { user } } = await supabase.auth.getUser();
+                const hasAccess = await checkAccess(user?.email);
+                
+                if (!hasAccess) {
+                    setSelectedNiche(null);
+                    setView('selection');
+                    setShowPaymentModal(true);
+                    return;
+                }
+            }
+
             const { data, error } = await supabase
                 .from('cupula_leads')
                 .select('*')
@@ -536,22 +575,9 @@ export function CupulaBoard() {
         window.open(`https://wa.me/${cleanPhone}`, '_blank');
     };
 
-    const handleCheckoutClick = async () => {
-        setLoadingCheckout(true);
-        try {
-            const { data, error } = await supabase.functions.invoke('get-cupula-link');
-            if (error) throw error;
-            if (data?.link) {
-                window.open(data.link, "_blank");
-            } else {
-                toast.error("Link de checkout não configurado.");
-            }
-        } catch (error) {
-            console.error("Erro ao pegar link da Hubla:", error);
-            toast.error("Erro ao redirecionar para o pagamento.");
-        } finally {
-            setLoadingCheckout(false);
-        }
+    const handleAccessRequest = () => {
+        const message = encodeURIComponent("Olá! Gostaria de solicitar acesso à Cúpula de Leads de Consórcio.");
+        window.open(`https://wa.me/5511922967021?text=${message}`, '_blank');
     };
 
     const handleSelectNiche = async (niche: Niche) => {
@@ -560,28 +586,9 @@ export function CupulaBoard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // NOVA REGRA: O acesso ao Shark Tank não tem vínculo com a tabela subscriptions.
-            // Para testar, verificaremos se o usuário tem o access_status = 'SHARK_PAID' (apenas um exemplo)
-            // ou se ele existe na tabela shark_tank_users (que gerenciará isso no futuro).
-            // COMO O BANCO NÃO PODE SER ALTERADO AGORA, simularemos o bloqueio (isPaid = false).
-            let isPaid = false; 
+            const hasAccess = await checkAccess(user.email);
 
-            // Tenta buscar de uma tabela dedicada (que será criada depois pelo webhook)
-            try {
-                const { data: sharkUser, error: sharkErr } = await supabase
-                    .from('cupula_access')
-                    .select('status')
-                    .eq('email', user.email)
-                    .maybeSingle();
-                
-                if (sharkUser?.status === 'active') {
-                    isPaid = true;
-                }
-            } catch (ignore) {
-                // Tabela não existe ainda, isPaid continua false
-            }
-
-            if (isPaid) {
+            if (hasAccess) {
                 setSelectedNiche(niche);
                 setView('board');
                 fetchLeads();
@@ -630,11 +637,11 @@ export function CupulaBoard() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
+                <div className="flex flex-wrap justify-center gap-6 max-w-6xl mx-auto w-full">
                     {NICHES.map(niche => (
                         <div
                             key={niche}
-                            className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center text-center gap-6 hover:border-primary/50 transition-all cursor-pointer shadow-sm group"
+                            className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center text-center gap-6 hover:border-primary/50 transition-all cursor-pointer shadow-sm group w-full md:w-[350px]"
                             onClick={() => handleSelectNiche(niche)}
                         >
                             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -663,17 +670,17 @@ export function CupulaBoard() {
                                 Acesso Restrito
                             </DialogTitle>
                             <DialogDescription className="text-base mt-2">
-                                Para capturar e bater papo com os leads milionários da Cúpula de Leads de <b>Consórcio</b>, você precisa assinar o módulo exclusivo.
+                                Para capturar e bater papo com os leads milionários da Cúpula de Leads de <b>Consórcio</b>, você passará por uma análise de perfil.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <div className="flex flex-col gap-4 py-4">
                             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-sm text-foreground space-y-2">
-                                <p className="font-semibold text-blue-600 dark:text-blue-400">🎯 O que você ganha?</p>
+                                <p className="font-semibold text-blue-600 dark:text-blue-400">🎯 Como funciona?</p>
                                 <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                                    <li>Acesso ao board de leads de tráfego pago em tempo real.</li>
-                                    <li>Direito a capturar e ser o dono exclusivo de dezenas de leads.</li>
-                                    <li>Funil de vendas e atalhos direto para o WhatsApp.</li>
+                                    <li>Fale com nosso consultor no WhatsApp.</li>
+                                    <li>Verifique se você está apto para o módulo exclusivo.</li>
+                                    <li>Liberação manual após validação de perfil.</li>
                                 </ul>
                             </div>
                         </div>
@@ -684,11 +691,10 @@ export function CupulaBoard() {
                             </Button>
                             <Button 
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                                disabled={loadingCheckout}
-                                onClick={handleCheckoutClick}
+                                onClick={handleAccessRequest}
                             >
-                                {loadingCheckout ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                Assinar Cúpula de Leads Hubla
+                                <WhatsAppIcon className="w-4 h-4 mr-2" />
+                                Acessar Cúpula de Leads
                             </Button>
                         </DialogFooter>
                     </DialogContent>

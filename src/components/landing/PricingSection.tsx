@@ -10,7 +10,7 @@ const plans = [
     id: "mensal",
     name: "Mensal",
     description: "Ideal para testar a plataforma",
-    price: "67,00",
+    price: "97,00",
     period: "/mês",
     features: [
       "Leads ilimitados",
@@ -26,10 +26,10 @@ const plans = [
     id: "anual",
     name: "Anual",
     description: "O melhor custo-benefício.",
-    price: "27,00",
+    price: "36,00",
     period: "/mês",
-    installment: "12x R$ 27,00",
-    savings: "Economia de 60% — Plano completo com desconto exclusivo",
+    installment: "12x R$ 36,00",
+    savings: "Economia de 63% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",

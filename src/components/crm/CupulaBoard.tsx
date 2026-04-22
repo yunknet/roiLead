@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const NICHES = ['Consórcio'] as const;
 type Niche = typeof NICHES[number];
@@ -16,6 +17,8 @@ interface SharkLead {
     notes: string | null;
     status: SharkStatus;
     owner_id: string | null;
+    assigned_to: string | null;
+    assigned_at: string | null;
     created_at: string;
     claimed_at: string | null;
 }
@@ -41,49 +44,57 @@ function LeadQueueCard({
     const [tickVal, setTickVal] = useState(0);
     const notifiedRef = useRef(false);
 
-    // Cada card tem seu PRÓPRIO setInterval — 100% independente
     useEffect(() => {
         const interval = setInterval(() => setTickVal(t => t + 1), 1000);
         return () => clearInterval(interval);
     }, []);
 
-    // Calcula a cada render (forçado pelo tick)
-    // Supabase retorna timestamps com offset do fuso (-03:00), mas o valor É UTC.
-    // Forçamos parsing como UTC trocando qualquer offset por 'Z'.
-    const rawTs = lead.created_at.replace(/[+-]\d{2}:\d{2}$/, 'Z');
-    const createdAtMs = new Date(rawTs).getTime();
-    const nowMs = Date.now();
-    const serverNow = nowMs - clockOffset;
-    let elapsedSec = (serverNow - createdAtMs) / 1000;
+    // Calcula tempo decorrido desde assigned_at (ou created_at como fallback)
+    const rawTs = (lead.assigned_at || lead.created_at).replace(/[+-]\d{2}:\d{2}$/, 'Z');
+    const assignedAtMs = new Date(rawTs).getTime();
+    const serverNow = Date.now() - clockOffset;
+    let elapsedSec = (serverNow - assignedAtMs) / 1000;
     if (elapsedSec < 0) elapsedSec = 0;
 
     const TURN_DURATION = 180;
     const secondsIntoTurn = elapsedSec % TURN_DURATION;
     const timeLeftSec = Math.max(0, Math.floor(TURN_DURATION - secondsIntoTurn));
 
+    // Determina o dono atual
     let ownership: any = null;
     if (turnInfo?.active_users?.length) {
-        const leadIndex = unclaimedLeads.findIndex(l => l.id === lead.id);
-        if (leadIndex !== -1) {
-            const _active = turnInfo.active_users;
-            const skips = Math.floor(elapsedSec / TURN_DURATION);
-            const ownerIndex = (turnInfo.base_turn_index + leadIndex + skips) % _active.length;
-            const owner = _active[ownerIndex];
+        const _active = turnInfo.active_users;
+        const skips = Math.floor(elapsedSec / TURN_DURATION);
+        let currentOwnerIndex = 0;
 
-            const currentUserIndex = _active.findIndex((u: any) => u.user_id === currentUserId);
-            let position = 0;
-            if (currentUserIndex !== -1) {
-                position = (currentUserIndex - ownerIndex + _active.length) % _active.length + 1;
+        if (lead.assigned_to) {
+            // Lead veio do webhook com assigned_to definido
+            const assignedIndex = _active.findIndex((u: any) => u.user_id === lead.assigned_to);
+            if (assignedIndex !== -1) {
+                currentOwnerIndex = (assignedIndex + skips) % _active.length;
             }
-
-            ownership = {
-                owner_id: owner.user_id,
-                owner_name: owner.name,
-                timeLeftSec,
-                total_active: _active.length,
-                my_position: position
-            };
+        } else {
+            // Fallback: lead manual sem assigned_to — usa round-robin por posição na lista
+            const leadIndex = unclaimedLeads.findIndex(l => l.id === lead.id);
+            if (leadIndex !== -1) {
+                currentOwnerIndex = (turnInfo.base_turn_index + leadIndex + skips) % _active.length;
+            }
         }
+
+        const owner = _active[currentOwnerIndex];
+        const currentUserIndex = _active.findIndex((u: any) => u.user_id === currentUserId);
+        let position = 0;
+        if (currentUserIndex !== -1) {
+            position = (currentUserIndex - currentOwnerIndex + _active.length) % _active.length + 1;
+        }
+
+        ownership = {
+            owner_id: owner.user_id,
+            owner_name: owner.name,
+            timeLeftSec,
+            total_active: _active.length,
+            my_position: position
+        };
     }
 
     const isMyTurn = ownership?.owner_id === currentUserId;
@@ -104,27 +115,40 @@ function LeadQueueCard({
                     <Lock className="w-3 h-3" /> Dados ocultos
                 </div>
                 <div className="text-[10px] text-muted-foreground font-medium">
-                    Chegou há {Math.floor(elapsedSec / 60)}m
+                    Chegou há {elapsedSec < 60 
+                        ? `${Math.floor(elapsedSec)}s`
+                        : elapsedSec < 3600 
+                            ? `${Math.floor(elapsedSec / 60)}min` 
+                            : elapsedSec < 86400 
+                                ? `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}min`
+                                : `${Math.floor(elapsedSec / 86400)}d ${Math.floor((elapsedSec % 86400) / 3600)}h`}
                 </div>
             </div>
             
             {lead.notes && (
                 <div className="text-xs text-muted-foreground bg-blue-50/50 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-500/10 italic leading-relaxed">
-                    {/* Oculta o e-mail se estiver na fila e limpa labels */}
-                    {lead.notes.split('|').map((part, idx) => {
-                        const isEmail = part.includes('📧') || part.includes('Email:');
-                        if (isEmail) {
-                            return <div key={idx} className="flex items-center gap-1 opacity-50"><Lock className="w-2.5 h-2.5" /> E-mail oculto</div>
-                        }
-                        const cleanPart = part.trim()
-                            .replace(/🔸 /g, '')
-                            .replace(/^Escolha [Oo]\s*/gi, '')
-                            .replace(/^Selecione [Oo]\s*/gi, '')
-                            .replace(/Tipo De Consórcio: /i, '')
-                            .replace(/🔸/g, '');
-
-                        return <div key={idx} className="font-bold text-foreground/80 flex items-center gap-1.5">🔸 {cleanPart}</div>
-                    })}
+                    {(() => {
+                        const parts = lead.notes!.split('|');
+                        const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
+                        const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
+                        return (
+                            <>
+                                {emailParts.length > 0 && (
+                                    <div className="flex items-center gap-1 opacity-50"><Lock className="w-2.5 h-2.5" /> E-mail oculto</div>
+                                )}
+                                {otherParts.map((part, idx) => {
+                                    const cleanPart = part.trim()
+                                        .replace(/🔸 /g, '')
+                                        .replace(/^Escolha [Oo]\s*/gi, '')
+                                        .replace(/^Selecione [Oo]\s*/gi, '')
+                                        .replace(/Tipo De Consórcio: /i, '')
+                                        .replace(/🔸/g, '');
+                                    if (!cleanPart) return null;
+                                    return <div key={idx} className="font-bold text-foreground/80 flex items-center gap-1.5">🔸 {cleanPart}</div>
+                                })}
+                            </>
+                        );
+                    })()}
                 </div>
             )}
             
@@ -139,7 +163,9 @@ function LeadQueueCard({
                     </div>
                     {!isMyTurn && (
                         <div className="text-[10px] mt-2 border-t border-border/60 pt-2 w-full opacity-80 text-center font-medium">
-                            {ownership.total_active} corretores ativos • Posição: {ownership.my_position}º
+                            {ownership.my_position - 1 === 1 
+                                ? '🔜 Falta 1 pessoa para sua vez' 
+                                : `⏳ Faltam ${ownership.my_position - 1} pessoas para sua vez`}
                         </div>
                     )}
                 </div>
@@ -310,6 +336,9 @@ export function CupulaBoard() {
     const [customNames, setCustomNames] = useState<Record<string, string>>({});
     const [editingColumn, setEditingColumn] = useState<string | null>(null);
     const [editValue, setEditValue] = useState("");
+    const [showNameModal, setShowNameModal] = useState(false);
+    const [fullNameInput, setFullNameInput] = useState("");
+    const [showMembersPanel, setShowMembersPanel] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(() => {
         return localStorage.getItem('cupula_sound_enabled') !== 'false';
     });
@@ -371,21 +400,21 @@ export function CupulaBoard() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
 
 
-    const checkAccess = async (userEmail?: string) => {
-        if (!userEmail) return false;
+    const checkAccess = async (userEmail?: string): Promise<{ hasAccess: boolean; hasName: boolean }> => {
+        if (!userEmail) return { hasAccess: false, hasName: false };
         try {
             const { data: sharkUser } = await supabase
                 .from('cupula_access')
-                .select('status')
+                .select('status, full_name')
                 .eq('email', userEmail)
                 .maybeSingle();
             
             if (sharkUser?.status === 'active') {
-                return true;
+                return { hasAccess: true, hasName: !!sharkUser.full_name };
             }
-            return false;
+            return { hasAccess: false, hasName: false };
         } catch (err) {
-            return false;
+            return { hasAccess: false, hasName: false };
         }
     };
 
@@ -396,7 +425,7 @@ export function CupulaBoard() {
                 setCurrentUserId(user.id);
                 // Verifica acesso logo no boot se já estiver com nicho selecionado
                 if (selectedNiche) {
-                    const hasAccess = await checkAccess(user.email);
+                    const { hasAccess } = await checkAccess(user.email);
                     if (!hasAccess) {
                         setSelectedNiche(null);
                         setView('selection');
@@ -429,7 +458,7 @@ export function CupulaBoard() {
             // Se estiver no board, valida o acesso a cada refresh de leads
             if (view === 'board') {
                 const { data: { user } } = await supabase.auth.getUser();
-                const hasAccess = await checkAccess(user?.email);
+                const { hasAccess } = await checkAccess(user?.email);
                 
                 if (!hasAccess) {
                     setSelectedNiche(null);
@@ -586,14 +615,18 @@ export function CupulaBoard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const hasAccess = await checkAccess(user.email);
+            const { hasAccess, hasName } = await checkAccess(user.email);
 
             if (hasAccess) {
                 setSelectedNiche(niche);
-                setView('board');
-                fetchLeads();
+                if (!hasName) {
+                    // Pedir nome completo na primeira vez
+                    setShowNameModal(true);
+                } else {
+                    setView('board');
+                    fetchLeads();
+                }
             } else {
-                // Ao invés de travar com toast de erro, abrimos o Modal Bonitão chamando pra assinar!
                 setShowPaymentModal(true);
             }
         } catch (err: any) {
@@ -601,6 +634,32 @@ export function CupulaBoard() {
             toast.error("Erro ao validar acesso.");
         } finally {
             setLoadingAccess(false);
+        }
+    };
+
+    const handleSaveFullName = async () => {
+        if (!fullNameInput.trim() || fullNameInput.trim().split(' ').length < 2) {
+            toast.error("Digite seu nome completo (nome e sobrenome).");
+            return;
+        }
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) return;
+
+            const { error } = await supabase
+                .from('cupula_access')
+                .update({ full_name: fullNameInput.trim() })
+                .eq('email', user.email);
+
+            if (error) throw error;
+
+            setShowNameModal(false);
+            setView('board');
+            fetchLeads();
+            toast.success("Nome salvo com sucesso!");
+        } catch (err: any) {
+            console.error("Erro ao salvar nome:", err);
+            toast.error("Erro ao salvar nome.");
         }
     };
 
@@ -698,6 +757,35 @@ export function CupulaBoard() {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Modal para preencher nome completo */}
+                <Dialog open={showNameModal} onOpenChange={setShowNameModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-xl">
+                                👤 Seu nome na Cúpula
+                            </DialogTitle>
+                            <DialogDescription className="text-base mt-2">
+                                Digite seu <b>nome completo</b> para aparecer na fila de corretores da Cúpula de Leads.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Input
+                                placeholder="Ex: João Silva Santos"
+                                value={fullNameInput}
+                                onChange={(e) => setFullNameInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFullName(); }}
+                                className="text-base h-12"
+                                autoFocus
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleSaveFullName} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11">
+                                Salvar e Entrar
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         );
     }
@@ -732,7 +820,70 @@ export function CupulaBoard() {
                         Dispute os leads enviados por tráfego pago.
                     </p>
                 </div>
+                {/* Botão de membros */}
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowMembersPanel(true)}
+                    className="flex items-center gap-2 rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                    <Users className="w-4 h-4" />
+                    <span className="text-xs font-semibold">{turnInfo?.active_users?.length || 0} Corretores na Fila</span>
+                </Button>
             </div>
+
+            {/* Modal de membros ativos */}
+            <Dialog open={showMembersPanel} onOpenChange={setShowMembersPanel}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <Users className="w-5 h-5 text-blue-500" />
+                            Fila de Corretores
+                        </DialogTitle>
+                        <DialogDescription>
+                            Veja a ordem de registro na Cúpula. Quem está acima tem prioridade na distribuição de novos leads.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
+                        {turnInfo?.active_users?.map((member: any, idx: number) => {
+                            const isCurrentUser = member.user_id === currentUserId;
+                            // Verifica se tem algum lead não capturado atribuído a esse membro
+                            const hasActiveLead = unclaimedLeads.some(l => l.assigned_to === member.user_id);
+                            return (
+                                <div 
+                                    key={member.user_id}
+                                    className={`flex items-start gap-3 px-3 py-3 rounded-xl border transition-all ${
+                                        hasActiveLead 
+                                            ? 'bg-blue-500/10 border-blue-500/30 shadow-sm' 
+                                            : isCurrentUser 
+                                                ? 'bg-primary/5 border-primary/20' 
+                                                : 'bg-muted/30 border-border/50'
+                                    }`}
+                                >
+                                    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${
+                                        hasActiveLead 
+                                            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' 
+                                            : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                        {idx + 1}º
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-0.5">
+                                        <div className={`text-sm font-bold leading-tight ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
+                                            {member.name} {isCurrentUser && '(Você)'}
+                                        </div>
+                                        {hasActiveLead && (
+                                            <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                                                🎯 Capturando agora
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden w-full pb-4 items-start">
                 {columns.map(col => {

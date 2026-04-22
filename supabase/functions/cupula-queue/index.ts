@@ -20,7 +20,7 @@ serve(async (req) => {
     // 1. Fetch active members sorted by registration (created_at)
     const { data: members, error: accessErr } = await supabaseClient
       .from('cupula_access')
-      .select('user_id, created_at')
+      .select('user_id, full_name, created_at')
       .eq('status', 'active')
       .not('user_id', 'is', null)
       .order('created_at', { ascending: true });
@@ -28,58 +28,48 @@ serve(async (req) => {
     if (accessErr) throw accessErr;
 
     if (!members || members.length === 0) {
-      return new Response(JSON.stringify({ current_turn_member_id: null, current_turn_member_name: "Nenhum membro ativo", queue: [] }), {
+      return new Response(JSON.stringify({ 
+        active_users: [], 
+        base_turn_index: 0, 
+        server_now: Date.now() 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const activeUserIds = members.map(m => m.user_id);
 
-    // 2. Fetch profiles to map names
+    // 2. Build active users list using full_name from cupula_access
+    //    Fallback to profiles.first_name if full_name is not set
     const { data: profilesData } = await supabaseClient
       .from('profiles')
-      .select('id, first_name')
+      .select('id, first_name, last_name')
       .in('id', activeUserIds);
       
-    const profileMap = new Map(profilesData?.map(p => [p.id, p.first_name || 'Membro']));
+    const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Membro']));
 
-    // If only 1 member, it's always their turn
-    if (activeUserIds.length === 1) {
-      const uid = activeUserIds[0];
-      return new Response(JSON.stringify({ 
-        current_turn_member_id: uid, 
-        current_turn_member_name: profileMap.get(uid),
-        turn_expires_at: null,
-        queue: [{ user_id: uid, name: profileMap.get(uid) }]
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const activeUsersList = members.map(m => ({
+      user_id: m.user_id,
+      name: m.full_name || profileMap.get(m.user_id) || 'Membro',
+      joined_at: m.created_at
+    }));
 
-    // 3. Determine base turn from LAST claim
-    const { data: lastClaimeds, error: leadErr } = await supabaseClient
+    // 3. Determine base turn from LAST assigned lead (not last claimed)
+    const { data: lastAssigned } = await supabaseClient
       .from('cupula_leads')
-      .select('owner_id')
-      .not('owner_id', 'is', null)
-      .order('claimed_at', { ascending: false })
+      .select('assigned_to')
+      .not('assigned_to', 'is', null)
+      .order('assigned_at', { ascending: false })
       .limit(1);
 
-    if (leadErr) throw leadErr;
-
     let baseTurnIndex = 0;
-    if (lastClaimeds && lastClaimeds.length > 0) {
-      const lastOwnerId = lastClaimeds[0].owner_id;
-      const lastIndex = activeUserIds.indexOf(lastOwnerId);
+    if (lastAssigned && lastAssigned.length > 0) {
+      const lastUserId = lastAssigned[0].assigned_to;
+      const lastIndex = activeUserIds.indexOf(lastUserId);
       if (lastIndex !== -1) {
         baseTurnIndex = (lastIndex + 1) % activeUserIds.length;
       }
     }
-
-    // Return the absolute queue definition
-    const activeUsersList = activeUserIds.map(uid => ({
-        user_id: uid,
-        name: profileMap.get(uid)
-    }));
 
     return new Response(JSON.stringify({ 
       active_users: activeUsersList,

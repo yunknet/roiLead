@@ -710,7 +710,7 @@ const Dashboard = () => {
             <Button 
                 variant="default" 
                 size="sm" 
-                onClick={() => setActiveMenu("cupula_leads")}
+                onClick={() => window.location.href = "https://roilead.com.br/cupula-de-leads"}
                 className="hidden sm:flex bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-lg px-4 shadow-sm transition-all"
             >
                 Cúpula de Leads

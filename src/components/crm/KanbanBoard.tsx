@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag, Edit2, Timer, TimerOff } from 'lucide-react';
+import { Loader2, Phone, Tag, Calendar, ChevronRight, Trash2, Briefcase, ShoppingBag, Edit2, Timer, TimerOff, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { LeadProfileModal } from './LeadProfileModal';
@@ -19,6 +19,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<any>(null);
     const [leadToDelete, setLeadToDelete] = useState<any>(null);
+    const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [crmColumns, setCrmColumns] = useState(COLUMNS);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
@@ -184,16 +185,10 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
         }
     };
 
-    const handleSaveColumnName = async (id: string) => {
-        const newTitle = editingColumnTitle.trim() || COLUMNS.find(c => c.id === id)?.title || '';
-        const newCols = crmColumns.map(c => c.id === id ? { ...c, title: newTitle } : c);
+    const saveColumns = async (newCols: any[]) => {
         setCrmColumns(newCols);
-        setEditingColumnId(null);
-        
-        // Fallback rápido via cache local
         localStorage.setItem('@roilead-crm-columns', JSON.stringify(newCols));
 
-        // Persistência unificada no banco
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             const { error } = await supabase.from('crm_settings').upsert({
@@ -204,9 +199,72 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
             
             if (error) {
                 console.error("Erro ao salvar configuração do CRM:", error);
-                toast.error("Erro ao sincronizar nome da coluna com a nuvem.");
+                toast.error("Erro ao sincronizar colunas com a nuvem.");
             }
         }
+    };
+
+    const handleSaveColumnName = async (id: string) => {
+        const newTitle = editingColumnTitle.trim() || COLUMNS.find(c => c.id === id)?.title || '';
+        const newCols = crmColumns.map(c => c.id === id ? { ...c, title: newTitle } : c);
+        setEditingColumnId(null);
+        await saveColumns(newCols);
+    };
+
+    const handleAddColumn = async () => {
+        const newCol = {
+            id: `custom_${Date.now()}`,
+            title: 'Nova Etapa',
+            color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+        };
+        await saveColumns([...crmColumns, newCol]);
+        toast.success("Nova etapa adicionada!");
+    };
+
+    const handleDeleteColumn = (columnId: string) => {
+        setColumnToDelete(columnId);
+    };
+
+    const confirmDeleteColumn = async () => {
+        if (!columnToDelete) return;
+        setIsDeleting(true);
+
+        try {
+            // Move leads to 'contacted'
+            const leadsToMove = leads.filter(l => l.status === columnToDelete);
+            if (leadsToMove.length > 0) {
+                setLeads(leads.map(l => l.status === columnToDelete ? { ...l, status: 'contacted' } : l));
+                await supabase
+                    .from('crm_leads')
+                    .update({ status: 'contacted', updated_at: new Date().toISOString() })
+                    .eq('status', columnToDelete);
+            }
+
+            const newCols = crmColumns.filter(c => c.id !== columnToDelete);
+            await saveColumns(newCols);
+            toast.success("Etapa removida!");
+            setColumnToDelete(null);
+        } catch (err) {
+            console.error("Erro ao deletar coluna:", err);
+            toast.error("Erro ao remover etapa.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
+        const index = crmColumns.findIndex(c => c.id === columnId);
+        if (index === -1) return;
+
+        const targetIndex = direction === 'left' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= crmColumns.length) return;
+
+        const newCols = [...crmColumns];
+        const temp = newCols[index];
+        newCols[index] = newCols[targetIndex];
+        newCols[targetIndex] = temp;
+
+        await saveColumns(newCols);
     };
 
     const toggleAutoLost = async () => {
@@ -301,14 +359,47 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                         autoFocus
                                     />
                                 ) : (
-                                    <span 
-                                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                                        onClick={() => { setEditingColumnId(column.id); setEditingColumnTitle(column.title); }}
-                                        title="Clique para renomear coluna"
-                                    >
-                                        {column.title}
-                                        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span>{column.title}</span>
+                                        {column.id !== 'new' && (
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {column.id.startsWith('custom_') && (
+                                                    <button 
+                                                        onClick={() => handleMoveColumn(column.id, 'left')}
+                                                        className="p-1 text-muted-foreground hover:text-foreground"
+                                                        title="Mover para esquerda"
+                                                    >
+                                                        <ArrowLeft className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => { setEditingColumnId(column.id); setEditingColumnTitle(column.title); }}
+                                                    className="p-1 text-muted-foreground hover:text-foreground"
+                                                    title="Editar etapa"
+                                                >
+                                                    <Edit2 className="w-3 h-3" />
+                                                </button>
+                                                {column.id.startsWith('custom_') && (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleDeleteColumn(column.id)}
+                                                            className="p-1 text-muted-foreground hover:text-red-500"
+                                                            title="Excluir etapa"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleMoveColumn(column.id, 'right')}
+                                                            className="p-1 text-muted-foreground hover:text-foreground"
+                                                            title="Mover para direita"
+                                                        >
+                                                            <ArrowRight className="w-3 h-3" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                                 <span className="bg-background/50 px-2 py-0.5 rounded-full text-xs shrink-0">{columnLeads.length}</span>
                             </div>
@@ -375,6 +466,15 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                         </div>
                     )
                 })}
+                
+                <button
+                    onClick={handleAddColumn}
+                    className="flex-shrink-0 w-[40px] sm:w-[50px] h-full flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary rounded-xl transition-all cursor-pointer group"
+                    title="Adicionar nova etapa"
+                >
+                    <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    <span className="sr-only">Adicionar etapa</span>
+                </button>
             </div>
             {selectedLead && (
                 <LeadProfileModal
@@ -415,6 +515,28 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                         </Button>
                         <Button variant="destructive" onClick={confirmDeleteLead} disabled={isDeleting}>
                             {isDeleting ? "Removendo..." : "Sim, excluir lead"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!columnToDelete} onOpenChange={(open) => !open && setColumnToDelete(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Excluir Etapa
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Tem certeza que deseja excluir esta etapa? <br />
+                            <span className="text-muted-foreground text-sm font-medium">Todos os leads que estiverem nela voltarão para a etapa <b>'Contatados'</b>.</span>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-6 flex sm:justify-between items-center w-full gap-3">
+                        <Button variant="outline" className="flex-1" onClick={() => setColumnToDelete(null)} disabled={isDeleting}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" className="flex-1" onClick={confirmDeleteColumn} disabled={isDeleting}>
+                            {isDeleting ? "Removendo..." : "Sim, excluir etapa"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

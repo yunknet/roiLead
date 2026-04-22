@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const NICHES = ['Consórcio'] as const;
 type Niche = typeof NICHES[number];
-type SharkStatus = 'novos' | 'contatados' | 'negociacao' | 'fechados' | 'perdidos';
+type SharkStatus = string;
 
 interface SharkLead {
     id: string;
@@ -133,9 +133,6 @@ function LeadQueueCard({
                         const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
                         return (
                             <>
-                                {emailParts.length > 0 && (
-                                    <div className="flex items-center gap-1 opacity-50"><Lock className="w-2.5 h-2.5" /> E-mail oculto</div>
-                                )}
                                 {otherParts.map((part, idx) => {
                                     const cleanPart = part.trim()
                                         .replace(/🔸 /g, '')
@@ -265,26 +262,38 @@ function CapturedLeadCard({
                         📋 Especificações
                     </div>
                     <div className="space-y-1">
-                        {lead.notes.split('|').map((part, idx) => {
-                            const isEmail = part.includes('📧') || part.includes('Email:');
-                            if (isEmail) {
-                                return (
-                                    <div key={idx} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                                        <Mail className="w-3.5 h-3.5" />
-                                        {part.replace('📧', '').replace('Email:', '').trim()}
-                                    </div>
-                                )
-                            }
-                            // Limpa o prefixo de consórcio e mostra apenas o valor
-                            const cleanPart = part.trim()
-                                .replace(/🔸 /g, '')
-                                .replace(/^Escolha [Oo]\s*/gi, '')
-                                .replace(/^Selecione [Oo]\s*/gi, '')
-                                .replace(/Tipo De Consórcio: /i, '')
-                                .replace(/🔸/g, '');
+                        {(() => {
+                            const parts = lead.notes!.split('|');
+                            const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
+                            const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
                             
-                            return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
-                        })}
+                            const firstEmail = emailParts.length > 0 
+                                ? emailParts[0].replace('📧', '').replace('Email:', '').trim() 
+                                : null;
+
+                            return (
+                                <>
+                                    {firstEmail && (
+                                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+                                            <Mail className="w-3.5 h-3.5" />
+                                            {firstEmail}
+                                        </div>
+                                    )}
+                                    {otherParts.map((part, idx) => {
+                                        const cleanPart = part.trim()
+                                            .replace(/🔸 /g, '')
+                                            .replace(/^Escolha [Oo]\s*/gi, '')
+                                            .replace(/^Selecione [Oo]\s*/gi, '')
+                                            .replace(/Tipo De Consórcio: /i, '')
+                                            .replace(/🔸/g, '');
+                                        
+                                        if (!cleanPart) return null;
+
+                                        return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
+                                    })}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
@@ -339,6 +348,10 @@ export function CupulaBoard() {
     const [showNameModal, setShowNameModal] = useState(false);
     const [fullNameInput, setFullNameInput] = useState("");
     const [showMembersPanel, setShowMembersPanel] = useState(false);
+    const [customColumns, setCustomColumns] = useState<{ id: string; title: string; color: string; position: number }[]>([]);
+    const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+    const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(() => {
         return localStorage.getItem('cupula_sound_enabled') !== 'false';
     });
@@ -487,7 +500,7 @@ export function CupulaBoard() {
                 }
             }
 
-            // Busca configurações de nomes de colunas
+            // Busca configurações de nomes de colunas e colunas customizadas
             const { data: settingsData } = await supabase
                 .from('cupula_settings')
                 .select('column_id, custom_name')
@@ -495,10 +508,33 @@ export function CupulaBoard() {
 
             if (settingsData) {
                 const namesMap: Record<string, string> = {};
+                const userCustomCols: { id: string; title: string; color: string; position: number }[] = [];
+                
                 settingsData.forEach(item => {
-                    namesMap[item.column_id] = item.custom_name;
+                    if (item.column_id.startsWith('custom_')) {
+                        // Parse custom column metadata: "title|color|position"
+                        try {
+                            const meta = JSON.parse(item.custom_name);
+                            userCustomCols.push({
+                                id: item.column_id,
+                                title: meta.title || 'Nova Etapa',
+                                color: meta.color || 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
+                                position: meta.position ?? 99
+                            });
+                        } catch {
+                            userCustomCols.push({
+                                id: item.column_id,
+                                title: item.custom_name,
+                                color: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
+                                position: 99
+                            });
+                        }
+                    } else {
+                        namesMap[item.column_id] = item.custom_name;
+                    }
                 });
                 setCustomNames(namesMap);
+                setCustomColumns(userCustomCols.sort((a, b) => a.position - b.position));
             }
         } catch (error: any) {
             console.error("Erro ao puxar leads da Cúpula:", error);
@@ -551,24 +587,163 @@ export function CupulaBoard() {
         }
 
         try {
+            let customNamePayload = editValue.trim();
+
+            if (columnId.startsWith('custom_')) {
+                const customCol = customColumns.find(c => c.id === columnId);
+                if (customCol) {
+                    customNamePayload = JSON.stringify({
+                        title: editValue.trim(),
+                        color: customCol.color,
+                        position: customCol.position
+                    });
+                }
+            }
+
             const { error } = await supabase
                 .from('cupula_settings')
                 .upsert({
                     user_id: currentUserId,
                     niche: selectedNiche,
                     column_id: columnId,
-                    custom_name: editValue.trim(),
+                    custom_name: customNamePayload,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id,niche,column_id' });
 
             if (error) throw error;
 
-            setCustomNames(prev => ({ ...prev, [columnId]: editValue.trim() }));
+            if (columnId.startsWith('custom_')) {
+                setCustomColumns(prev => prev.map(c => 
+                    c.id === columnId ? { ...c, title: editValue.trim() } : c
+                ));
+            } else {
+                setCustomNames(prev => ({ ...prev, [columnId]: editValue.trim() }));
+            }
+            
             setEditingColumn(null);
             toast.success("Etapa renomeada!");
         } catch (error: any) {
             console.error("Erro ao atualizar nome da coluna:", error);
             toast.error("Erro ao renomear etapa.");
+        }
+    };
+
+    const handleAddCustomColumn = async () => {
+        const columnId = `custom_${Date.now()}`;
+        const position = customColumns.length > 0 
+            ? Math.max(...customColumns.map(c => c.position)) + 1 
+            : 1;
+        
+        const newCol = {
+            id: columnId,
+            title: "Nova Etapa",
+            color: "bg-indigo-500/10 border-indigo-500/20 text-indigo-500",
+            position
+        };
+
+        try {
+            const { error } = await supabase
+                .from('cupula_settings')
+                .upsert({
+                    user_id: currentUserId,
+                    niche: selectedNiche,
+                    column_id: columnId,
+                    custom_name: JSON.stringify(newCol),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id,niche,column_id' });
+
+            if (error) throw error;
+            setCustomColumns(prev => [...prev, newCol]);
+            toast.success("Nova etapa adicionada!");
+        } catch (err) {
+            console.error("Erro ao adicionar coluna:", err);
+            toast.error("Erro ao adicionar etapa.");
+        }
+    };
+
+    const handleDeleteCustomColumn = (columnId: string) => {
+        setColumnToDelete(columnId);
+    };
+
+    const confirmDeleteCustomColumn = async () => {
+        if (!columnToDelete) return;
+        setIsDeleting(true);
+
+        try {
+            // Move leads to "contatados" first
+            await supabase
+                .from('cupula_leads')
+                .update({ status: 'contatados', updated_at: new Date().toISOString() })
+                .eq('status', columnToDelete)
+                .eq('owner_id', currentUserId);
+
+            const { error } = await supabase
+                .from('cupula_settings')
+                .delete()
+                .eq('user_id', currentUserId)
+                .eq('niche', selectedNiche)
+                .eq('column_id', columnToDelete);
+
+            if (error) throw error;
+            setCustomColumns(prev => prev.filter(c => c.id !== columnToDelete));
+            toast.success("Etapa removida!");
+            setColumnToDelete(null);
+            fetchLeads();
+        } catch (err) {
+            console.error("Erro ao deletar coluna:", err);
+            toast.error("Erro ao remover etapa.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleMoveCustomColumn = async (columnId: string, direction: 'left' | 'right') => {
+        const currentIndex = customColumns.findIndex(c => c.id === columnId);
+        if (currentIndex === -1) return;
+
+        const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= customColumns.length) return;
+
+        const newColumns = [...customColumns];
+        const temp = newColumns[currentIndex].position;
+        newColumns[currentIndex].position = newColumns[targetIndex].position;
+        newColumns[targetIndex].position = temp;
+
+        const updatedCols = [...newColumns].sort((a, b) => a.position - b.position);
+        setCustomColumns(updatedCols);
+
+        try {
+            // Update both columns in the database
+            const updates = [
+                {
+                    user_id: currentUserId,
+                    niche: selectedNiche,
+                    column_id: newColumns[currentIndex].id,
+                    custom_name: JSON.stringify({
+                        title: newColumns[currentIndex].title,
+                        color: newColumns[currentIndex].color,
+                        position: newColumns[currentIndex].position
+                    }),
+                    updated_at: new Date().toISOString()
+                },
+                {
+                    user_id: currentUserId,
+                    niche: selectedNiche,
+                    column_id: newColumns[targetIndex].id,
+                    custom_name: JSON.stringify({
+                        title: newColumns[targetIndex].title,
+                        color: newColumns[targetIndex].color,
+                        position: newColumns[targetIndex].position
+                    }),
+                    updated_at: new Date().toISOString()
+                }
+            ];
+
+            await supabase.from('cupula_settings').upsert(updates, { onConflict: 'user_id,niche,column_id' });
+        } catch (error) {
+            console.error("Erro ao reordenar etapas:", error);
+            toast.error("Erro ao salvar ordem das etapas.");
+            fetchLeads(); // rollback UI on error
         }
     };
 
@@ -666,13 +841,15 @@ export function CupulaBoard() {
 
     const filteredLeads = leads.filter(l => l.niche === selectedNiche);
 
-    const columns: { id: SharkStatus; title: string; color: string }[] = [
+    const baseColumns: { id: SharkStatus; title: string; color: string }[] = [
         { id: 'novos', title: 'Novos', color: 'bg-blue-500/10 border-blue-500/20 text-blue-500' },
         { id: 'contatados', title: 'Contatados', color: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500' },
         { id: 'negociacao', title: 'Negociação', color: 'bg-purple-500/10 border-purple-500/20 text-purple-500' },
         { id: 'fechados', title: 'Fechados', color: 'bg-green-500/10 border-green-500/20 text-green-500' },
         { id: 'perdidos', title: 'Perdidos', color: 'bg-red-500/10 border-red-500/20 text-red-500' },
     ];
+
+    const columns = [...baseColumns, ...customColumns];
 
     if (loading) {
         return (
@@ -758,34 +935,6 @@ export function CupulaBoard() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Modal para preencher nome completo */}
-                <Dialog open={showNameModal} onOpenChange={setShowNameModal}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-xl">
-                                👤 Seu nome na Cúpula
-                            </DialogTitle>
-                            <DialogDescription className="text-base mt-2">
-                                Digite seu <b>nome completo</b> para aparecer na fila de corretores da Cúpula de Leads.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Input
-                                placeholder="Ex: João Silva Santos"
-                                value={fullNameInput}
-                                onChange={(e) => setFullNameInput(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFullName(); }}
-                                className="text-base h-12"
-                                autoFocus
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleSaveFullName} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11">
-                                Salvar e Entrar
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         );
     }
@@ -869,8 +1018,20 @@ export function CupulaBoard() {
                                         {idx + 1}º
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
-                                        <div className={`text-sm font-bold leading-tight ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
-                                            {member.name} {isCurrentUser && '(Você)'}
+                                        <div className={`text-sm font-bold leading-tight flex items-center gap-2 ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
+                                            <span className="truncate">{member.name} {isCurrentUser && '(Você)'}</span>
+                                            {isCurrentUser && (
+                                                <button 
+                                                    onClick={() => {
+                                                        setFullNameInput(member.name);
+                                                        setShowNameModal(true);
+                                                    }}
+                                                    className="p-1 text-primary/60 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                                    title="Editar meu nome"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                         </div>
                                         {hasActiveLead && (
                                             <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
@@ -882,6 +1043,57 @@ export function CupulaBoard() {
                             );
                         })}
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal para preencher nome completo */}
+            <Dialog open={showNameModal} onOpenChange={setShowNameModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            👤 Seu nome na Cúpula
+                        </DialogTitle>
+                        <DialogDescription className="text-base mt-2">
+                            Digite seu <b>nome completo</b> para aparecer na fila de corretores da Cúpula de Leads.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Input
+                            placeholder="Ex: João Silva Santos"
+                            value={fullNameInput}
+                            onChange={(e) => setFullNameInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFullName(); }}
+                            className="text-base h-12"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleSaveFullName} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11">
+                            Salvar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!columnToDelete} onOpenChange={(open) => !open && setColumnToDelete(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Excluir Etapa
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Tem certeza que deseja excluir esta etapa? <br />
+                            <span className="text-muted-foreground text-sm font-medium">Todos os leads que estiverem nela voltarão para a etapa <b>'Contatados'</b>.</span>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-6 flex sm:justify-between items-center w-full gap-3">
+                        <Button variant="outline" className="flex-1" onClick={() => setColumnToDelete(null)} disabled={isDeleting}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" className="flex-1" onClick={confirmDeleteCustomColumn} disabled={isDeleting}>
+                            {isDeleting ? "Removendo..." : "Sim, excluir etapa"}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -938,15 +1150,45 @@ export function CupulaBoard() {
                                         <div className="flex items-center gap-2">
                                             <span>{customNames[col.id] || col.title}</span>
                                             {col.id !== 'novos' && (
-                                                <button 
-                                                    onClick={() => {
-                                                        setEditingColumn(col.id);
-                                                        setEditValue(customNames[col.id] || col.title);
-                                                    }}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-foreground"
-                                                >
-                                                    <Edit2 className="w-3 h-3" />
-                                                </button>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {col.id.startsWith('custom_') && (
+                                                        <button 
+                                                            onClick={() => handleMoveCustomColumn(col.id, 'left')}
+                                                            className="p-1 text-muted-foreground hover:text-foreground"
+                                                            title="Mover para esquerda"
+                                                        >
+                                                            <ArrowLeft className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEditingColumn(col.id);
+                                                            setEditValue(customNames[col.id] || col.title);
+                                                        }}
+                                                        className="p-1 text-muted-foreground hover:text-foreground"
+                                                        title="Editar etapa"
+                                                    >
+                                                        <Edit2 className="w-3 h-3" />
+                                                    </button>
+                                                    {col.id.startsWith('custom_') && (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => handleDeleteCustomColumn(col.id)}
+                                                                className="p-1 text-muted-foreground hover:text-red-500"
+                                                                title="Excluir etapa"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleMoveCustomColumn(col.id, 'right')}
+                                                                className="p-1 text-muted-foreground hover:text-foreground"
+                                                                title="Mover para direita"
+                                                            >
+                                                                <ArrowRight className="w-3 h-3" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                         <span className="bg-background/50 text-foreground px-2 py-0.5 rounded-full text-xs">
@@ -1009,6 +1251,15 @@ export function CupulaBoard() {
                         </div>
                     );
                 })}
+                
+                <button
+                    onClick={handleAddCustomColumn}
+                    className="flex-shrink-0 w-[40px] sm:w-[50px] h-full flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary rounded-xl transition-all cursor-pointer group"
+                    title="Adicionar nova etapa"
+                >
+                    <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    <span className="sr-only">Adicionar etapa</span>
+                </button>
             </div>
         </div>
     );

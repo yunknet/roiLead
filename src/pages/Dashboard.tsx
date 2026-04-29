@@ -1180,17 +1180,7 @@ const Dashboard = () => {
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full flex flex-col items-center justify-center bg-muted/20">
                 <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                   {/* Video Section */}
-                  <div className="w-full flex items-center justify-center rounded-3xl overflow-hidden shadow-lg border border-border">
-                    <video 
-                      src="/videos/cupula_video.MOV" 
-                      controls 
-                      autoPlay 
-                      muted 
-                      loop 
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <CupulaVturbVideo />
 
                   {/* Card Section */}
                   <div className="bg-card border border-border p-8 sm:p-12 rounded-3xl shadow-lg relative overflow-hidden text-center">
@@ -1305,6 +1295,26 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+const CupulaVturbVideo = () => {
+  useEffect(() => {
+    const scriptId = "vturb-script-69ecd2dae1dcfbd062a45c66";
+    if (!document.getElementById(scriptId)) {
+        const s = document.createElement("script");
+        s.id = scriptId;
+        s.src = "https://scripts.converteai.net/9b95671b-5a37-4971-bb6c-6d970b6b4a27/players/69ecd2dae1dcfbd062a45c66/v4/player.js";
+        s.async = true;
+        document.head.appendChild(s);
+    }
+  }, []);
+
+  return (
+    <div className="w-full flex items-center justify-center rounded-3xl overflow-hidden shadow-lg border border-border">
+      {/* @ts-expect-error Vturb custom element */}
+      <vturb-smartplayer id="vid-69ecd2dae1dcfbd062a45c66" style={{ display: "block", margin: "0 auto", width: "100%", maxWidth: "400px" }}></vturb-smartplayer>
+    </div>
+  );
+};
 
 const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete?: () => void, onCallLead?: (lead: any) => void }) => {
   const [expanded, setExpanded] = useState(false);

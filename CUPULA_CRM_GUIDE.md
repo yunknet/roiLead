@@ -1,74 +1,64 @@
 # Guia de Operação: Cúpula de Leads (CRM)
 
-Este documento contém os comandos e procedimentos essenciais para gerenciar a Cúpula de Leads diretamente via banco de dados.
+Este documento contém os comandos e procedimentos essenciais para gerenciar a Cúpula de Leads diretamente via banco de dados, utilizando o novo sistema de **Roleta Automática por Tempo**.
 
 ---
 
-## 1. Como Inserir Leads Manualmente (Com Roleta Ativa)
-Sempre que precisar inserir leads via SQL Editor, use este formato para que eles já entrem com o **timer de 3 minutos** e atribuídos a um consultor.
+## 1. Como a Roleta Funciona (Lógica de Tempo)
+O sistema não usa mais uma fila fixa. Ele prioriza **quem está há mais tempo sem receber leads**.
+1. Se houver consultores que nunca receberam leads (`last_lead_at` é NULL), eles têm prioridade total.
+2. Entre quem já recebeu, o lead vai para quem tem a data de recebimento mais antiga.
+3. Assim que alguém recebe um lead, o tempo dela zera e ela vai para o "final da fila de espera".
+
+---
+
+## 2. Inserção de Leads (Automática)
+Você não precisa mais calcular o dono ou o tempo de expiração. O gatilho `distribute_lead_on_insert` faz tudo sozinho.
 
 ```sql
-INSERT INTO public.cupula_leads (niche, name, phone, notes, status, current_turn_user_id, turn_expires_at) VALUES
-(
-  'Consórcio', 
-  'NOME_DO_LEAD', 
-  'TELEFONE', 
-  'Email: email@exemplo.com | 🔸 Tipo De Consórcio: Imóvel | 🔸 Valor Do Crédito Desejado: até r$ 100.000', 
-  'novos',
-  'ID_DO_CONSULTOR', -- Pegue o ID na aba "Fila de Consultores" no CRM
-  now() + interval '3 minutes'
-);
+INSERT INTO public.cupula_leads (niche, name, phone, notes) VALUES
+('Consórcio', 'Nome do Lead', '5511999999999', 'Notas do lead...');
 ```
 
 ---
 
-## 2. Como Distribuir Leads "Neutros" (Roleta Justa / Round-Robin)
-Se você inseriu vários leads sem dono e quer que o sistema divida eles igualmente entre toda a equipe de forma aleatória:
+## 3. Gerenciamento de Consultores (Cúpulas)
+Para dar acesso a um consultor em um nicho específico (ex: Administrativo), atualize a coluna `niches`:
 
 ```sql
-WITH RankedLeads AS (
-  SELECT id, row_number() over (ORDER BY created_at) - 1 as rn
-  FROM public.cupula_leads
-  WHERE current_turn_user_id IS NULL AND status = 'novos' AND owner_id IS NULL
-),
-ActiveUsers AS (
-  SELECT user_id, row_number() over (ORDER BY random()) - 1 as rn, count(*) over() as total_users
-  FROM public.cupula_access
-  WHERE status = 'active' AND user_id IS NOT NULL
-)
-UPDATE public.cupula_leads
-SET 
-  current_turn_user_id = au.user_id,
-  turn_expires_at = now() + interval '3 minutes'
-FROM RankedLeads rl
-JOIN ActiveUsers au ON (rl.rn % au.total_users) = au.rn
-WHERE public.cupula_leads.id = rl.id;
+-- Dar acesso a Consórcio e Administrativo
+UPDATE public.cupula_access 
+SET niches = ARRAY['Consórcio', 'Administrativo']::public.cupula_niche[]
+WHERE email = 'email@exemplo.com';
 ```
 
 ---
 
-## 3. Como Adicionar um Novo Consultor na Cúpula
-Para liberar o acesso de um novo corretor à Cúpula de Leads:
+## 4. Resetar a Fila de Espera (Prioridade)
+Se quiser "limpar" quem já recebeu leads para que a fila recomece de forma justa do primeiro ao último:
 
 ```sql
-INSERT INTO public.cupula_access (user_id, email, full_name, status) VALUES
-('ID_DO_USER_SUPABASE', 'email@exemplo.com', 'Nome Completo', 'active')
-ON CONFLICT (email) DO UPDATE SET
-  user_id = EXCLUDED.user_id,
-  full_name = EXCLUDED.full_name,
-  status = EXCLUDED.status,
-  updated_at = now();
+UPDATE public.cupula_access SET last_lead_at = NULL;
 ```
 
 ---
 
-## 4. Visualização de Dados (View)
-Para facilitar a gestão, criamos uma "Tabela Virtual" que mostra os nomes reais de quem capturou cada lead. Ela pode ser consultada no Supabase como:
-`SELECT * FROM public.vw_cupula_leads_com_nomes;`
+## 5. Limpeza de Leads de Teste
+Para apagar leads de uma cúpula específica (ex: para limpar a cúpula Administrativa após uma reunião):
+
+```sql
+DELETE FROM public.cupula_leads WHERE niche = 'Administrativo';
+```
 
 ---
 
-## 5. Notas Importantes (Lembretes do Desenvolvedor)
-- **Status das Etapas:** A coluna `status` foi alterada para `TEXT`. Isso permite criar "Novas Etapas" personalizadas sem dar erro de permissão.
-- **Formatação:** O rótulo "Valor do Bem" foi substituído por **"Crédito desejado:"** para melhor legibilidade no CRM.
-- **Consultores:** O termo "Corretor" foi atualizado para **"Consultor"** em toda a interface da Cúpula.
+## 6. Scripts de Manutenção (DASHBOARD)
+Sempre que fizer alterações estruturais na fila, lembre-se de rodar a função de rotação para processar leads expirados:
+
+```sql
+SELECT rotate_cupula_turns();
+```
+
+---
+
+*Documento atualizado em 11/05/2026 - Implementação de Roleta por Tempo e Multi-Nicho.*

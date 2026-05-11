@@ -17,6 +17,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // 0. Executar rotação de turnos expirados ANTES de retornar dados
+    //    Isso garante que os dados retornados estão sempre frescos
+    try {
+      await supabaseClient.rpc('rotate_cupula_turns');
+    } catch (rotateErr) {
+      console.warn("⚠️ Erro na rotação (não-fatal):", rotateErr);
+    }
+
     // 1. Fetch active members sorted by registration (created_at)
     const { data: members, error: accessErr } = await supabaseClient
       .from('cupula_access')
@@ -28,10 +36,10 @@ serve(async (req) => {
     if (accessErr) throw accessErr;
 
     if (!members || members.length === 0) {
-      return new Response(JSON.stringify({ 
-        active_users: [], 
-        base_turn_index: 0, 
-        server_now: Date.now() 
+      return new Response(JSON.stringify({
+        active_users: [],
+        base_turn_index: 0,
+        server_now: Date.now()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -45,7 +53,7 @@ serve(async (req) => {
       .from('profiles')
       .select('id, first_name, last_name')
       .in('id', activeUserIds);
-      
+
     const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Membro']));
 
     const activeUsersList = members.map(m => ({
@@ -71,7 +79,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       active_users: activeUsersList,
       base_turn_index: baseTurnIndex,
       server_now: Date.now()
@@ -87,3 +95,4 @@ serve(async (req) => {
     });
   }
 });
+// Force deploy update

@@ -21,6 +21,8 @@ interface SharkLead {
     assigned_at: string | null;
     created_at: string;
     claimed_at: string | null;
+    current_turn_user_id: string | null;
+    turn_expires_at: string | null;
 }
 
 // ============ COMPONENTE DE TIMER INDEPENDENTE ============
@@ -49,55 +51,40 @@ function LeadQueueCard({
         return () => clearInterval(interval);
     }, []);
 
-    // Calcula tempo decorrido desde assigned_at (ou created_at como fallback)
+    // Tempo decorrido desde criação (para exibir "Chegou há X")
     const rawTs = (lead.assigned_at || lead.created_at).replace(/[+-]\d{2}:\d{2}$/, 'Z');
     const assignedAtMs = new Date(rawTs).getTime();
     const serverNow = Date.now() - clockOffset;
     let elapsedSec = (serverNow - assignedAtMs) / 1000;
     if (elapsedSec < 0) elapsedSec = 0;
 
-    const TURN_DURATION = 180;
-    const secondsIntoTurn = elapsedSec % TURN_DURATION;
-    const timeLeftSec = Math.max(0, Math.floor(TURN_DURATION - secondsIntoTurn));
+    // Timer: lê direto do banco e usa o serverNow (corrigido com clockOffset)
+    const expiresAtMs = lead.turn_expires_at ? new Date(lead.turn_expires_at).getTime() : 0;
+    const timeLeftSec = Math.max(0, Math.floor((expiresAtMs - serverNow) / 1000));
 
-    // Determina o dono atual
+    // Determina o dono atual lendo direto do banco (current_turn_user_id)
     let ownership: any = null;
-    if (turnInfo?.active_users?.length) {
+    if (turnInfo?.active_users?.length && lead.current_turn_user_id) {
         const _active = turnInfo.active_users;
-        const skips = Math.floor(elapsedSec / TURN_DURATION);
-        let currentOwnerIndex = 0;
+        const currentOwnerIndex = _active.findIndex((u: any) => u.user_id === lead.current_turn_user_id);
+        const owner = currentOwnerIndex !== -1 ? _active[currentOwnerIndex] : null;
 
-        if (lead.assigned_to) {
-            // Lead veio do webhook com assigned_to definido
-            const assignedIndex = _active.findIndex((u: any) => u.user_id === lead.assigned_to);
-            if (assignedIndex !== -1) {
-                currentOwnerIndex = (assignedIndex + skips) % _active.length;
-            }
-        } else {
-            // Fallback: lead manual sem assigned_to — usa round-robin por posição na lista
-            const leadIndex = unclaimedLeads.findIndex(l => l.id === lead.id);
-            if (leadIndex !== -1) {
-                currentOwnerIndex = (turnInfo.base_turn_index + leadIndex + skips) % _active.length;
-            }
-        }
-
-        const owner = _active[currentOwnerIndex];
         const currentUserIndex = _active.findIndex((u: any) => u.user_id === currentUserId);
         let position = 0;
-        if (currentUserIndex !== -1) {
+        if (currentUserIndex !== -1 && currentOwnerIndex !== -1) {
             position = (currentUserIndex - currentOwnerIndex + _active.length) % _active.length + 1;
         }
 
         ownership = {
-            owner_id: owner.user_id,
-            owner_name: owner.name,
+            owner_id: lead.current_turn_user_id,
+            owner_name: owner?.name || 'Membro',
             timeLeftSec,
             total_active: _active.length,
             my_position: position
         };
     }
 
-    const isMyTurn = ownership?.owner_id === currentUserId;
+    const isMyTurn = lead.current_turn_user_id === currentUserId;
 
     useEffect(() => {
         if (isMyTurn && !notifiedRef.current) { playNotification(); notifiedRef.current = true; }
@@ -134,12 +121,25 @@ function LeadQueueCard({
                         return (
                             <>
                                 {otherParts.map((part, idx) => {
-                                    const cleanPart = part.trim()
+                                    let cleanPart = part.trim()
                                         .replace(/🔸 /g, '')
                                         .replace(/^Escolha [Oo]\s*/gi, '')
                                         .replace(/^Selecione [Oo]\s*/gi, '')
-                                        .replace(/Tipo De Consórcio: /i, '')
+                                        .replace(/Tipo De Cons[oó\u0301]+rcio:?\s*/ig, '')
+                                        .replace(/Valor.*?(Cr[eé\u0301]+dito\s*Desejado|Cr[eé\u0301]+dito):?\s*/ig, 'Crédito desejado: ')
                                         .replace(/🔸/g, '');
+
+                                    if (cleanPart.includes('Crédito desejado:')) {
+                                        cleanPart = cleanPart
+                                            .replace(/_r\$/gi, ' R$ ')
+                                            .replace(/até/gi, 'Até ')
+                                            .replace(/acima_de/gi, 'Acima de ')
+                                            .replace(/acima de/gi, 'Acima de ')
+                                            .replace(/_/g, ' ')
+                                            .replace(/\s+/g, ' ') // limpa espaços extras
+                                            .trim();
+                                    }
+
                                     if (!cleanPart) return null;
                                     return <div key={idx} className="font-bold text-foreground/80 flex items-center gap-1.5">🔸 {cleanPart}</div>
                                 })}
@@ -280,13 +280,25 @@ function CapturedLeadCard({
                                         </div>
                                     )}
                                     {otherParts.map((part, idx) => {
-                                        const cleanPart = part.trim()
+                                        let cleanPart = part.trim()
                                             .replace(/🔸 /g, '')
                                             .replace(/^Escolha [Oo]\s*/gi, '')
                                             .replace(/^Selecione [Oo]\s*/gi, '')
-                                            .replace(/Tipo De Consórcio: /i, '')
+                                            .replace(/Tipo De Cons[oó\u0301]+rcio:?\s*/ig, '')
+                                            .replace(/Valor.*?(Cr[eé\u0301]+dito\s*Desejado|Cr[eé\u0301]+dito):?\s*/ig, 'Crédito desejado: ')
                                             .replace(/🔸/g, '');
                                         
+                                        if (cleanPart.includes('Crédito desejado:')) {
+                                            cleanPart = cleanPart
+                                                .replace(/_r\$/gi, ' R$ ')
+                                                .replace(/até/gi, 'Até ')
+                                                .replace(/acima_de/gi, 'Acima de ')
+                                                .replace(/acima de/gi, 'Acima de ')
+                                                .replace(/_/g, ' ')
+                                                .replace(/\s+/g, ' ')
+                                                .trim();
+                                        }
+
                                         if (!cleanPart) return null;
 
                                         return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
@@ -413,21 +425,24 @@ export function CupulaBoard() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
 
 
-    const checkAccess = async (userEmail?: string): Promise<{ hasAccess: boolean; hasName: boolean }> => {
+    const checkAccess = async (userEmail?: string): Promise<{ hasAccess: boolean; hasName: boolean; error?: any }> => {
         if (!userEmail) return { hasAccess: false, hasName: false };
         try {
-            const { data: sharkUser } = await supabase
+            const { data: sharkUser, error } = await supabase
                 .from('cupula_access')
                 .select('status, full_name')
                 .eq('email', userEmail)
                 .maybeSingle();
             
+            if (error) throw error;
+
             if (sharkUser?.status === 'active') {
                 return { hasAccess: true, hasName: !!sharkUser.full_name };
             }
             return { hasAccess: false, hasName: false };
         } catch (err) {
-            return { hasAccess: false, hasName: false };
+            console.error("Erro na verificação de acesso:", err);
+            return { hasAccess: false, hasName: false, error: err };
         }
     };
 
@@ -438,7 +453,11 @@ export function CupulaBoard() {
                 setCurrentUserId(user.id);
                 // Verifica acesso logo no boot se já estiver com nicho selecionado
                 if (selectedNiche) {
-                    const { hasAccess } = await checkAccess(user.email);
+                    const { hasAccess, error } = await checkAccess(user.email);
+                    if (error) {
+                        toast.error("Instabilidade na conexão. Tentando manter a sessão...");
+                        return; // Evita desconectar o usuário se for só um erro de internet (ex: inatividade/sleep mode)
+                    }
                     if (!hasAccess) {
                         setSelectedNiche(null);
                         setView('selection');
@@ -468,18 +487,8 @@ export function CupulaBoard() {
 
     const fetchLeads = async () => {
         try {
-            // Se estiver no board, valida o acesso a cada refresh de leads
-            if (view === 'board') {
-                const { data: { user } } = await supabase.auth.getUser();
-                const { hasAccess } = await checkAccess(user?.email);
-                
-                if (!hasAccess) {
-                    setSelectedNiche(null);
-                    setView('selection');
-                    setShowPaymentModal(true);
-                    return;
-                }
-            }
+            // A validação de acesso já foi feita no handleSelectNiche ou no boot.
+            // Remover daqui evita rate limits (HTTP 429) no Supabase Auth durante atualizações em tempo real.
 
             const { data, error } = await supabase
                 .from('cupula_leads')
@@ -790,7 +799,12 @@ export function CupulaBoard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { hasAccess, hasName } = await checkAccess(user.email);
+            const { hasAccess, hasName, error } = await checkAccess(user.email);
+
+            if (error) {
+                toast.error("Erro de conexão ao verificar seu acesso. Verifique sua internet e tente novamente.");
+                return;
+            }
 
             if (hasAccess) {
                 setSelectedNiche(niche);
@@ -977,7 +991,7 @@ export function CupulaBoard() {
                     className="flex items-center gap-2 rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
                 >
                     <Users className="w-4 h-4" />
-                    <span className="text-xs font-semibold">{turnInfo?.active_users?.length || 0} Corretores na Fila</span>
+                    <span className="text-xs font-semibold">{turnInfo?.active_users?.length || 0} Consultores na Fila</span>
                 </Button>
             </div>
 
@@ -987,7 +1001,7 @@ export function CupulaBoard() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-xl">
                             <Users className="w-5 h-5 text-blue-500" />
-                            Fila de Corretores
+                            Fila de Consultores
                         </DialogTitle>
                         <DialogDescription>
                             Veja a ordem de registro na Cúpula. Quem está acima tem prioridade na distribuição de novos leads.
@@ -1054,7 +1068,7 @@ export function CupulaBoard() {
                             👤 Seu nome na Cúpula
                         </DialogTitle>
                         <DialogDescription className="text-base mt-2">
-                            Digite seu <b>nome completo</b> para aparecer na fila de corretores da Cúpula de Leads.
+                            Digite seu <b>nome completo</b> para aparecer na fila de consultores da Cúpula de Leads.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
@@ -1099,10 +1113,16 @@ export function CupulaBoard() {
 
             <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden w-full pb-4 items-start">
                 {columns.map(col => {
-                    const colLeads = filteredLeads.filter(l => 
+                    let colLeads = filteredLeads.filter(l => 
                         l.status === col.id && 
                         (col.id === 'novos' || l.owner_id === currentUserId)
                     );
+
+                    // A fila de Novos deve exibir do mais antigo para o mais novo (ASCENDING)
+                    if (col.id === 'novos') {
+                        colLeads = [...colLeads].reverse();
+                    }
+
                     const canDrop = col.id !== 'novos';
 
                     const handleDragOver = (e: React.DragEvent) => {

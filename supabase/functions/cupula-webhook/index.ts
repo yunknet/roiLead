@@ -153,7 +153,10 @@ serve(async (req: Request) => {
       console.log(`🎯 Round-robin: Lead atribuído a ${members[nextIndex].full_name || 'membro'} (user_id: ${assignedTo}, posição: ${nextIndex + 1}/${members.length})`);
     }
 
-    // 3. Inserir o Lead com assigned_to já definido
+    // 3. Inserir o Lead com assigned_to e turn tracking definidos
+    const now = new Date();
+    const turnExpires = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutos
+
     const { error } = await supabase
       .from('cupula_leads')
       .insert({
@@ -163,7 +166,9 @@ serve(async (req: Request) => {
         notes: finalNotes,
         status: 'novos',
         assigned_to: assignedTo,
-        assigned_at: new Date().toISOString()
+        assigned_at: now.toISOString(),
+        current_turn_user_id: assignedTo,
+        turn_expires_at: turnExpires.toISOString()
       })
 
     if (error) {
@@ -179,3 +184,4 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: err.message }), { status: 400 })
   }
 })
+// Force deploy update

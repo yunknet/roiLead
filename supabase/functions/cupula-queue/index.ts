@@ -17,19 +17,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 0. Executar rotação de turnos expirados ANTES de retornar dados
-    //    Isso garante que os dados retornados estão sempre frescos
+    // Pega o nicho enviado pelo frontend (padrão Consórcio se não vier nada)
+    const body = await req.json().catch(() => ({}));
+    const niche = body.niche || 'Consórcio';
+
+    // 0. Executar rotação de turnos expirados
     try {
       await supabaseClient.rpc('rotate_cupula_turns');
     } catch (rotateErr) {
-      console.warn("⚠️ Erro na rotação (não-fatal):", rotateErr);
+      console.warn("⚠️ Erro na rotação:", rotateErr);
     }
 
-    // 1. Fetch active members sorted by registration (created_at)
+    // 1. Buscar membros ativos QUE PERTENCEM AO NICHO selecionado
     const { data: members, error: accessErr } = await supabaseClient
       .from('cupula_access')
       .select('user_id, full_name, created_at')
       .eq('status', 'active')
+      .contains('niches', [niche]) // Filtra pelo array de nichos
       .not('user_id', 'is', null)
       .order('created_at', { ascending: true });
 
@@ -47,8 +51,7 @@ serve(async (req) => {
 
     const activeUserIds = members.map(m => m.user_id);
 
-    // 2. Build active users list using full_name from cupula_access
-    //    Fallback to profiles.first_name if full_name is not set
+    // 2. Montar lista de nomes
     const { data: profilesData } = await supabaseClient
       .from('profiles')
       .select('id, first_name, last_name')
@@ -62,10 +65,11 @@ serve(async (req) => {
       joined_at: m.created_at
     }));
 
-    // 3. Determine base turn from LAST assigned lead (not last claimed)
+    // 3. Determinar de quem é a vez baseado no ÚLTIMO lead desse nicho
     const { data: lastAssigned } = await supabaseClient
       .from('cupula_leads')
       .select('assigned_to')
+      .eq('niche', niche) // Filtra pelo nicho do lead
       .not('assigned_to', 'is', null)
       .order('assigned_at', { ascending: false })
       .limit(1);

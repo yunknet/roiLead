@@ -5,7 +5,7 @@ import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, V
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-const NICHES = ['Consórcio'] as const;
+const NICHES = ['Consórcio', 'Administrativo'] as const;
 type Niche = typeof NICHES[number];
 type SharkStatus = string;
 
@@ -26,15 +26,15 @@ interface SharkLead {
 }
 
 // ============ COMPONENTE DE TIMER INDEPENDENTE ============
-function LeadQueueCard({ 
-    lead, 
-    turnInfo, 
-    clockOffset, 
-    currentUserId, 
+function LeadQueueCard({
+    lead,
+    turnInfo,
+    clockOffset,
+    currentUserId,
     unclaimedLeads,
     onClaim,
-    playNotification 
-}: { 
+    playNotification
+}: {
     lead: SharkLead;
     turnInfo: any;
     clockOffset: number;
@@ -102,16 +102,16 @@ function LeadQueueCard({
                     <Lock className="w-3 h-3" /> Dados ocultos
                 </div>
                 <div className="text-[10px] text-muted-foreground font-medium">
-                    Chegou há {elapsedSec < 60 
+                    Chegou há {elapsedSec < 60
                         ? `${Math.floor(elapsedSec)}s`
-                        : elapsedSec < 3600 
-                            ? `${Math.floor(elapsedSec / 60)}min` 
-                            : elapsedSec < 86400 
+                        : elapsedSec < 3600
+                            ? `${Math.floor(elapsedSec / 60)}min`
+                            : elapsedSec < 86400
                                 ? `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}min`
                                 : `${Math.floor(elapsedSec / 86400)}d ${Math.floor((elapsedSec % 86400) / 3600)}h`}
                 </div>
             </div>
-            
+
             {lead.notes && (
                 <div className="text-xs text-muted-foreground bg-blue-50/50 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-500/10 italic leading-relaxed">
                     {(() => {
@@ -148,7 +148,7 @@ function LeadQueueCard({
                     })()}
                 </div>
             )}
-            
+
             {ownership && (
                 <div className={`text-center font-bold px-3 py-3 rounded-xl border shadow-sm flex flex-col items-center gap-1 mt-1 mb-1 transition-all ${isMyTurn ? 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400 text-white shadow-blue-200 dark:shadow-none' : 'bg-muted/80 text-muted-foreground border-border/50'}`}>
                     <span className={`text-[9px] uppercase tracking-[0.15em] font-black mb-0.5 ${isMyTurn ? 'text-blue-100' : 'opacity-70'}`}>Status da Fila</span>
@@ -160,8 +160,8 @@ function LeadQueueCard({
                     </div>
                     {!isMyTurn && (
                         <div className="text-[10px] mt-2 border-t border-border/60 pt-2 w-full opacity-80 text-center font-medium">
-                            {ownership.my_position - 1 === 1 
-                                ? '🔜 Falta 1 pessoa para sua vez' 
+                            {ownership.my_position - 1 === 1
+                                ? '🔜 Falta 1 pessoa para sua vez'
                                 : `⏳ Faltam ${ownership.my_position - 1} pessoas para sua vez`}
                         </div>
                     )}
@@ -183,25 +183,25 @@ function LeadQueueCard({
 
 function WhatsAppIcon(props: any) {
     return (
-        <svg 
-            viewBox="0 0 24 24" 
-            fill="currentColor" 
+        <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
             className={props.className}
             xmlns="http://www.w3.org/2000/svg"
         >
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
         </svg>
     );
 }
 
-function CapturedLeadCard({ 
-    lead, 
-    isMine, 
-    onDelete, 
-    onChat 
-}: { 
-    lead: SharkLead; 
-    isMine: boolean; 
+function CapturedLeadCard({
+    lead,
+    isMine,
+    onDelete,
+    onChat
+}: {
+    lead: SharkLead;
+    isMine: boolean;
     onDelete: (id: string) => void;
     onChat: (lead: SharkLead) => void;
 }) {
@@ -226,8 +226,8 @@ function CapturedLeadCard({
                         <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="flex-1">
                             Cancelar
                         </Button>
-                        <Button 
-                            variant="destructive" 
+                        <Button
+                            variant="destructive"
                             onClick={() => { onDelete(lead.id); setShowDeleteConfirm(false); }}
                             className="flex-1 bg-red-600 hover:bg-red-700"
                         >
@@ -237,7 +237,7 @@ function CapturedLeadCard({
                 </DialogContent>
             </Dialog>
 
-            <div 
+            <div
                 className={`group bg-background p-4 rounded-xl shadow-sm border border-border hover:border-primary/40 transition-all flex flex-col gap-3 ${isMine ? 'cursor-grab active:cursor-grabbing border-l-4 border-l-blue-500 shadow-md' : 'opacity-80'}`}
             >
                 <div className="flex items-center justify-between gap-2">
@@ -246,7 +246,7 @@ function CapturedLeadCard({
                         {lead.name}
                     </div>
                     {isMine && (
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
                             className="text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all p-2 rounded-lg"
                             title="Remover do CRM"
@@ -256,89 +256,89 @@ function CapturedLeadCard({
                     )}
                 </div>
 
-            {lead.notes && (
-                <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden">
-                    <div className="font-bold uppercase text-[9px] mb-1.5 opacity-60 flex items-center gap-1">
-                        📋 Especificações
+                {lead.notes && (
+                    <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-lg border border-border/50 leading-relaxed overflow-hidden">
+                        <div className="font-bold uppercase text-[9px] mb-1.5 opacity-60 flex items-center gap-1">
+                            📋 Especificações
+                        </div>
+                        <div className="space-y-1">
+                            {(() => {
+                                const parts = lead.notes!.split('|');
+                                const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
+                                const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
+
+                                const firstEmail = emailParts.length > 0
+                                    ? emailParts[0].replace('📧', '').replace('Email:', '').trim()
+                                    : null;
+
+                                return (
+                                    <>
+                                        {firstEmail && (
+                                            <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+                                                <Mail className="w-3.5 h-3.5" />
+                                                {firstEmail}
+                                            </div>
+                                        )}
+                                        {otherParts.map((part, idx) => {
+                                            let cleanPart = part.trim()
+                                                .replace(/🔸 /g, '')
+                                                .replace(/^Escolha [Oo]\s*/gi, '')
+                                                .replace(/^Selecione [Oo]\s*/gi, '')
+                                                .replace(/Tipo De Cons[oó\u0301]+rcio:?\s*/ig, '')
+                                                .replace(/Valor.*?(Cr[eé\u0301]+dito\s*Desejado|Cr[eé\u0301]+dito):?\s*/ig, 'Crédito desejado: ')
+                                                .replace(/🔸/g, '');
+
+                                            if (cleanPart.includes('Crédito desejado:')) {
+                                                cleanPart = cleanPart
+                                                    .replace(/_r\$/gi, ' R$ ')
+                                                    .replace(/até/gi, 'Até ')
+                                                    .replace(/acima_de/gi, 'Acima de ')
+                                                    .replace(/acima de/gi, 'Acima de ')
+                                                    .replace(/_/g, ' ')
+                                                    .replace(/\s+/g, ' ')
+                                                    .trim();
+                                            }
+
+                                            if (!cleanPart) return null;
+
+                                            return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
+                                        })}
+                                    </>
+                                );
+                            })()}
+                        </div>
                     </div>
-                    <div className="space-y-1">
-                        {(() => {
-                            const parts = lead.notes!.split('|');
-                            const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
-                            const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
-                            
-                            const firstEmail = emailParts.length > 0 
-                                ? emailParts[0].replace('📧', '').replace('Email:', '').trim() 
-                                : null;
+                )}
 
-                            return (
-                                <>
-                                    {firstEmail && (
-                                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                                            <Mail className="w-3.5 h-3.5" />
-                                            {firstEmail}
-                                        </div>
-                                    )}
-                                    {otherParts.map((part, idx) => {
-                                        let cleanPart = part.trim()
-                                            .replace(/🔸 /g, '')
-                                            .replace(/^Escolha [Oo]\s*/gi, '')
-                                            .replace(/^Selecione [Oo]\s*/gi, '')
-                                            .replace(/Tipo De Cons[oó\u0301]+rcio:?\s*/ig, '')
-                                            .replace(/Valor.*?(Cr[eé\u0301]+dito\s*Desejado|Cr[eé\u0301]+dito):?\s*/ig, 'Crédito desejado: ')
-                                            .replace(/🔸/g, '');
-                                        
-                                        if (cleanPart.includes('Crédito desejado:')) {
-                                            cleanPart = cleanPart
-                                                .replace(/_r\$/gi, ' R$ ')
-                                                .replace(/até/gi, 'Até ')
-                                                .replace(/acima_de/gi, 'Acima de ')
-                                                .replace(/acima de/gi, 'Acima de ')
-                                                .replace(/_/g, ' ')
-                                                .replace(/\s+/g, ' ')
-                                                .trim();
-                                        }
+                <div className="flex flex-col gap-3">
+                    {isMine ? (
+                        <div className="flex flex-col gap-2">
+                            <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
+                                <Lock className="w-3 h-3" /> Contato Liberado
+                            </div>
+                            <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
+                                {lead.phone}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-xs text-muted-foreground bg-muted p-3 rounded-xl text-center flex items-center justify-center gap-2 border border-dashed border-border opacity-70">
+                            <Lock className="w-3.5 h-3.5 opacity-50" />
+                            <span>Capturado por outro membro</span>
+                        </div>
+                    )}
 
-                                        if (!cleanPart) return null;
-
-                                        return <div key={idx} className="break-words font-bold text-foreground/90 flex items-center gap-1.5">🔸 {cleanPart}</div>
-                                    })}
-                                </>
-                            );
-                        })()}
-                    </div>
+                    {isMine && (
+                        <Button
+                            onClick={() => onChat(lead)}
+                            size="sm"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <WhatsAppIcon className="w-4 h-4" />
+                            Chamar no WhatsApp
+                        </Button>
+                    )}
                 </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-                {isMine ? (
-                    <div className="flex flex-col gap-2">
-                        <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
-                            <Lock className="w-3 h-3" /> Contato Liberado
-                        </div>
-                        <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
-                            {lead.phone}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-xs text-muted-foreground bg-muted p-3 rounded-xl text-center flex items-center justify-center gap-2 border border-dashed border-border opacity-70">
-                        <Lock className="w-3.5 h-3.5 opacity-50" /> 
-                        <span>Capturado por outro membro</span>
-                    </div>
-                )}
-
-                {isMine && (
-                    <Button 
-                        onClick={() => onChat(lead)} 
-                        size="sm" 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <WhatsAppIcon className="w-4 h-4" />
-                        Chamar no WhatsApp
-                    </Button>
-                )}
             </div>
-        </div>
         </>
     );
 }
@@ -425,19 +425,25 @@ export function CupulaBoard() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
 
 
-    const checkAccess = async (userEmail?: string): Promise<{ hasAccess: boolean; hasName: boolean; error?: any }> => {
+    const checkAccess = async (userEmail?: string, targetNiche?: Niche): Promise<{ hasAccess: boolean; hasName: boolean; error?: any }> => {
         if (!userEmail) return { hasAccess: false, hasName: false };
         try {
             const { data: sharkUser, error } = await supabase
                 .from('cupula_access')
-                .select('status, full_name')
+                .select('status, full_name, niches')
                 .eq('email', userEmail)
                 .maybeSingle();
-            
+
             if (error) throw error;
 
             if (sharkUser?.status === 'active') {
-                return { hasAccess: true, hasName: !!sharkUser.full_name };
+                // Se o nicho não for especificado (boot), aceita. 
+                // Se for especificado, verifica se está no array de permissões.
+                const hasNicheAccess = !targetNiche || (sharkUser.niches && sharkUser.niches.includes(targetNiche));
+
+                if (hasNicheAccess) {
+                    return { hasAccess: true, hasName: !!sharkUser.full_name };
+                }
             }
             return { hasAccess: false, hasName: false };
         } catch (err) {
@@ -453,7 +459,7 @@ export function CupulaBoard() {
                 setCurrentUserId(user.id);
                 // Verifica acesso logo no boot se já estiver com nicho selecionado
                 if (selectedNiche) {
-                    const { hasAccess, error } = await checkAccess(user.email);
+                    const { hasAccess, error } = await checkAccess(user.email, selectedNiche);
                     if (error) {
                         toast.error("Instabilidade na conexão. Tentando manter a sessão...");
                         return; // Evita desconectar o usuário se for só um erro de internet (ex: inatividade/sleep mode)
@@ -499,7 +505,11 @@ export function CupulaBoard() {
             setLeads(data as SharkLead[]);
 
             // Busca de quem é a vez na fila via Edge Function
-            const { data: queueData, error: queueErr } = await supabase.functions.invoke('cupula-queue');
+            // Busca de quem é a vez na fila via RPC (Banco de Dados) - Mais rápido e filtra por nicho
+            const { data: queueData, error: queueErr } = await supabase.rpc('get_cupula_queue', { 
+                niche_param: selectedNiche 
+            });
+
             if (!queueErr && queueData) {
                 setTurnInfo(queueData);
                 if (queueData.server_now) {
@@ -518,7 +528,7 @@ export function CupulaBoard() {
             if (settingsData) {
                 const namesMap: Record<string, string> = {};
                 const userCustomCols: { id: string; title: string; color: string; position: number }[] = [];
-                
+
                 settingsData.forEach(item => {
                     if (item.column_id.startsWith('custom_')) {
                         // Parse custom column metadata: "title|color|position"
@@ -622,13 +632,13 @@ export function CupulaBoard() {
             if (error) throw error;
 
             if (columnId.startsWith('custom_')) {
-                setCustomColumns(prev => prev.map(c => 
+                setCustomColumns(prev => prev.map(c =>
                     c.id === columnId ? { ...c, title: editValue.trim() } : c
                 ));
             } else {
                 setCustomNames(prev => ({ ...prev, [columnId]: editValue.trim() }));
             }
-            
+
             setEditingColumn(null);
             toast.success("Etapa renomeada!");
         } catch (error: any) {
@@ -639,10 +649,10 @@ export function CupulaBoard() {
 
     const handleAddCustomColumn = async () => {
         const columnId = `custom_${Date.now()}`;
-        const position = customColumns.length > 0 
-            ? Math.max(...customColumns.map(c => c.position)) + 1 
+        const position = customColumns.length > 0
+            ? Math.max(...customColumns.map(c => c.position)) + 1
             : 1;
-        
+
         const newCol = {
             id: columnId,
             title: "Nova Etapa",
@@ -799,7 +809,7 @@ export function CupulaBoard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { hasAccess, hasName, error } = await checkAccess(user.email);
+            const { hasAccess, hasName, error } = await checkAccess(user.email, niche);
 
             if (error) {
                 toast.error("Erro de conexão ao verificar seu acesso. Verifique sua internet e tente novamente.");
@@ -922,7 +932,7 @@ export function CupulaBoard() {
                                 Para capturar e bater papo com os leads milionários da Cúpula de Leads de <b>Consórcio</b>, você passará por uma análise de perfil.
                             </DialogDescription>
                         </DialogHeader>
-                        
+
                         <div className="flex flex-col gap-4 py-4">
                             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-sm text-foreground space-y-2">
                                 <p className="font-semibold text-blue-600 dark:text-blue-400">🎯 Como funciona?</p>
@@ -938,7 +948,7 @@ export function CupulaBoard() {
                             <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
                                 Agora não
                             </Button>
-                            <Button 
+                            <Button
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
                                 onClick={handleAccessRequest}
                             >
@@ -958,10 +968,10 @@ export function CupulaBoard() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 shrink-0">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-4">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setView('selection')} 
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setView('selection')}
                             className="text-muted-foreground hover:text-foreground p-0 h-auto flex items-center gap-1"
                         >
                             ← <span className="text-xs">Trocar Nicho</span>
@@ -969,9 +979,9 @@ export function CupulaBoard() {
                         <h2 className="text-2xl font-bold text-foreground">
                             Cúpula de {selectedNiche}
                         </h2>
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={toggleSound}
                             className={`flex items-center gap-2 rounded-full px-4 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
                         >
@@ -984,9 +994,9 @@ export function CupulaBoard() {
                     </p>
                 </div>
                 {/* Botão de membros */}
-                <Button 
-                    variant="outline" 
-                    size="sm" 
+                <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowMembersPanel(true)}
                     className="flex items-center gap-2 rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
                 >
@@ -1007,35 +1017,33 @@ export function CupulaBoard() {
                             Veja a ordem de registro na Cúpula. Quem está acima tem prioridade na distribuição de novos leads.
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
                         {turnInfo?.active_users?.map((member: any, idx: number) => {
                             const isCurrentUser = member.user_id === currentUserId;
                             // Verifica se tem algum lead não capturado atribuído a esse membro
                             const hasActiveLead = unclaimedLeads.some(l => l.assigned_to === member.user_id);
                             return (
-                                <div 
+                                <div
                                     key={member.user_id}
-                                    className={`flex items-start gap-3 px-3 py-3 rounded-xl border transition-all ${
-                                        hasActiveLead 
-                                            ? 'bg-blue-500/10 border-blue-500/30 shadow-sm' 
-                                            : isCurrentUser 
-                                                ? 'bg-primary/5 border-primary/20' 
+                                    className={`flex items-start gap-3 px-3 py-3 rounded-xl border transition-all ${hasActiveLead
+                                            ? 'bg-blue-500/10 border-blue-500/30 shadow-sm'
+                                            : isCurrentUser
+                                                ? 'bg-primary/5 border-primary/20'
                                                 : 'bg-muted/30 border-border/50'
-                                    }`}
+                                        }`}
                                 >
-                                    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${
-                                        hasActiveLead 
-                                            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' 
+                                    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${hasActiveLead
+                                            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
                                             : 'bg-muted text-muted-foreground'
-                                    }`}>
+                                        }`}>
                                         {idx + 1}º
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <div className={`text-sm font-bold leading-tight flex items-center gap-2 ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
                                             <span className="truncate">{member.name} {isCurrentUser && '(Você)'}</span>
                                             {isCurrentUser && (
-                                                <button 
+                                                <button
                                                     onClick={() => {
                                                         setFullNameInput(member.name);
                                                         setShowNameModal(true);
@@ -1113,8 +1121,8 @@ export function CupulaBoard() {
 
             <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden w-full pb-4 items-start">
                 {columns.map(col => {
-                    let colLeads = filteredLeads.filter(l => 
-                        l.status === col.id && 
+                    let colLeads = filteredLeads.filter(l =>
+                        l.status === col.id &&
                         (col.id === 'novos' || l.owner_id === currentUserId)
                     );
 
@@ -1139,8 +1147,8 @@ export function CupulaBoard() {
                     };
 
                     return (
-                        <div 
-                            key={col.id} 
+                        <div
+                            key={col.id}
                             className="flex-shrink-0 w-72 sm:w-80 h-full flex flex-col bg-card/50 border border-border rounded-xl"
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}
@@ -1148,7 +1156,7 @@ export function CupulaBoard() {
                             <div className={`p-4 border-b ${col.color} border-x-0 border-t-0 font-semibold flex items-center justify-between shadow-sm bg-opacity-50 group`}>
                                 {editingColumn === col.id ? (
                                     <div className="flex items-center gap-1 w-full">
-                                        <input 
+                                        <input
                                             autoFocus
                                             className="bg-background border border-primary/30 rounded px-2 py-0.5 text-sm w-full outline-none focus:border-primary"
                                             value={editValue}
@@ -1172,7 +1180,7 @@ export function CupulaBoard() {
                                             {col.id !== 'novos' && (
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {col.id.startsWith('custom_') && (
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleMoveCustomColumn(col.id, 'left')}
                                                             className="p-1 text-muted-foreground hover:text-foreground"
                                                             title="Mover para esquerda"
@@ -1180,7 +1188,7 @@ export function CupulaBoard() {
                                                             <ArrowLeft className="w-3 h-3" />
                                                         </button>
                                                     )}
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setEditingColumn(col.id);
                                                             setEditValue(customNames[col.id] || col.title);
@@ -1192,14 +1200,14 @@ export function CupulaBoard() {
                                                     </button>
                                                     {col.id.startsWith('custom_') && (
                                                         <>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleDeleteCustomColumn(col.id)}
                                                                 className="p-1 text-muted-foreground hover:text-red-500"
                                                                 title="Excluir etapa"
                                                             >
                                                                 <Trash2 className="w-3 h-3" />
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleMoveCustomColumn(col.id, 'right')}
                                                                 className="p-1 text-muted-foreground hover:text-foreground"
                                                                 title="Mover para direita"
@@ -1225,26 +1233,26 @@ export function CupulaBoard() {
                                     if (col.id === 'novos') {
                                         return (
                                             <div key={lead.id} className="bg-background p-4 rounded-xl shadow-sm border border-border flex flex-col gap-3">
-                                                 <div className="font-bold text-foreground text-sm truncate flex items-center gap-2">
-                                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                                     {lead.name}
-                                                 </div>
-                                                 <LeadQueueCard
-                                                     lead={lead}
-                                                     turnInfo={turnInfo}
-                                                     clockOffset={clockOffsetRef.current}
-                                                     currentUserId={currentUserId}
-                                                     unclaimedLeads={unclaimedLeads}
-                                                     onClaim={handleClaimLead}
-                                                     playNotification={playNotification}
-                                                 />
+                                                <div className="font-bold text-foreground text-sm truncate flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                                    {lead.name}
+                                                </div>
+                                                <LeadQueueCard
+                                                    lead={lead}
+                                                    turnInfo={turnInfo}
+                                                    clockOffset={clockOffsetRef.current}
+                                                    currentUserId={currentUserId}
+                                                    unclaimedLeads={unclaimedLeads}
+                                                    onClaim={handleClaimLead}
+                                                    playNotification={playNotification}
+                                                />
                                             </div>
                                         );
                                     }
 
                                     return (
-                                        <div 
-                                            key={lead.id} 
+                                        <div
+                                            key={lead.id}
                                             draggable={isMine}
                                             onDragStart={(e) => {
                                                 if (isMine) {
@@ -1252,7 +1260,7 @@ export function CupulaBoard() {
                                                 }
                                             }}
                                         >
-                                            <CapturedLeadCard 
+                                            <CapturedLeadCard
                                                 lead={lead}
                                                 isMine={isMine === true}
                                                 onDelete={handleDeleteLead}
@@ -1271,7 +1279,7 @@ export function CupulaBoard() {
                         </div>
                     );
                 })}
-                
+
                 <button
                     onClick={handleAddCustomColumn}
                     className="flex-shrink-0 w-[40px] sm:w-[50px] h-full flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary rounded-xl transition-all cursor-pointer group"

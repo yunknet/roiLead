@@ -114,11 +114,20 @@ function LeadQueueCard({
     // ROTAÇÃO AUTOMÁTICA: Se o timer zerar, qualquer consultor que estiver vendo avisa o banco
     useEffect(() => {
         if (timeLeftSec <= 0 && lead.current_turn_user_id && lead.status === 'novos' && !lead.owner_id) {
-            // Delay pequeno e aleatório para não sobrecarregar se 50 pessoas estiverem logadas
-            const timer = setTimeout(() => {
+            // Tenta girar imediatamente com um pequeno delay aleatório
+            const timeout = setTimeout(() => {
                 supabase.rpc('rotate_cupula_turns');
             }, 500 + Math.random() * 1500);
-            return () => clearTimeout(timer);
+
+            // E continua tentando a cada 3 segundos caso o banco recuse por drift de relógio
+            const interval = setInterval(() => {
+                supabase.rpc('rotate_cupula_turns');
+            }, 3000);
+
+            return () => {
+                clearTimeout(timeout);
+                clearInterval(interval);
+            };
         }
     }, [timeLeftSec, lead.id, lead.current_turn_user_id]);
 

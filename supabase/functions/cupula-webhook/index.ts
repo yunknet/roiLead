@@ -71,6 +71,12 @@ serve(async (req: Request) => {
         console.log("ℹ️ Detectado lead de teste da Meta. Inserindo telefone fictício.");
     }
 
+    // Se não tiver telefone, mas for teste, coloca um padrão para não travar a integração
+    if (!cleanPhone && (phone.toString().includes("<test lead:") || payload.is_test || !phone)) {
+        cleanPhone = "5511999999999";
+        console.log("ℹ️ Telefone ausente em lead de teste. Usando padrão para validação.");
+    }
+
     if (!cleanPhone) {
         console.error("⛔ Lead recebido sem telefone válido.")
         return new Response(JSON.stringify({ error: "Telefone não informado." }), { status: 400 })
@@ -93,20 +99,27 @@ serve(async (req: Request) => {
         // Formata a chave para ficar mais legível
         let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         
-        // Limpa prefixos comuns para deixar o CRM mais direto
-        if (label && value) {
-          const cleanLabel = label
+        // Limpeza inteligente de labels
+        let cleanLabel = label
             .replace(/^Escolha [Oo] /i, '')
             .replace(/^Selecione [Oo] /i, '')
-            .replace(/^Qual [Oo] /i, '');
-          
-          extraSpecs.push(`🔸 ${cleanLabel}: ${value}`);
+            .replace(/^Qual [Oo] /i, '')
+            .replace(/De Consorcio/i, '')
+            .trim();
+        
+        // Se a label ficou vazia ou é apenas "Tipo", e o valor já diz o que é (ex: Imóvel)
+        if (cleanLabel.toLowerCase() === 'tipo') {
+            extraSpecs.push(`🔸 ${value}`);
+        } else if (cleanLabel.toLowerCase().includes('valor') || cleanLabel.toLowerCase().includes('credito')) {
+            extraSpecs.push(`🔸 Crédito desejado: ${value}`);
+        } else {
+            extraSpecs.push(`🔸 ${cleanLabel}: ${value}`);
         }
       }
     }
 
     const finalNotes = extraSpecs.length > 0 
-      ? `Email: ${email} | ${extraSpecs.join(" | ")}` 
+      ? extraSpecs.join(" | ") 
       : `Email: ${email}`;
 
     // =============================================

@@ -51,15 +51,35 @@ function LeadQueueCard({
         return () => clearInterval(interval);
     }, []);
 
-    // Tempo decorrido desde criação (para exibir "Chegou há X")
-    const rawTs = (lead.assigned_at || lead.created_at).replace(/[+-]\d{2}:\d{2}$/, 'Z');
-    const assignedAtMs = new Date(rawTs).getTime();
-    const serverNow = Date.now() - clockOffset;
-    let elapsedSec = (serverNow - assignedAtMs) / 1000;
-    if (elapsedSec < 0) elapsedSec = 0;
+    // Opção Nuclear: Parsing manual para garantir que NUNCA dê NaN
+    const parseUTC = (ds: any) => {
+        if (!ds) return 0;
+        try {
+            const date = new Date(ds);
+            if (!isNaN(date.getTime())) return date.getTime();
+            
+            // Fallback para strings zangadas
+            const s = String(ds).replace(' ', 'T');
+            const d = new Date(s.includes('Z') || s.includes('-0') ? s : s + 'Z');
+            return isNaN(d.getTime()) ? Date.now() : d.getTime();
+        } catch (e) {
+            return Date.now();
+        }
+    };
 
-    // Timer: lê direto do banco e usa o serverNow (corrigido com clockOffset)
-    const expiresAtMs = lead.turn_expires_at ? new Date(lead.turn_expires_at).getTime() : 0;
+    const serverNow = Date.now() - clockOffset;
+    let assignedAtMs = parseUTC(lead.created_at);
+    
+    // CORREÇÃO BRAVALÉ: Se o lead parece ter vindo do futuro por exatamente ~3 horas, 
+    // é porque o banco salvou em UTC mas carimbou como -03. Vamos corrigir essa diferença.
+    if (assignedAtMs > serverNow + 3600000) {
+        assignedAtMs -= 10800000; // Subtrai 3 horas (3 * 60 * 60 * 1000)
+    }
+    
+    const elapsedSec = Math.max(0, Math.floor((serverNow - assignedAtMs) / 1000));
+
+    // Timer de expiração
+    const expiresAtMs = lead.turn_expires_at ? parseUTC(lead.turn_expires_at) : 0;
     const timeLeftSec = Math.max(0, Math.floor((expiresAtMs - serverNow) / 1000));
 
     // Determina o dono atual lendo direto do banco (current_turn_user_id)
@@ -90,6 +110,17 @@ function LeadQueueCard({
         if (isMyTurn && !notifiedRef.current) { playNotification(); notifiedRef.current = true; }
         if (!isMyTurn) notifiedRef.current = false;
     }, [isMyTurn]);
+
+    // ROTAÇÃO AUTOMÁTICA: Se o timer zerar, qualquer consultor que estiver vendo avisa o banco
+    useEffect(() => {
+        if (timeLeftSec <= 0 && lead.current_turn_user_id && lead.status === 'novos' && !lead.owner_id) {
+            // Delay pequeno e aleatório para não sobrecarregar se 50 pessoas estiverem logadas
+            const timer = setTimeout(() => {
+                supabase.rpc('rotate_cupula_turns');
+            }, 500 + Math.random() * 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [timeLeftSec, lead.id, lead.current_turn_user_id]);
 
     const m = Math.floor(timeLeftSec / 60);
     const s = timeLeftSec % 60;
@@ -350,7 +381,7 @@ export function CupulaBoard() {
     const [leads, setLeads] = useState<SharkLead[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [loadingAccess, setLoadingAccess] = useState(false);
+    const [loadingAccess, setLoadingAccess] = useState<Niche | null>(null);
     const [turnInfo, setTurnInfo] = useState<any>(null);
     const [clockOffset, setClockOffset] = useState<number>(0);
     const clockOffsetRef = useRef<number>(0);
@@ -401,6 +432,20 @@ export function CupulaBoard() {
         }
     };
 
+    const getTimeAgo = (dateString: string) => {
+        const now = new Date();
+        const serverNow = Date.now() - clockOffset;
+        const date = new Date(dateString);
+        const seconds = Math.floor((serverNow - date.getTime()) / 1000);
+        
+        if (seconds < 60) return 'agora mesmo';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `há ${minutes}min`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `há ${hours}h ${minutes % 60}min`;
+        return date.toLocaleDateString();
+    };
+
     const toggleSound = () => {
         const newValue = !soundEnabled;
         setSoundEnabled(newValue);
@@ -419,10 +464,10 @@ export function CupulaBoard() {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Leads não capturados (novos sem dono)
+    // Leads não capturados (novos sem dono) do nicho selecionado
     const unclaimedLeads = useMemo(() => leads
-        .filter(l => l.status === 'novos' && !l.owner_id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads]);
+        .filter(l => l.status === 'novos' && !l.owner_id && l.niche === selectedNiche)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()), [leads, selectedNiche]);
 
 
     const checkAccess = async (userEmail?: string, targetNiche?: Niche): Promise<{ hasAccess: boolean; hasName: boolean; error?: any }> => {
@@ -511,9 +556,35 @@ export function CupulaBoard() {
             });
 
             if (!queueErr && queueData) {
+                // Busca direta do last_lead_at específico deste nicho
+                const { data: accessData } = await supabase
+                    .from('cupula_last_leads')
+                    .select('user_id, last_lead_at')
+                    .eq('niche', selectedNiche);
+
+                if (accessData) {
+                    const accessMap: any = {};
+                    accessData.forEach((row: any) => {
+                        accessMap[row.user_id] = row.last_lead_at;
+                    });
+
+                    // Mescla e ordena os dados pela lógica de espera (LRA) do nicho
+                    if (queueData.active_users) {
+                        queueData.active_users = queueData.active_users.map((u: any) => ({
+                            ...u,
+                            last_lead_at: accessMap[u.id] || accessMap[u.user_id] || null
+                        })).sort((a: any, b: any) => {
+                            const timeA = a.last_lead_at ? new Date(a.last_lead_at).getTime() : 0;
+                            const timeB = b.last_lead_at ? new Date(b.last_lead_at).getTime() : 0;
+                            return timeA - timeB; // Quem tem o tempo mais antigo (menor) fica no topo
+                        });
+                    }
+                }
+
                 setTurnInfo(queueData);
                 if (queueData.server_now) {
-                    const offset = Date.now() - queueData.server_now;
+                    const serverTime = new Date(queueData.server_now).getTime() || Date.now();
+                    const offset = Date.now() - serverTime;
                     setClockOffset(offset);
                     clockOffsetRef.current = offset;
                 }
@@ -563,6 +634,7 @@ export function CupulaBoard() {
         }
     };
 
+
     const handleClaimLead = async (leadId: string) => {
         try {
             const { error } = await supabase.rpc('claim_cupula_lead', { target_lead_id: leadId });
@@ -574,6 +646,20 @@ export function CupulaBoard() {
             }
 
             toast.success("Lead capturado com sucesso!");
+            
+            // Atualiza o tempo da última captura ESPECÍFICO deste nicho
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                // Tenta atualizar, se não existir, o Supabase upsert resolve (ou fazemos manual)
+                await supabase
+                    .from('cupula_last_leads')
+                    .upsert({ 
+                        user_id: user.id, 
+                        niche: selectedNiche, 
+                        last_lead_at: new Date().toISOString() 
+                    }, { onConflict: 'user_id,niche' });
+            }
+
             fetchLeads();
         } catch (error: any) {
             console.error("Erro ao capturar lead:", error);
@@ -804,7 +890,7 @@ export function CupulaBoard() {
     };
 
     const handleSelectNiche = async (niche: Niche) => {
-        setLoadingAccess(true);
+        setLoadingAccess(niche);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -832,7 +918,7 @@ export function CupulaBoard() {
             console.error("Erro ao verificar assinatura do Shark Tank:", err);
             toast.error("Erro ao validar acesso.");
         } finally {
-            setLoadingAccess(false);
+            setLoadingAccess(null);
         }
     };
 
@@ -914,9 +1000,10 @@ export function CupulaBoard() {
                                     Acesse a cúpula de {niche.toLowerCase()} e capte leads qualificados em tempo real.
                                 </p>
                             </div>
-                            <Button className="w-full font-bold" disabled={loadingAccess}>
-                                {loadingAccess ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Acessar Cúpula"}
+                            <Button className="w-full font-bold" disabled={loadingAccess !== null}>
+                                {loadingAccess === niche ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Acessar Cúpula"}
                             </Button>
+
 
                         </div>
                     ))}
@@ -1014,7 +1101,7 @@ export function CupulaBoard() {
                             Fila de Consultores
                         </DialogTitle>
                         <DialogDescription>
-                            Veja a ordem de registro na Cúpula. Quem está acima tem prioridade na distribuição de novos leads.
+                            A prioridade é definida por quem está há mais tempo sem capturar leads. O consultor no topo da lista receberá o próximo lead que chegar.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1022,7 +1109,12 @@ export function CupulaBoard() {
                         {turnInfo?.active_users?.map((member: any, idx: number) => {
                             const isCurrentUser = member.user_id === currentUserId;
                             // Verifica se tem algum lead não capturado atribuído a esse membro
-                            const hasActiveLead = unclaimedLeads.some(l => l.assigned_to === member.user_id);
+                            const hasActiveLead = leads.some(l => 
+                                (l.current_turn_user_id === member.user_id || l.current_turn_user_id === member.id) && 
+                                l.status === 'novos' && 
+                                !l.owner_id &&
+                                l.niche === selectedNiche
+                            );
                             return (
                                 <div
                                     key={member.user_id}
@@ -1037,7 +1129,7 @@ export function CupulaBoard() {
                                             ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
                                             : 'bg-muted text-muted-foreground'
                                         }`}>
-                                        {idx + 1}º
+                                        <Clock className="w-5 h-5 opacity-60" />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <div className={`text-sm font-bold leading-tight flex items-center gap-2 ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
@@ -1054,6 +1146,11 @@ export function CupulaBoard() {
                                                     <Edit2 className="w-3.5 h-3.5" />
                                                 </button>
                                             )}
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                            {member.last_lead_at 
+                                                ? `Último lead: ${getTimeAgo(member.last_lead_at)}`
+                                                : 'Aguardando primeiro lead'}
                                         </div>
                                         {hasActiveLead && (
                                             <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
@@ -1240,7 +1337,7 @@ export function CupulaBoard() {
                                                 <LeadQueueCard
                                                     lead={lead}
                                                     turnInfo={turnInfo}
-                                                    clockOffset={clockOffsetRef.current}
+                                                    clockOffset={clockOffset}
                                                     currentUserId={currentUserId}
                                                     unclaimedLeads={unclaimedLeads}
                                                     onClaim={handleClaimLead}

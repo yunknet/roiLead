@@ -198,13 +198,6 @@ function LeadQueueCard({
                     <div className={`text-xs flex items-center justify-center gap-1.5 mt-1 px-3 py-1 rounded-full border ${isMyTurn ? 'bg-white/20 border-white/30 text-white' : 'bg-background border-foreground/10'}`}>
                         <Clock className="w-3.5 h-3.5" /> <span className="font-mono">Expira em {timerStr}</span>
                     </div>
-                    {!isMyTurn && (
-                        <div className="text-[10px] mt-2 border-t border-border/60 pt-2 w-full opacity-80 text-center font-medium">
-                            {ownership.my_position - 1 === 1
-                                ? '🔜 Falta 1 pessoa para sua vez'
-                                : `⏳ Faltam ${ownership.my_position - 1} pessoas para sua vez`}
-                        </div>
-                    )}
                 </div>
             )}
 

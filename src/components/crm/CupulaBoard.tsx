@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,6 +33,7 @@ function LeadQueueCard({
     currentUserId,
     unclaimedLeads,
     onClaim,
+    onRefresh,
     playNotification
 }: {
     lead: SharkLead;
@@ -41,6 +42,7 @@ function LeadQueueCard({
     currentUserId: string | null;
     unclaimedLeads: SharkLead[];
     onClaim: (id: string) => void;
+    onRefresh: () => void;
     playNotification: () => void;
 }) {
     const [tickVal, setTickVal] = useState(0);
@@ -51,31 +53,25 @@ function LeadQueueCard({
         return () => clearInterval(interval);
     }, []);
 
-    // Opção Nuclear: Parsing manual para garantir que NUNCA dê NaN
-    const parseUTC = (ds: any) => {
+    // Parsing robusto de timestamps do Supabase
+    const parseUTC = (ds: any): number => {
         if (!ds) return 0;
         try {
-            const date = new Date(ds);
-            if (!isNaN(date.getTime())) return date.getTime();
-            
-            // Fallback para strings zangadas
-            const s = String(ds).replace(' ', 'T');
-            const d = new Date(s.includes('Z') || s.includes('-0') ? s : s + 'Z');
-            return isNaN(d.getTime()) ? Date.now() : d.getTime();
+            // O Supabase retorna timestamps como "2026-05-13 00:03:00.123-03"
+            // O offset -03 é CORRETO (BRT). new Date() parseia corretamente.
+            const str = String(ds).replace(' ', 'T');
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) return d.getTime();
+            // Fallback: trata como UTC se não tiver offset
+            const d2 = new Date(str + 'Z');
+            return isNaN(d2.getTime()) ? Date.now() : d2.getTime();
         } catch (e) {
             return Date.now();
         }
     };
 
     const serverNow = Date.now() - clockOffset;
-    let assignedAtMs = parseUTC(lead.created_at);
-    
-    // CORREÇÃO BRAVALÉ: Se o lead parece ter vindo do futuro por exatamente ~3 horas, 
-    // é porque o banco salvou em UTC mas carimbou como -03. Vamos corrigir essa diferença.
-    if (assignedAtMs > serverNow + 3600000) {
-        assignedAtMs -= 10800000; // Subtrai 3 horas (3 * 60 * 60 * 1000)
-    }
-    
+    const assignedAtMs = parseUTC(lead.created_at);
     const elapsedSec = Math.max(0, Math.floor((serverNow - assignedAtMs) / 1000));
 
     // Timer de expiração
@@ -111,23 +107,19 @@ function LeadQueueCard({
         if (!isMyTurn) notifiedRef.current = false;
     }, [isMyTurn]);
 
-    // ROTAÇÃO AUTOMÁTICA: Se o timer zerar, qualquer consultor que estiver vendo avisa o banco
+    // ROTAÇÃO AUTOMÁTICA: Quando o timer zera, roda e atualiza imediatamente
     useEffect(() => {
         if (timeLeftSec <= 0 && lead.current_turn_user_id && lead.status === 'novos' && !lead.owner_id) {
-            // Tenta girar imediatamente com um pequeno delay aleatório
-            const timeout = setTimeout(() => {
-                supabase.rpc('rotate_cupula_turns');
-            }, 500 + Math.random() * 1500);
-
-            // E continua tentando a cada 3 segundos caso o banco recuse por drift de relógio
-            const interval = setInterval(() => {
-                supabase.rpc('rotate_cupula_turns');
-            }, 3000);
-
-            return () => {
-                clearTimeout(timeout);
-                clearInterval(interval);
+            const doRotate = async () => {
+                await supabase.rpc('rotate_cupula_turns');
+                onRefresh(); // Atualiza dados imediatamente sem esperar o Realtime
             };
+            doRotate();
+
+            // Retry a cada 1.5s caso o primeiro falhe
+            const interval = setInterval(doRotate, 1500);
+
+            return () => clearInterval(interval);
         }
     }, [timeLeftSec, lead.id, lead.current_turn_user_id]);
 
@@ -393,6 +385,8 @@ export function CupulaBoard() {
     const [showNameModal, setShowNameModal] = useState(false);
     const [fullNameInput, setFullNameInput] = useState("");
     const [showMembersPanel, setShowMembersPanel] = useState(false);
+    const [showAuditPanel, setShowAuditPanel] = useState(false);
+    const [auditData, setAuditData] = useState<any[]>([]);
     const [customColumns, setCustomColumns] = useState<{ id: string; title: string; color: string; position: number }[]>([]);
     const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
     const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
@@ -1078,44 +1072,51 @@ export function CupulaBoard() {
                         Dispute os leads enviados por tráfego pago.
                     </p>
                 </div>
-                {/* Botão de membros */}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMembersPanel(true)}
-                    className="flex items-center gap-2 rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
-                >
-                    <Users className="w-4 h-4" />
-                    <span className="text-xs font-semibold">{turnInfo?.active_users?.length || 0} Consultores na Fila</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    {/* Botão de auditoria */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            setShowAuditPanel(true);
+                            const { data } = await supabase.rpc('get_cupula_audit', { niche_param: selectedNiche });
+                            setAuditData(data || []);
+                        }}
+                        className="flex items-center gap-2 rounded-full px-4 border-amber-200 text-amber-700 hover:bg-amber-50"
+                    >
+                        <ClipboardList className="w-4 h-4" />
+                        <span className="text-xs font-semibold">Auditoria</span>
+                    </Button>
+                    {/* Botão de membros */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMembersPanel(true)}
+                        className="flex items-center gap-2 rounded-full px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
+                    >
+                        <Users className="w-4 h-4" />
+                        <span className="text-xs font-semibold">{turnInfo?.active_users?.length || 0} Consultores na Fila</span>
+                    </Button>
+                </div>
             </div>
 
-            {/* Modal de membros ativos — Ponteiro Global */}
+            {/* Modal de membros — Fila de Consultores */}
             <Dialog open={showMembersPanel} onOpenChange={setShowMembersPanel}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-xl">
                             <Users className="w-5 h-5 text-blue-500" />
-                            Fila de Consultores
+                            Fila de Consultores - {new Date().toLocaleDateString('pt-BR')}
                         </DialogTitle>
                         <DialogDescription>
                             A distribuição segue ordem circular fixa. Cada lead (novo ou redistribuído) vai para o próximo consultor da fila, sem pular ninguém.
                         </DialogDescription>
                     </DialogHeader>
 
-                    {/* Indicador do ponteiro global */}
-                    {turnInfo?.active_users?.length > 0 && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
-                            <span className="font-bold">📍 Ponteiro:</span>
-                            <span>Próximo lead vai para a posição <strong>#{((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length) + 1}</strong> — <strong>{turnInfo.active_users[((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length)]?.name}</strong></span>
-                        </div>
-                    )}
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
                         {turnInfo?.active_users?.map((member: any, idx: number) => {
                             const isCurrentUser = member.user_id === currentUserId;
                             const isNextInLine = idx === ((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length);
-                            // Verifica se tem algum lead não capturado atribuído a esse membro
                             const hasActiveLead = leads.some(l => 
                                 (l.current_turn_user_id === member.user_id || l.current_turn_user_id === member.id) && 
                                 l.status === 'novos' && 
@@ -1164,13 +1165,13 @@ export function CupulaBoard() {
                                                 : 'Aguardando primeira captura'}
                                         </div>
                                         {isNextInLine && !hasActiveLead && (
-                                            <div className="text-[11px] font-semibold text-green-600 dark:text-green-400 mt-0.5 flex items-center gap-1">
-                                                ➡️ Próximo na fila
+                                            <div className="text-[11px] font-semibold text-green-600 dark:text-green-400 mt-0.5">
+                                                Próximo na fila
                                             </div>
                                         )}
                                         {hasActiveLead && (
-                                            <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
-                                                🎯 Capturando agora
+                                            <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                                                Capturando agora
                                             </div>
                                         )}
                                     </div>
@@ -1181,12 +1182,148 @@ export function CupulaBoard() {
                 </DialogContent>
             </Dialog>
 
+            {/* Modal de auditoria diária */}
+            <Dialog open={showAuditPanel} onOpenChange={setShowAuditPanel}>
+                <DialogContent className="sm:max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <ClipboardList className="w-5 h-5 text-amber-600" />
+                            Auditoria Diária - {new Date().toLocaleDateString('pt-BR')}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Registro de todos os leads que passaram pela sua vez hoje. Se um mesmo nome aparece mais de uma vez, significa que o lead rodou pela fila e voltou para você novamente — cada linha representa uma chance de captura. Reseta automaticamente à meia-noite.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[65vh] overflow-y-auto custom-scrollbar space-y-3">
+                        {(() => {
+                            const myAuditData = auditData.filter((entry: any) => entry.user_id === currentUserId);
+                            
+                            if (myAuditData.length === 0) {
+                                return (
+                                    <div className="text-center py-12 text-muted-foreground">
+                                        <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                                        <p className="text-sm font-medium">Nenhum registro de turno hoje para você.</p>
+                                        <p className="text-xs mt-1">Os registros aparecerão conforme os leads passarem pela sua vez.</p>
+                                    </div>
+                                );
+                            }
+
+                            // Agrupa por consultor (na prática, apenas o próprio)
+                            const grouped: Record<string, { name: string; entries: any[] }> = {};
+                            myAuditData.forEach((entry: any) => {
+                                const key = entry.user_id;
+                                if (!grouped[key]) {
+                                    grouped[key] = { name: entry.consultant_name, entries: [] };
+                                }
+                                grouped[key].entries.push(entry);
+                            });
+
+                            // Ordena consultores por número de entradas (mais leads primeiro)
+                            const sortedConsultants = Object.entries(grouped).sort(
+                                (a, b) => b[1].entries.length - a[1].entries.length
+                            );
+
+                            return sortedConsultants.map(([userId, data]) => {
+                                const captured = data.entries.filter((e: any) => e.was_captured).length;
+                                const notCaptured = data.entries.length - captured;
+                                
+                                return (
+                                    <div key={userId} className="border border-border rounded-xl overflow-hidden">
+                                        {/* Cabeçalho do consultor */}
+                                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                                                    <Users className="w-4 h-4 text-muted-foreground" />
+                                                </div>
+                                                <span className="text-sm font-bold text-foreground">{data.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[11px]">
+                                                <span className="text-muted-foreground">
+                                                    {data.entries.length} {data.entries.length === 1 ? 'lead passou' : 'leads passaram'}
+                                                </span>
+                                                {captured > 0 && (
+                                                    <span className="text-green-600 font-semibold">{captured} capturado{captured > 1 ? 's' : ''}</span>
+                                                )}
+                                                {notCaptured > 0 && (
+                                                    <span className="text-red-500 font-semibold">{notCaptured} não capturado{notCaptured > 1 ? 's' : ''}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Colunas: Capturados | Não capturados */}
+                                        <div className="grid grid-cols-2 gap-3 px-3 pb-3 pt-2">
+                                            {/* Coluna Capturados */}
+                                            <div className="border border-green-200 dark:border-green-500/20 rounded-lg overflow-hidden">
+                                                <div className="bg-green-50 dark:bg-green-500/10 px-3 py-2 border-b border-green-200 dark:border-green-500/20">
+                                                    <span className="text-xs font-bold text-green-700 dark:text-green-400">Capturados ({captured})</span>
+                                                </div>
+                                                <div className="divide-y divide-green-100 dark:divide-green-500/10">
+                                                    {data.entries.filter((e: any) => e.was_captured).length === 0 ? (
+                                                        <div className="px-3 py-4 text-center text-xs text-muted-foreground">Nenhum capturado</div>
+                                                    ) : data.entries.filter((e: any) => e.was_captured).map((entry: any, i: number) => {
+                                                        const displayTimeStr = entry.claimed_at || entry.created_at;
+                                                        let timeObj = new Date();
+                                                        if (typeof displayTimeStr === 'string') {
+                                                            const cleanIso = displayTimeStr.substring(0, 19).replace(' ', 'T') + 'Z';
+                                                            const parsed = new Date(cleanIso);
+                                                            if (!isNaN(parsed.getTime())) timeObj = parsed;
+                                                        }
+                                                        const time = timeObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+                                                        return (
+                                                            <div key={i} className="flex items-center justify-between px-3 py-1.5">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                                                    <span className="text-xs text-foreground">{entry.lead_name}</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-muted-foreground font-mono">{time}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            {/* Coluna Não Capturados */}
+                                            <div className="border border-red-200 dark:border-red-500/20 rounded-lg overflow-hidden">
+                                                <div className="bg-red-50 dark:bg-red-500/10 px-3 py-2 border-b border-red-200 dark:border-red-500/20">
+                                                    <span className="text-xs font-bold text-red-600 dark:text-red-400">Não capturados ({notCaptured})</span>
+                                                </div>
+                                                <div className="divide-y divide-red-100 dark:divide-red-500/10">
+                                                    {data.entries.filter((e: any) => !e.was_captured).length === 0 ? (
+                                                        <div className="px-3 py-4 text-center text-xs text-muted-foreground">Todos capturados</div>
+                                                    ) : data.entries.filter((e: any) => !e.was_captured).map((entry: any, i: number) => {
+                                                        const displayTimeStr = entry.created_at;
+                                                        let timeObj = new Date();
+                                                        if (typeof displayTimeStr === 'string') {
+                                                            const parsed = new Date(displayTimeStr.replace(' ', 'T'));
+                                                            if (!isNaN(parsed.getTime())) timeObj = parsed;
+                                                        }
+                                                        const time = timeObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+                                                        return (
+                                                            <div key={i} className="flex items-center justify-between px-3 py-1.5">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                                                    <span className="text-xs text-foreground">{entry.lead_name}</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-muted-foreground font-mono">{time}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Modal para preencher nome completo */}
             <Dialog open={showNameModal} onOpenChange={setShowNameModal}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-xl">
-                            👤 Seu nome na Cúpula
+                            Seu nome na Cúpula
                         </DialogTitle>
                         <DialogDescription className="text-base mt-2">
                             Digite seu <b>nome completo</b> para aparecer na fila de consultores da Cúpula de Leads.
@@ -1357,6 +1494,7 @@ export function CupulaBoard() {
                                                     currentUserId={currentUserId}
                                                     unclaimedLeads={unclaimedLeads}
                                                     onClaim={handleClaimLead}
+                                                    onRefresh={fetchLeads}
                                                     playNotification={playNotification}
                                                 />
                                             </div>

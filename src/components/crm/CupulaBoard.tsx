@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,29 +53,32 @@ function LeadQueueCard({
         return () => clearInterval(interval);
     }, []);
 
-    // Parsing robusto de timestamps do Supabase
-    const parseUTC = (ds: any): number => {
+    // Parsing de timestamps do Supabase
+    const parseTS = (ds: any): number => {
         if (!ds) return 0;
-        try {
-            // O Supabase retorna timestamps como "2026-05-13 00:03:00.123-03"
-            // O offset -03 é CORRETO (BRT). new Date() parseia corretamente.
-            const str = String(ds).replace(' ', 'T');
-            const d = new Date(str);
-            if (!isNaN(d.getTime())) return d.getTime();
-            // Fallback: trata como UTC se não tiver offset
-            const d2 = new Date(str + 'Z');
-            return isNaN(d2.getTime()) ? Date.now() : d2.getTime();
-        } catch (e) {
-            return Date.now();
-        }
+        const str = String(ds).replace(' ', 'T');
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) return d.getTime();
+        // Tenta com +00 → +00:00
+        const str2 = str.replace(/([+-]\d{2})$/, '$1:00');
+        const d2 = new Date(str2);
+        if (!isNaN(d2.getTime())) return d2.getTime();
+        return 0;
     };
 
+    // DEBUG - remover depois
+    if (tickVal === 1) {
+        console.log('[DEBUG] created_at:', lead.created_at, 'parsed:', parseTS(lead.created_at), 'now:', Date.now(), 'offset:', clockOffset);
+    }
+
     const serverNow = Date.now() - clockOffset;
-    const assignedAtMs = parseUTC(lead.created_at);
-    const elapsedSec = Math.max(0, Math.floor((serverNow - assignedAtMs) / 1000));
+    const assignedAtMs = parseTS(lead.created_at);
+    const elapsedSec = assignedAtMs > 0
+        ? Math.max(0, Math.floor((serverNow - assignedAtMs) / 1000))
+        : 0;
 
     // Timer de expiração
-    const expiresAtMs = lead.turn_expires_at ? parseUTC(lead.turn_expires_at) : 0;
+    const expiresAtMs = lead.turn_expires_at ? parseTS(lead.turn_expires_at) : 0;
     const timeLeftSec = Math.max(0, Math.floor((expiresAtMs - serverNow) / 1000));
 
     // Determina o dono atual lendo direto do banco (current_turn_user_id)
@@ -135,7 +138,7 @@ function LeadQueueCard({
                 </div>
                 <div className="text-[10px] text-muted-foreground font-medium">
                     Chegou há {elapsedSec < 60
-                        ? `${Math.floor(elapsedSec)}s`
+                        ? `${elapsedSec}s`
                         : elapsedSec < 3600
                             ? `${Math.floor(elapsedSec / 60)}min`
                             : elapsedSec < 86400
@@ -232,6 +235,14 @@ function CapturedLeadCard({
 }) {
     const [expanded, setExpanded] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(lead.phone);
+        setCopied(true);
+        toast.success("Número copiado!");
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <>
@@ -341,8 +352,17 @@ function CapturedLeadCard({
                             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
                                 <Lock className="w-3 h-3" /> Contato Liberado
                             </div>
-                            <div className="text-sm font-mono bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 p-2.5 rounded-xl text-center border border-blue-100 dark:border-blue-500/20 font-bold">
-                                {lead.phone}
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl overflow-hidden">
+                                <div className="flex-1 text-center text-sm font-mono text-blue-700 dark:text-blue-300 py-2.5 font-bold pl-10">
+                                    {lead.phone}
+                                </div>
+                                <button
+                                    onClick={handleCopy}
+                                    className="p-2.5 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-colors border-l border-blue-100 dark:border-blue-500/20 flex items-center justify-center w-10"
+                                    title="Copiar número"
+                                >
+                                    {copied ? <Check className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Copy className="w-4 h-4" />}
+                                </button>
                             </div>
                         </div>
                     ) : (
@@ -388,6 +408,7 @@ export function CupulaBoard() {
     const [showAuditPanel, setShowAuditPanel] = useState(false);
     const [auditData, setAuditData] = useState<any[]>([]);
     const [customColumns, setCustomColumns] = useState<{ id: string; title: string; color: string; position: number }[]>([]);
+    const [columnOrder, setColumnOrder] = useState<string[]>([]);
     const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
     const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -575,10 +596,13 @@ export function CupulaBoard() {
 
                 setTurnInfo(queueData);
                 if (queueData.server_now) {
-                    const serverTime = new Date(queueData.server_now).getTime() || Date.now();
-                    const offset = Date.now() - serverTime;
-                    setClockOffset(offset);
-                    clockOffsetRef.current = offset;
+                    // server_now vem como epoch ms (bigint do PG) — pode ser string ou number
+                    const serverTime = Number(queueData.server_now);
+                    if (!isNaN(serverTime) && serverTime > 0) {
+                        const offset = Date.now() - serverTime;
+                        setClockOffset(offset);
+                        clockOffsetRef.current = offset;
+                    }
                 }
             }
 
@@ -591,9 +615,14 @@ export function CupulaBoard() {
             if (settingsData) {
                 const namesMap: Record<string, string> = {};
                 const userCustomCols: { id: string; title: string; color: string; position: number }[] = [];
+                let savedOrder: string[] = [];
 
                 settingsData.forEach(item => {
-                    if (item.column_id.startsWith('custom_')) {
+                    if (item.column_id === 'column_order') {
+                        try {
+                            savedOrder = JSON.parse(item.custom_name);
+                        } catch {}
+                    } else if (item.column_id.startsWith('custom_')) {
                         // Parse custom column metadata: "title|color|position"
                         try {
                             const meta = JSON.parse(item.custom_name);
@@ -617,6 +646,7 @@ export function CupulaBoard() {
                 });
                 setCustomNames(namesMap);
                 setCustomColumns(userCustomCols.sort((a, b) => a.position - b.position));
+                setColumnOrder(savedOrder);
             }
         } catch (error: any) {
             console.error("Erro ao puxar leads da Cúpula:", error);
@@ -951,7 +981,19 @@ export function CupulaBoard() {
         { id: 'perdidos', title: 'Perdidos', color: 'bg-red-500/10 border-red-500/20 text-red-500' },
     ];
 
-    const columns = [...baseColumns, ...customColumns];
+    let columns = [...baseColumns, ...customColumns];
+    if (columnOrder.length > 0) {
+        const novosCol = columns.find(c => c.id === 'novos');
+        const otherCols = columns.filter(c => c.id !== 'novos');
+        otherCols.sort((a, b) => {
+            let idxA = columnOrder.indexOf(a.id);
+            let idxB = columnOrder.indexOf(b.id);
+            if (idxA === -1) idxA = 999;
+            if (idxB === -1) idxB = 999;
+            return idxA - idxB;
+        });
+        columns = novosCol ? [novosCol, ...otherCols] : otherCols;
+    }
 
     if (loading) {
         return (
@@ -1390,16 +1432,72 @@ export function CupulaBoard() {
                     const handleDrop = (e: React.DragEvent) => {
                         e.preventDefault();
                         if (!canDrop) return;
+                        
+                        const isColumnDrop = e.dataTransfer.types.includes('columnid') || draggedColumnId !== null;
+                        if (isColumnDrop) {
+                            // Reorder columns
+                            e.stopPropagation();
+                            const draggedId = draggedColumnId || e.dataTransfer.getData('columnId');
+                            if (!draggedId || draggedId === col.id || col.id === 'novos') {
+                                setDraggedColumnId(null);
+                                return;
+                            }
+
+                            const currentMovable = columns.filter(c => c.id !== 'novos').map(c => c.id);
+                            const draggedIndex = currentMovable.indexOf(draggedId);
+                            const targetIndex = currentMovable.indexOf(col.id);
+                            
+                            if (draggedIndex === -1 || targetIndex === -1) {
+                                setDraggedColumnId(null);
+                                return;
+                            }
+
+                            const newOrder = [...currentMovable];
+                            newOrder.splice(draggedIndex, 1);
+                            newOrder.splice(targetIndex, 0, draggedId);
+
+                            setColumnOrder(newOrder);
+                            setDraggedColumnId(null);
+
+                            supabase
+                                .from('cupula_settings')
+                                .upsert({
+                                    user_id: currentUserId,
+                                    niche: selectedNiche,
+                                    column_id: 'column_order',
+                                    custom_name: JSON.stringify(newOrder),
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'user_id,niche,column_id' })
+                                .then(({ error }) => {
+                                    if (error) {
+                                        console.error("Erro ao salvar ordem das etapas:", error);
+                                        toast.error("Erro ao salvar ordem das etapas.");
+                                    }
+                                });
+                            return;
+                        }
+
+                        // Lead drop
                         const leadId = e.dataTransfer.getData('leadId');
                         if (leadId) {
                             handleStatusChange(leadId, col.id);
                         }
                     };
 
+                    const handleColumnDragStart = (e: React.DragEvent) => {
+                        if (col.id === 'novos') return;
+                        setDraggedColumnId(col.id);
+                        e.dataTransfer.setData('columnId', col.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                    };
+
                     return (
                         <div
                             key={col.id}
-                            className="flex-shrink-0 w-72 sm:w-80 h-full flex flex-col bg-card/50 border border-border rounded-xl"
+                            draggable={col.id !== 'novos'}
+                            onDragStart={handleColumnDragStart}
+                            onDragEnd={() => setDraggedColumnId(null)}
+                            className={`flex-shrink-0 w-72 sm:w-80 h-full flex flex-col bg-card/50 border border-border rounded-xl transition-all ${col.id !== 'novos' ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedColumnId === col.id ? 'opacity-50 border-dashed border-2' : ''}`}
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}
                         >

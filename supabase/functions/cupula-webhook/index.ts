@@ -123,52 +123,11 @@ serve(async (req: Request) => {
       : `Email: ${email}`;
 
     // =============================================
-    // ROUND-ROBIN: Determinar a quem atribuir o lead
+    // INSERÇÃO DO LEAD
+    // A distribuição é feita automaticamente pelo trigger
+    // distribute_lead_on_insert() usando ponteiro global
+    // da tabela cupula_niche_tracking (round-robin justo)
     // =============================================
-    
-    // 1. Buscar todos os membros ativos da cúpula
-    const { data: members, error: membersErr } = await supabase
-      .from('cupula_access')
-      .select('user_id, full_name, created_at')
-      .eq('status', 'active')
-      .not('user_id', 'is', null)
-      .order('created_at', { ascending: true });
-
-    if (membersErr) {
-      console.error("❌ Erro ao buscar membros:", membersErr);
-      throw membersErr;
-    }
-
-    let assignedTo: string | null = null;
-
-    if (members && members.length > 0) {
-      // 2. Buscar o ÚLTIMO lead atribuído (assigned_to) para saber quem foi o último
-      const { data: lastAssigned } = await supabase
-        .from('cupula_leads')
-        .select('assigned_to')
-        .not('assigned_to', 'is', null)
-        .order('assigned_at', { ascending: false })
-        .limit(1);
-
-      let nextIndex = 0;
-
-      if (lastAssigned && lastAssigned.length > 0) {
-        const lastUserId = lastAssigned[0].assigned_to;
-        const lastIndex = members.findIndex(m => m.user_id === lastUserId);
-        
-        if (lastIndex !== -1) {
-          // Próximo na fila é o seguinte ao último que recebeu
-          nextIndex = (lastIndex + 1) % members.length;
-        }
-      }
-
-      assignedTo = members[nextIndex].user_id;
-      console.log(`🎯 Round-robin: Lead atribuído a ${members[nextIndex].full_name || 'membro'} (user_id: ${assignedTo}, posição: ${nextIndex + 1}/${members.length})`);
-    }
-
-    // 3. Inserir o Lead com assigned_to e turn tracking definidos
-    const now = new Date();
-    const turnExpires = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutos
 
     const { error } = await supabase
       .from('cupula_leads')
@@ -177,11 +136,7 @@ serve(async (req: Request) => {
         name: name,
         phone: cleanPhone,
         notes: finalNotes,
-        status: 'novos',
-        assigned_to: assignedTo,
-        assigned_at: now.toISOString(),
-        current_turn_user_id: assignedTo,
-        turn_expires_at: turnExpires.toISOString()
+        status: 'novos'
       })
 
     if (error) {
@@ -189,8 +144,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: error.message }), { status: 500 })
     }
 
-    console.log(`✅ Lead ${name} salvo e atribuído! Os membros já podem capturá-lo na plataforma.`)
-    return new Response(JSON.stringify({ success: true, message: "Lead depositado na Cúpula!", assigned_to: assignedTo }), { status: 200 })
+    console.log(`✅ Lead ${name} salvo na Cúpula! O trigger distribute_lead_on_insert() cuidou da distribuição.`)
+    return new Response(JSON.stringify({ success: true, message: "Lead depositado na Cúpula!" }), { status: 200 })
 
   } catch (err: any) {
     console.error("❌ Erro Crítico no Webhook:", err.message)

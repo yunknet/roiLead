@@ -558,7 +558,7 @@ export function CupulaBoard() {
             });
 
             if (!queueErr && queueData) {
-                // Busca direta do last_lead_at específico deste nicho
+                // Busca direta do last_lead_at específico deste nicho (para exibição)
                 const { data: accessData } = await supabase
                     .from('cupula_last_leads')
                     .select('user_id, last_lead_at')
@@ -570,16 +570,12 @@ export function CupulaBoard() {
                         accessMap[row.user_id] = row.last_lead_at;
                     });
 
-                    // Mescla e ordena os dados pela lógica de espera (LRA) do nicho
+                    // Mescla last_lead_at para exibição (NÃO reordena — a ordem fixa vem do banco)
                     if (queueData.active_users) {
                         queueData.active_users = queueData.active_users.map((u: any) => ({
                             ...u,
                             last_lead_at: accessMap[u.id] || accessMap[u.user_id] || null
-                        })).sort((a: any, b: any) => {
-                            const timeA = a.last_lead_at ? new Date(a.last_lead_at).getTime() : 0;
-                            const timeB = b.last_lead_at ? new Date(b.last_lead_at).getTime() : 0;
-                            return timeA - timeB; // Quem tem o tempo mais antigo (menor) fica no topo
-                        });
+                        }));
                     }
                 }
 
@@ -1094,7 +1090,7 @@ export function CupulaBoard() {
                 </Button>
             </div>
 
-            {/* Modal de membros ativos */}
+            {/* Modal de membros ativos — Ponteiro Global */}
             <Dialog open={showMembersPanel} onOpenChange={setShowMembersPanel}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
@@ -1103,13 +1099,22 @@ export function CupulaBoard() {
                             Fila de Consultores
                         </DialogTitle>
                         <DialogDescription>
-                            A prioridade é definida por quem está há mais tempo sem capturar leads. O consultor no topo da lista receberá o próximo lead que chegar.
+                            A distribuição segue ordem circular fixa. Cada lead (novo ou redistribuído) vai para o próximo consultor da fila, sem pular ninguém.
                         </DialogDescription>
                     </DialogHeader>
+
+                    {/* Indicador do ponteiro global */}
+                    {turnInfo?.active_users?.length > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
+                            <span className="font-bold">📍 Ponteiro:</span>
+                            <span>Próximo lead vai para a posição <strong>#{((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length) + 1}</strong> — <strong>{turnInfo.active_users[((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length)]?.name}</strong></span>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
                         {turnInfo?.active_users?.map((member: any, idx: number) => {
                             const isCurrentUser = member.user_id === currentUserId;
+                            const isNextInLine = idx === ((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length);
                             // Verifica se tem algum lead não capturado atribuído a esse membro
                             const hasActiveLead = leads.some(l => 
                                 (l.current_turn_user_id === member.user_id || l.current_turn_user_id === member.id) && 
@@ -1122,16 +1127,20 @@ export function CupulaBoard() {
                                     key={member.user_id}
                                     className={`flex items-start gap-3 px-3 py-3 rounded-xl border transition-all ${hasActiveLead
                                             ? 'bg-blue-500/10 border-blue-500/30 shadow-sm'
-                                            : isCurrentUser
-                                                ? 'bg-primary/5 border-primary/20'
-                                                : 'bg-muted/30 border-border/50'
+                                            : isNextInLine
+                                                ? 'bg-green-500/10 border-green-500/30 shadow-sm'
+                                                : isCurrentUser
+                                                    ? 'bg-primary/5 border-primary/20'
+                                                    : 'bg-muted/30 border-border/50'
                                         }`}
                                 >
                                     <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${hasActiveLead
                                             ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                                            : 'bg-muted text-muted-foreground'
+                                            : isNextInLine
+                                                ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                                                : 'bg-muted text-muted-foreground'
                                         }`}>
-                                        <Clock className="w-5 h-5 opacity-60" />
+                                        #{idx + 1}
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <div className={`text-sm font-bold leading-tight flex items-center gap-2 ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
@@ -1151,9 +1160,14 @@ export function CupulaBoard() {
                                         </div>
                                         <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                             {member.last_lead_at 
-                                                ? `Último lead: ${getTimeAgo(member.last_lead_at)}`
-                                                : 'Aguardando primeiro lead'}
+                                                ? `Última captura: ${getTimeAgo(member.last_lead_at)}`
+                                                : 'Aguardando primeira captura'}
                                         </div>
+                                        {isNextInLine && !hasActiveLead && (
+                                            <div className="text-[11px] font-semibold text-green-600 dark:text-green-400 mt-0.5 flex items-center gap-1">
+                                                ➡️ Próximo na fila
+                                            </div>
+                                        )}
                                         {hasActiveLead && (
                                             <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
                                                 🎯 Capturando agora

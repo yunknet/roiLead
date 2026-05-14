@@ -5,6 +5,14 @@ import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, V
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+let sharedAudioCtx: AudioContext | null = null;
+const getAudioContext = () => {
+    if (!sharedAudioCtx) {
+        sharedAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return sharedAudioCtx;
+};
+
 const NICHES = ['Consórcio', 'Administrativo'] as const;
 type Niche = typeof NICHES[number];
 type SharkStatus = string;
@@ -422,7 +430,10 @@ export function CupulaBoard() {
     const playNotification = () => {
         if (!soundEnabledRef.current) return;
         try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
             const osc1 = ctx.createOscillator();
             const gain1 = ctx.createGain();
             osc1.connect(gain1);
@@ -433,6 +444,7 @@ export function CupulaBoard() {
             gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
             osc1.start(ctx.currentTime);
             osc1.stop(ctx.currentTime + 0.15);
+            
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.connect(gain2);
@@ -443,7 +455,6 @@ export function CupulaBoard() {
             gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
             osc2.start(ctx.currentTime + 0.2);
             osc2.stop(ctx.currentTime + 0.4);
-            setTimeout(() => ctx.close(), 1000);
         } catch (e) {
             console.error("Erro ao tocar som:", e);
         }
@@ -469,6 +480,8 @@ export function CupulaBoard() {
         soundEnabledRef.current = newValue;
         localStorage.setItem('cupula_sound_enabled', newValue.toString());
         if (newValue) {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
             playNotification();
         }
         toast.info(newValue ? "Notificações sonoras ativadas 🔊" : "Notificações sonoras desativadas 🔇");
@@ -912,6 +925,11 @@ export function CupulaBoard() {
     };
 
     const handleSelectNiche = async (niche: Niche) => {
+        try {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+        } catch (e) {}
+        
         setLoadingAccess(niche);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -1605,6 +1623,7 @@ export function CupulaBoard() {
                                             draggable={isMine}
                                             onDragStart={(e) => {
                                                 if (isMine) {
+                                                    e.stopPropagation();
                                                     e.dataTransfer.setData('leadId', lead.id);
                                                 }
                                             }}

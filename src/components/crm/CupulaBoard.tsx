@@ -80,7 +80,8 @@ function LeadQueueCard({
     }
 
     const serverNow = Date.now() - clockOffset;
-    const assignedAtMs = parseTS(lead.created_at);
+    const rawAssignedAtMs = parseTS(lead.created_at);
+    const assignedAtMs = rawAssignedAtMs > serverNow + 3600000 ? rawAssignedAtMs - 10800000 : rawAssignedAtMs;
     const elapsedSec = assignedAtMs > 0
         ? Math.max(0, Math.floor((serverNow - assignedAtMs) / 1000))
         : 0;
@@ -145,13 +146,7 @@ function LeadQueueCard({
                     <Lock className="w-3 h-3" /> Dados ocultos
                 </div>
                 <div className="text-[10px] text-muted-foreground font-medium">
-                    Chegou há {elapsedSec < 60
-                        ? `${elapsedSec}s`
-                        : elapsedSec < 3600
-                            ? `${Math.floor(elapsedSec / 60)}min`
-                            : elapsedSec < 86400
-                                ? `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}min`
-                                : `${Math.floor(elapsedSec / 86400)}d ${Math.floor((elapsedSec % 86400) / 3600)}h`}
+                    Chegou às {assignedAtMs > 0 ? new Date(assignedAtMs + clockOffset).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                 </div>
             </div>
 
@@ -159,8 +154,8 @@ function LeadQueueCard({
                 <div className="text-xs text-muted-foreground bg-blue-50/50 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-500/10 italic leading-relaxed">
                     {(() => {
                         const parts = lead.notes!.split('|');
-                        const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
-                        const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
+                        const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:') || p.includes('@'));
+                        const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:') && !p.includes('@'));
                         return (
                             <>
                                 {otherParts.map((part, idx) => {
@@ -244,6 +239,7 @@ function CapturedLeadCard({
     const [expanded, setExpanded] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [copiedEmail, setCopiedEmail] = useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(lead.phone);
@@ -251,6 +247,22 @@ function CapturedLeadCard({
         toast.success("Número copiado!");
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const handleCopyEmail = (emailToCopy: string) => {
+        navigator.clipboard.writeText(emailToCopy);
+        setCopiedEmail(true);
+        toast.success("Email copiado!");
+        setTimeout(() => setCopiedEmail(false), 2000);
+    };
+
+    const extractedEmail = useMemo(() => {
+        if (!lead.notes) return null;
+        const parts = lead.notes.split('|');
+        const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:') || p.includes('@'));
+        return emailParts.length > 0
+            ? emailParts[0].replace('📧', '').replace('Email:', '').replace('🔸', '').trim()
+            : null;
+    }, [lead.notes]);
 
     return (
         <>
@@ -308,20 +320,12 @@ function CapturedLeadCard({
                         <div className="space-y-1">
                             {(() => {
                                 const parts = lead.notes!.split('|');
-                                const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:'));
-                                const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:'));
-
-                                const firstEmail = emailParts.length > 0
-                                    ? emailParts[0].replace('📧', '').replace('Email:', '').trim()
-                                    : null;
+                                const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:') && !p.includes('@'));
 
                                 return (
                                     <>
-                                        {firstEmail && (
-                                            <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                                                <Mail className="w-3.5 h-3.5" />
-                                                {firstEmail}
-                                            </div>
+                                        {otherParts.length === 0 && (
+                                            <div className="text-xs text-muted-foreground italic opacity-70">Apenas informações de contato.</div>
                                         )}
                                         {otherParts.map((part, idx) => {
                                             let cleanPart = part.trim()
@@ -360,17 +364,33 @@ function CapturedLeadCard({
                             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1 mb-[-4px]">
                                 <Lock className="w-3 h-3" /> Contato Liberado
                             </div>
-                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl overflow-hidden">
-                                <div className="flex-1 text-center text-sm font-mono text-blue-700 dark:text-blue-300 py-2.5 font-bold pl-10">
-                                    {lead.phone}
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl overflow-hidden">
+                                    <div className="flex-1 text-center text-sm font-mono text-blue-700 dark:text-blue-300 py-2.5 font-bold pl-10">
+                                        {lead.phone}
+                                    </div>
+                                    <button
+                                        onClick={handleCopy}
+                                        className="p-2.5 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-colors border-l border-blue-100 dark:border-blue-500/20 flex items-center justify-center w-10"
+                                        title="Copiar número"
+                                    >
+                                        {copied ? <Check className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Copy className="w-4 h-4" />}
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={handleCopy}
-                                    className="p-2.5 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-colors border-l border-blue-100 dark:border-blue-500/20 flex items-center justify-center w-10"
-                                    title="Copiar número"
-                                >
-                                    {copied ? <Check className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Copy className="w-4 h-4" />}
-                                </button>
+                                {extractedEmail && (
+                                    <div className="flex items-center justify-between bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100/50 dark:border-blue-500/10 rounded-xl overflow-hidden">
+                                        <div className="flex-1 text-center text-xs font-medium text-blue-600/80 dark:text-blue-300/80 py-2 pl-10 truncate px-2">
+                                            {extractedEmail}
+                                        </div>
+                                        <button
+                                            onClick={() => handleCopyEmail(extractedEmail)}
+                                            className="p-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600/80 dark:text-blue-400/80 transition-colors border-l border-blue-100/50 dark:border-blue-500/10 flex items-center justify-center w-10 shrink-0"
+                                            title="Copiar email"
+                                        >
+                                            {copiedEmail ? <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (

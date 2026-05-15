@@ -464,7 +464,7 @@ export function CupulaBoard() {
             gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
             osc1.start(ctx.currentTime);
             osc1.stop(ctx.currentTime + 0.15);
-            
+
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.connect(gain2);
@@ -485,7 +485,7 @@ export function CupulaBoard() {
         const serverNow = Date.now() - clockOffset;
         const date = new Date(dateString);
         const seconds = Math.floor((serverNow - date.getTime()) / 1000);
-        
+
         if (seconds < 60) return 'agora mesmo';
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `há ${minutes}min`;
@@ -601,8 +601,8 @@ export function CupulaBoard() {
 
             // Busca de quem é a vez na fila via Edge Function
             // Busca de quem é a vez na fila via RPC (Banco de Dados) - Mais rápido e filtra por nicho
-            const { data: queueData, error: queueErr } = await supabase.rpc('get_cupula_queue', { 
-                niche_param: selectedNiche 
+            const { data: queueData, error: queueErr } = await supabase.rpc('get_cupula_queue', {
+                niche_param: selectedNiche
             });
 
             if (!queueErr && queueData) {
@@ -654,7 +654,7 @@ export function CupulaBoard() {
                     if (item.column_id === 'column_order') {
                         try {
                             savedOrder = JSON.parse(item.custom_name);
-                        } catch {}
+                        } catch { }
                     } else if (item.column_id.startsWith('custom_')) {
                         // Parse custom column metadata: "title|color|position"
                         try {
@@ -701,17 +701,17 @@ export function CupulaBoard() {
             }
 
             toast.success("Lead capturado com sucesso!");
-            
+
             // Atualiza o tempo da última captura ESPECÍFICO deste nicho
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 // Tenta atualizar, se não existir, o Supabase upsert resolve (ou fazemos manual)
                 await supabase
                     .from('cupula_last_leads')
-                    .upsert({ 
-                        user_id: user.id, 
-                        niche: selectedNiche, 
-                        last_lead_at: new Date().toISOString() 
+                    .upsert({
+                        user_id: user.id,
+                        niche: selectedNiche,
+                        last_lead_at: new Date().toISOString()
                     }, { onConflict: 'user_id,niche' });
             }
 
@@ -948,8 +948,8 @@ export function CupulaBoard() {
         try {
             const ctx = getAudioContext();
             if (ctx.state === 'suspended') ctx.resume();
-        } catch (e) {}
-        
+        } catch (e) { }
+
         setLoadingAccess(niche);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -1032,6 +1032,18 @@ export function CupulaBoard() {
         });
         columns = novosCol ? [novosCol, ...otherCols] : otherCols;
     }
+
+    const nextUserInLine = useMemo(() => {
+        if (!turnInfo?.active_users || turnInfo.active_users.length === 0) return null;
+        const nextIndex = (turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length;
+        const member = turnInfo.active_users[nextIndex];
+        return {
+            name: member.name,
+            status: 'Próximo na fila',
+            isCurrentUser: member.user_id === currentUserId,
+            queuePosition: nextIndex + 1
+        };
+    }, [turnInfo, currentUserId]);
 
     if (loading) {
         return (
@@ -1138,15 +1150,32 @@ export function CupulaBoard() {
                         <h2 className="text-2xl font-bold text-foreground">
                             Cúpula de {selectedNiche}
                         </h2>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={toggleSound}
-                            className={`flex items-center gap-2 rounded-full px-4 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
-                        >
-                            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                            <span className="text-xs font-semibold">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
-                        </Button>
+                        <div className="flex items-center gap-3">
+                            {nextUserInLine && (
+                                <div className={`flex items-center gap-2 rounded-full pr-3 pl-1.5 py-1 border shadow-sm ${nextUserInLine.isCurrentUser ? 'bg-green-50 border-green-200 dark:bg-green-500/10 dark:border-green-500/30' : 'bg-green-50/50 border-green-100 dark:bg-green-500/5 dark:border-green-500/10'}`}>
+                                    <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-[10px] font-black shadow-sm shrink-0">
+                                        #{nextUserInLine.queuePosition}
+                                    </div>
+                                    <div className="flex flex-col justify-center">
+                                        <span className={`text-[11px] font-bold leading-none ${nextUserInLine.isCurrentUser ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
+                                            {nextUserInLine.name.split(' ')[0]} {nextUserInLine.isCurrentUser && '(Você)'}
+                                        </span>
+                                        <span className="text-[9px] font-semibold text-green-600 dark:text-green-500 leading-none mt-1">
+                                            {nextUserInLine.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleSound}
+                                className={`flex items-center gap-2 rounded-full px-4 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
+                            >
+                                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                                <span className="text-xs font-semibold">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
+                            </Button>
+                        </div>
                     </div>
                     <p className="text-muted-foreground text-sm">
                         Dispute os leads enviados por tráfego pago.
@@ -1197,9 +1226,9 @@ export function CupulaBoard() {
                         {turnInfo?.active_users?.map((member: any, idx: number) => {
                             const isCurrentUser = member.user_id === currentUserId;
                             const isNextInLine = idx === ((turnInfo.base_turn_index ?? 0) % turnInfo.active_users.length);
-                            const hasActiveLead = leads.some(l => 
-                                (l.current_turn_user_id === member.user_id || l.current_turn_user_id === member.id) && 
-                                l.status === 'novos' && 
+                            const hasActiveLead = leads.some(l =>
+                                (l.current_turn_user_id === member.user_id || l.current_turn_user_id === member.id) &&
+                                l.status === 'novos' &&
                                 !l.owner_id &&
                                 l.niche === selectedNiche
                             );
@@ -1207,19 +1236,19 @@ export function CupulaBoard() {
                                 <div
                                     key={member.user_id}
                                     className={`flex items-start gap-3 px-3 py-3 rounded-xl border transition-all ${hasActiveLead
-                                            ? 'bg-blue-500/10 border-blue-500/30 shadow-sm'
-                                            : isNextInLine
-                                                ? 'bg-green-500/10 border-green-500/30 shadow-sm'
-                                                : isCurrentUser
-                                                    ? 'bg-primary/5 border-primary/20'
-                                                    : 'bg-muted/30 border-border/50'
+                                        ? 'bg-blue-500/10 border-blue-500/30 shadow-sm'
+                                        : isNextInLine
+                                            ? 'bg-green-500/10 border-green-500/30 shadow-sm'
+                                            : isCurrentUser
+                                                ? 'bg-primary/5 border-primary/20'
+                                                : 'bg-muted/30 border-border/50'
                                         }`}
                                 >
                                     <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-black ${hasActiveLead
-                                            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                                            : isNextInLine
-                                                ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
-                                                : 'bg-muted text-muted-foreground'
+                                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                                        : isNextInLine
+                                            ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                                            : 'bg-muted text-muted-foreground'
                                         }`}>
                                         #{idx + 1}
                                     </div>
@@ -1240,7 +1269,7 @@ export function CupulaBoard() {
                                             )}
                                         </div>
                                         <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                                            {member.last_lead_at 
+                                            {member.last_lead_at
                                                 ? `Última captura: ${getTimeAgo(member.last_lead_at)}`
                                                 : 'Aguardando primeira captura'}
                                         </div>
@@ -1278,7 +1307,7 @@ export function CupulaBoard() {
                     <div className="max-h-[65vh] overflow-y-auto custom-scrollbar space-y-3">
                         {(() => {
                             const myAuditData = auditData.filter((entry: any) => entry.user_id === currentUserId);
-                            
+
                             if (myAuditData.length === 0) {
                                 return (
                                     <div className="text-center py-12 text-muted-foreground">
@@ -1307,7 +1336,7 @@ export function CupulaBoard() {
                             return sortedConsultants.map(([userId, data]) => {
                                 const captured = data.entries.filter((e: any) => e.was_captured).length;
                                 const notCaptured = data.entries.length - captured;
-                                
+
                                 return (
                                     <div key={userId} className="border border-border rounded-xl overflow-hidden">
                                         {/* Cabeçalho do consultor */}
@@ -1470,7 +1499,7 @@ export function CupulaBoard() {
                     const handleDrop = (e: React.DragEvent) => {
                         e.preventDefault();
                         if (!canDrop) return;
-                        
+
                         const isColumnDrop = e.dataTransfer.types.includes('columnid') || draggedColumnId !== null;
                         if (isColumnDrop) {
                             // Reorder columns
@@ -1484,7 +1513,7 @@ export function CupulaBoard() {
                             const currentMovable = columns.filter(c => c.id !== 'novos').map(c => c.id);
                             const draggedIndex = currentMovable.indexOf(draggedId);
                             const targetIndex = currentMovable.indexOf(col.id);
-                            
+
                             if (draggedIndex === -1 || targetIndex === -1) {
                                 setDraggedColumnId(null);
                                 return;

@@ -1,3 +1,3 @@
 git add .
-git commit -m "feat: add next in line indicator to header"
+git commit -m "style: move next in line indicator to the right, remove hashtag, and enlarge"
 git push origin cupula

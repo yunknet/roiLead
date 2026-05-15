@@ -1151,30 +1151,30 @@ export function CupulaBoard() {
                             Cúpula de {selectedNiche}
                         </h2>
                         <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleSound}
+                                className={`flex items-center gap-2 rounded-full px-4 h-9 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
+                            >
+                                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                                <span className="text-xs font-semibold">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
+                            </Button>
                             {nextUserInLine && (
-                                <div className={`flex items-center gap-2 rounded-full pr-3 pl-1.5 py-1 border shadow-sm ${nextUserInLine.isCurrentUser ? 'bg-green-50 border-green-200 dark:bg-green-500/10 dark:border-green-500/30' : 'bg-green-50/50 border-green-100 dark:bg-green-500/5 dark:border-green-500/10'}`}>
-                                    <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-[10px] font-black shadow-sm shrink-0">
-                                        #{nextUserInLine.queuePosition}
+                                <div className={`flex items-center gap-2.5 rounded-full pr-4 pl-1.5 py-1.5 border shadow-sm ${nextUserInLine.isCurrentUser ? 'bg-green-50 border-green-200 dark:bg-green-500/10 dark:border-green-500/30' : 'bg-green-50/50 border-green-100 dark:bg-green-500/5 dark:border-green-500/10'}`}>
+                                    <div className="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-black shadow-sm shrink-0">
+                                        {nextUserInLine.queuePosition}
                                     </div>
                                     <div className="flex flex-col justify-center">
-                                        <span className={`text-[11px] font-bold leading-none ${nextUserInLine.isCurrentUser ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
+                                        <span className={`text-xs font-bold leading-none ${nextUserInLine.isCurrentUser ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
                                             {nextUserInLine.name.split(' ')[0]} {nextUserInLine.isCurrentUser && '(Você)'}
                                         </span>
-                                        <span className="text-[9px] font-semibold text-green-600 dark:text-green-500 leading-none mt-1">
+                                        <span className="text-[10px] font-semibold text-green-600 dark:text-green-500 leading-none mt-1">
                                             {nextUserInLine.status}
                                         </span>
                                     </div>
                                 </div>
                             )}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={toggleSound}
-                                className={`flex items-center gap-2 rounded-full px-4 ${soundEnabled ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-muted-foreground'}`}
-                            >
-                                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                                <span className="text-xs font-semibold">{soundEnabled ? "Som Ativo" : "Mudo"}</span>
-                            </Button>
                         </div>
                     </div>
                     <p className="text-muted-foreground text-sm">

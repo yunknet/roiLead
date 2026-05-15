@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList, Copy } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList, Copy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -440,6 +440,7 @@ export function CupulaBoard() {
     const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
     const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(() => {
         return localStorage.getItem('cupula_sound_enabled') !== 'false';
     });
@@ -585,6 +586,12 @@ export function CupulaBoard() {
             supabase.removeChannel(channel);
         };
     }, [selectedNiche]);
+
+    const handleManualRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchLeads();
+        setTimeout(() => setIsRefreshing(false), 800);
+    };
 
     const fetchLeads = async () => {
         try {
@@ -1175,6 +1182,15 @@ export function CupulaBoard() {
                                     </div>
                                 </div>
                             )}
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleManualRefresh}
+                                className="h-9 w-9 rounded-full border-muted-foreground/20 text-muted-foreground hover:bg-primary/5 hover:text-primary transition-colors shrink-0 shadow-sm"
+                                title="Atualizar fila de leads"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            </Button>
                         </div>
                     </div>
                     <p className="text-muted-foreground text-sm">

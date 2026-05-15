@@ -1,3 +1,3 @@
 git add .
-git commit -m "style: remove hashtag from queue numbers in members modal"
+git commit -m "chore: sync changes to cupula branch"
 git push origin cupula

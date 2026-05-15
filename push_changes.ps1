@@ -1,3 +1,3 @@
 git add .
-git commit -m "feat: add manual refresh button to cupula header"
+git commit -m "style: remove hashtag from queue numbers in members modal"
 git push origin cupula

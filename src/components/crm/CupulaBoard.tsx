@@ -1266,7 +1266,7 @@ export function CupulaBoard() {
                                             ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
                                             : 'bg-muted text-muted-foreground'
                                         }`}>
-                                        #{idx + 1}
+                                        {idx + 1}
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <div className={`text-sm font-bold leading-tight flex items-center gap-2 ${isCurrentUser ? 'text-primary' : 'text-foreground'}`}>

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList, Copy, RefreshCw } from "lucide-react";
+import { Loader2, Waves, UserPlus, Lock, Clock, Trash2, Edit2, Check, X, Bell, Volume2, VolumeX, Mail, Users, ChevronDown, ChevronUp, Plus, GripVertical, ArrowLeft, ArrowRight, ClipboardList, Copy, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import * as XLSX from "xlsx";
 let sharedAudioCtx: AudioContext | null = null;
 const getAudioContext = () => {
     if (!sharedAudioCtx) {
@@ -1063,6 +1064,53 @@ export function CupulaBoard() {
         };
     }, [turnInfo, currentUserId]);
 
+    const handleExportColumn = (columnId: string, columnTitle: string, columnLeads: SharkLead[]) => {
+        if (columnLeads.length === 0) {
+            toast.info("Nenhum lead nesta coluna para exportar.");
+            return;
+        }
+
+        const exportData = columnLeads.map(lead => {
+            // Extrai email das notas se existir
+            let email = '';
+            if (lead.notes) {
+                const parts = lead.notes.split('|');
+                const emailParts = parts.filter(p => p.includes('📧') || p.includes('Email:') || p.includes('@'));
+                if (emailParts.length > 0) {
+                    email = emailParts[0].replace('📧', '').replace('Email:', '').replace('🔸', '').trim();
+                }
+            }
+
+            // Extrai especificações das notas
+            let specs = '';
+            if (lead.notes) {
+                const parts = lead.notes.split('|');
+                const otherParts = parts.filter(p => !p.includes('📧') && !p.includes('Email:') && !p.includes('@'));
+                specs = otherParts.map(p => p.replace(/🔸/g, '').trim()).filter(Boolean).join(' | ');
+            }
+
+            return {
+                'Nome': lead.name,
+                'Telefone': lead.phone,
+                'Email': email,
+                'Especificações': specs,
+                'Status': columnTitle,
+                'Nicho': lead.niche,
+                'Capturado em': lead.claimed_at ? new Date(lead.claimed_at).toLocaleString('pt-BR') : '',
+                'Criado em': lead.created_at ? new Date(lead.created_at).toLocaleString('pt-BR') : '',
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, columnTitle.substring(0, 31));
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const fileName = `cupula_${columnTitle.toLowerCase().replace(/\s+/g, '_')}_${dateStr}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        toast.success(`${columnLeads.length} lead${columnLeads.length > 1 ? 's' : ''} exportado${columnLeads.length > 1 ? 's' : ''} com sucesso!`);
+    };
+
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center">
@@ -1668,9 +1716,24 @@ export function CupulaBoard() {
                                                 </div>
                                             )}
                                         </div>
-                                        <span className="bg-background/50 text-foreground px-2 py-0.5 rounded-full text-xs">
-                                            {colLeads.length}
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            {col.id !== 'novos' && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const myLeads = filteredLeads.filter(l => l.status === col.id && l.owner_id === currentUserId);
+                                                        handleExportColumn(col.id, customNames[col.id] || col.title, myLeads);
+                                                    }}
+                                                    className="p-1 text-muted-foreground hover:text-green-600 transition-colors"
+                                                    title="Exportar para Excel"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                            <span className="bg-background/50 text-foreground px-2 py-0.5 rounded-full text-xs">
+                                                {colLeads.length}
+                                            </span>
+                                        </div>
                                     </>
                                 )}
                             </div>

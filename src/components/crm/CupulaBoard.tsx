@@ -1211,9 +1211,9 @@ export function CupulaBoard() {
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Banner de aviso — mensagem gerenciada via banco (cupula_notices) */}
                     {noticeMessage && (
-                        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 rounded-full px-4 py-1.5 max-w-sm shadow-sm">
-                            <Bell className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                            <span className="text-xs font-medium leading-snug">{noticeMessage}</span>
+                        <div className="flex items-start gap-2 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400 rounded-full px-4 py-1.5 max-w-sm shadow-sm">
+                            <Bell className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span className="text-sm font-semibold leading-snug">{noticeMessage}</span>
                         </div>
                     )}
                     {/* Botão de auditoria */}

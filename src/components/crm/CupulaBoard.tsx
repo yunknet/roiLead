@@ -435,6 +435,7 @@ export function CupulaBoard() {
     const [showMembersPanel, setShowMembersPanel] = useState(false);
     const [showAuditPanel, setShowAuditPanel] = useState(false);
     const [auditData, setAuditData] = useState<any[]>([]);
+    const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
     const [customColumns, setCustomColumns] = useState<{ id: string; title: string; color: string; position: number }[]>([]);
     const [columnOrder, setColumnOrder] = useState<string[]>([]);
     const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
@@ -688,6 +689,16 @@ export function CupulaBoard() {
                 setCustomColumns(userCustomCols.sort((a, b) => a.position - b.position));
                 setColumnOrder(savedOrder);
             }
+
+            // Busca aviso ativo da Cúpula para exibir no topo do board
+            const { data: noticeData } = await supabase
+                .from('cupula_notices')
+                .select('message')
+                .eq('niche', selectedNiche)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            setNoticeMessage(noticeData?.message?.trim() || null);
         } catch (error: any) {
             console.error("Erro ao puxar leads da Cúpula:", error);
             toast.error("Erro ao recarregar a cúpula.");
@@ -1197,7 +1208,14 @@ export function CupulaBoard() {
                         Dispute os leads enviados por tráfego pago.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Banner de aviso — mensagem gerenciada via banco (cupula_notices) */}
+                    {noticeMessage && (
+                        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 rounded-full px-4 py-1.5 max-w-sm shadow-sm">
+                            <Bell className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span className="text-xs font-medium leading-snug">{noticeMessage}</span>
+                        </div>
+                    )}
                     {/* Botão de auditoria */}
                     <Button
                         variant="outline"

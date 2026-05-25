@@ -994,7 +994,7 @@ export function CupulaBoard() {
                     setShowNameModal(true);
                 } else {
                     setView('board');
-                    fetchLeads();
+                    // O useEffect já vai detectar a mudança do selectedNiche e chamar fetchLeads() automaticamente.
                 }
             } else {
                 setShowPaymentModal(true);
@@ -1025,7 +1025,7 @@ export function CupulaBoard() {
 
             setShowNameModal(false);
             setView('board');
-            fetchLeads();
+            // O useEffect já vai detectar e chamar fetchLeads()
             toast.success("Nome salvo com sucesso!");
         } catch (err: any) {
             console.error("Erro ao salvar nome:", err);

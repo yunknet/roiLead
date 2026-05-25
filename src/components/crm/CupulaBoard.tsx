@@ -596,16 +596,18 @@ export function CupulaBoard() {
     };
 
     const fetchLeads = async () => {
-        try {
-            // A validação de acesso já foi feita no handleSelectNiche ou no boot.
-            // Remover daqui evita rate limits (HTTP 429) no Supabase Auth durante atualizações em tempo real.
+        if (!selectedNiche) {
+            setLoading(false);
+            return;
+        }
 
-            // Busca apenas os leads que importam: novos (para a fila) ou que pertencem ao usuário logado
+        try {
+
+            // Busca os leads do nicho selecionado
             const { data, error } = await supabase
                 .from('cupula_leads')
                 .select('*')
                 .eq('niche', selectedNiche)
-                .or(`status.eq.novos,owner_id.eq.${currentUserId}`)
                 .order('created_at', { ascending: false })
                 .limit(5000);
 
@@ -706,7 +708,7 @@ export function CupulaBoard() {
             setNoticeMessage(noticeData?.message?.trim() || null);
         } catch (error: any) {
             console.error("Erro ao puxar leads da Cúpula:", error);
-            toast.error("Erro ao recarregar a cúpula.");
+            toast.error("Erro: " + (error?.message || error?.toString() || "Desconhecido"));
         } finally {
             setLoading(false);
         }

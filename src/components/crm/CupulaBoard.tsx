@@ -600,10 +600,14 @@ export function CupulaBoard() {
             // A validação de acesso já foi feita no handleSelectNiche ou no boot.
             // Remover daqui evita rate limits (HTTP 429) no Supabase Auth durante atualizações em tempo real.
 
+            // Busca apenas os leads que importam: novos (para a fila) ou que pertencem ao usuário logado
             const { data, error } = await supabase
                 .from('cupula_leads')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .eq('niche', selectedNiche)
+                .or(`status.eq.novos,owner_id.eq.${currentUserId}`)
+                .order('created_at', { ascending: false })
+                .limit(5000);
 
             if (error) throw error;
             setLeads(data as SharkLead[]);

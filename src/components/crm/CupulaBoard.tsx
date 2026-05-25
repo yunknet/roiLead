@@ -550,29 +550,20 @@ export function CupulaBoard() {
         }
     };
 
+    // Inicializa o usuário apenas no boot
     useEffect(() => {
-        const init = async () => {
+        const initUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setCurrentUserId(user.id);
-                // Verifica acesso logo no boot se já estiver com nicho selecionado
-                if (selectedNiche) {
-                    const { hasAccess, error } = await checkAccess(user.email, selectedNiche);
-                    if (error) {
-                        toast.error("Instabilidade na conexão. Tentando manter a sessão...");
-                        return; // Evita desconectar o usuário se for só um erro de internet (ex: inatividade/sleep mode)
-                    }
-                    if (!hasAccess) {
-                        setSelectedNiche(null);
-                        setView('selection');
-                        setShowPaymentModal(true);
-                    }
-                }
             }
-            fetchLeads();
         };
+        initUser();
+    }, []);
 
-        init();
+    // Recarrega os leads sempre que o nicho mudar
+    useEffect(() => {
+        fetchLeads();
 
         const channel = supabase.channel('schema-db-changes')
             .on(

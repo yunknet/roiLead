@@ -593,12 +593,22 @@ export function CupulaBoard() {
         }
 
         try {
+            // Garante que temos o ID do usuário para filtrar com precisão
+            const { data: { user } } = await supabase.auth.getUser();
+            const userId = currentUserId || user?.id;
 
-            // Busca os leads do nicho selecionado
+            if (!userId) {
+                setLoading(false);
+                return;
+            }
+
+            // Busca os leads do nicho selecionado: APENAS os "novos" (sem dono) OU os que já são deste usuário
+            // Isso garante que leads antigos não fiquem de fora do limite de 5.000 da API
             const { data, error } = await supabase
                 .from('cupula_leads')
                 .select('*')
                 .eq('niche', selectedNiche)
+                .or(`status.eq.novos,owner_id.eq.${userId}`)
                 .order('created_at', { ascending: false })
                 .limit(5000);
 

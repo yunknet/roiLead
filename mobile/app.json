@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Cúpula de Leads",
+    "slug": "cupula-leads",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "cupula",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roilead.cupula"
+    },
+    "android": {
+      "package": "com.roilead.cupula"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6375d492-e599-4cda-b873-7b0fbf068bdb"
+      }
+    },
+    "owner": "yunknet"
+  }
+}

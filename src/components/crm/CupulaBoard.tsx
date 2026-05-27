@@ -606,14 +606,21 @@ export function CupulaBoard() {
             // Isso garante que leads antigos não fiquem de fora do limite de 5.000 da API
             const { data, error } = await supabase
                 .from('cupula_leads')
-                .select('*')
+                .select('*, cupula_leads_private(phone, notes)')
                 .eq('niche', selectedNiche)
                 .or(`status.eq.novos,owner_id.eq.${userId}`)
                 .order('created_at', { ascending: false })
                 .limit(5000);
 
             if (error) throw error;
-            setLeads(data as SharkLead[]);
+            
+            const mappedLeads = (data || []).map((lead: any) => ({
+                ...lead,
+                phone: lead.cupula_leads_private?.phone || lead.phone,
+                notes: lead.cupula_leads_private?.notes || lead.notes
+            })) as SharkLead[];
+            
+            setLeads(mappedLeads);
 
             // Busca de quem é a vez na fila via Edge Function
             // Busca de quem é a vez na fila via RPC (Banco de Dados) - Mais rápido e filtra por nicho
@@ -681,6 +688,7 @@ export function CupulaBoard() {
                                 color: meta.color || 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
                                 position: meta.position ?? 99
                             });
+                            namesMap[item.column_id] = meta.title || 'Nova Etapa';
                         } catch {
                             userCustomCols.push({
                                 id: item.column_id,
@@ -688,6 +696,7 @@ export function CupulaBoard() {
                                 color: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
                                 position: 99
                             });
+                            namesMap[item.column_id] = item.custom_name;
                         }
                     } else {
                         namesMap[item.column_id] = item.custom_name;

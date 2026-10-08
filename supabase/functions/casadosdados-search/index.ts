@@ -30,6 +30,7 @@ serve(async (req) => {
         .select(`
             cnpj,
             cnpj_base,
+            identificador_matriz_filial,
             nome_fantasia, situacao_cadastral, data_situacao_cadastral, data_inicio_atividade,
             cnae_fisc_principal,
             tipo_logradouro, logradouro, numero, complemento, bairro, cep,
@@ -79,17 +80,17 @@ serve(async (req) => {
         throw error;
     }
 
-    
     // 1. Busca as Razões Sociais separadamente
     const bases = [...new Set(data.map((d: any) => d.cnpj_base))];
     const empresasMap: any = {};
     
     if (bases.length > 0) {
-        const { data: empresas } = await supabaseCnpj
+        const { data: empresas, error: empError } = await supabaseCnpj
             .from('rfb_empresas')
-            .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_do_responsavel')
+            .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel')
             .in('cnpj_base', bases);
             
+        if (empError) console.error("Erro ao buscar empresas:", empError);
         if (empresas) {
             empresas.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
         }
@@ -119,11 +120,12 @@ serve(async (req) => {
         
         return {
             cnpj: row.cnpj,
+            matriz_filial: row.identificador_matriz_filial == 1 ? "MATRIZ" : "FILIAL",
             razao_social: emp.razao_social || row.nome_fantasia || "",
             nome_fantasia: row.nome_fantasia || "",
             data_abertura: row.data_inicio_atividade || "",
             situacao_cadastral: { 
-                situacao_atual: { "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral] || "DESCONHECIDA", 
+                situacao_atual: { "1": "NULA", "2": "ATIVA", "3": "SUSPENSA", "4": "INAPTA", "8": "BAIXADA", "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral?.toString()] || "DESCONHECIDA", 
                 data: row.data_situacao_cadastral || "" 
             },
             atividade_principal: { 
@@ -132,14 +134,14 @@ serve(async (req) => {
             },
             capital_social: emp.capital_social || 0,
             porte_empresa: { 
-                codigo: emp.porte_empresa || "", 
-                descricao: { "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[emp.porte_empresa] || "" 
+                codigo: emp.porte_empresa?.toString() || "", 
+                descricao: { "1": "Micro Empresa", "3": "Empresa de Pequeno Porte", "5": "Demais", "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[emp.porte_empresa?.toString()] || "" 
             },
-            codigo_natureza_juridica: emp.natureza_juridica || "",
-            descricao_natureza_juridica: dicNat[emp.natureza_juridica] || "",
+            codigo_natureza_juridica: emp.natureza_juridica?.toString() || "",
+            descricao_natureza_juridica: dicNat[emp.natureza_juridica?.toString()] || "",
             qualificacao_responsavel: {
-                codigo: emp.qualificacao_do_responsavel || "",
-                descricao: emp.qualificacao_do_responsavel == "50" ? "Empresário" : emp.qualificacao_do_responsavel == "49" ? "Sócio-Administrador" : "Responsável"
+                codigo: emp.qualificacao_responsavel?.toString() || "",
+                descricao: emp.qualificacao_responsavel == 50 ? "Empresário" : emp.qualificacao_responsavel == 49 ? "Sócio-Administrador" : "Responsável"
             },
             simples: {
                 optante: simp.opcao_simples === 'S',

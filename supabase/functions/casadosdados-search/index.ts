@@ -95,24 +95,28 @@ serve(async (req) => {
         }
     }
 
-    // 2. Busca Dicionários
+    // 2. Busca Dicionários e Simples Nacional
     const municipiosCodes = [...new Set(data.map((d: any) => d.municipio?.toString()))].filter(Boolean);
     const cnaesCodes = [...new Set(data.map((d: any) => d.cnae_fisc_principal?.toString()))].filter(Boolean);
     const naturezasCodes = [...new Set(Object.values(empresasMap).map((e: any) => e.natureza_juridica?.toString()))].filter(Boolean);
 
-    const [resMun, resCnaes, resNat] = await Promise.all([
+    const [resMun, resCnaes, resNat, resSimples] = await Promise.all([
         municipiosCodes.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodes) : Promise.resolve({ data: [] }),
         cnaesCodes.length > 0 ? supabaseCnpj.from('rfb_cnaes').select('codigo, descricao').in('codigo', cnaesCodes) : Promise.resolve({ data: [] }),
-        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] })
+        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] }),
+        bases.length > 0 ? supabaseCnpj.from('rfb_simples').select('*').in('cnpj_base', bases) : Promise.resolve({ data: [] })
     ]);
 
     const dicMun = Object.fromEntries((resMun.data || []).map((m: any) => [m.codigo, m.descricao]));
     const dicCnae = Object.fromEntries((resCnaes.data || []).map((c: any) => [c.codigo, c.descricao]));
     const dicNat = Object.fromEntries((resNat.data || []).map((n: any) => [n.codigo, n.descricao]));
+    const simplesMap = Object.fromEntries((resSimples.data || []).map((s: any) => [s.cnpj_base, s]));
 
     // Mapeia os dados para o formato exato que o CRM RoiLead espera no frontend
     const cnpjsFormatted = data.map((row: any) => {
         const emp = empresasMap[row.cnpj_base] || {};
+        const simp = simplesMap[row.cnpj_base] || {};
+        
         return {
             cnpj: row.cnpj,
             razao_social: emp.razao_social || row.nome_fantasia || "",
@@ -136,6 +140,16 @@ serve(async (req) => {
             qualificacao_responsavel: {
                 codigo: emp.qualificacao_do_responsavel || "",
                 descricao: emp.qualificacao_do_responsavel == "50" ? "Empresário" : emp.qualificacao_do_responsavel == "49" ? "Sócio-Administrador" : "Responsável"
+            },
+            simples: {
+                optante: simp.opcao_simples === 'S',
+                data_opcao_simples: simp.data_opcao_simples || null,
+                data_exclusao_simples: simp.data_exclusao_simples || null
+            },
+            mei: {
+                optante: simp.opcao_mei === 'S',
+                data_opcao_mei: simp.data_opcao_mei || null,
+                data_exclusao_mei: simp.data_exclusao_mei || null
             },
             endereco: {
                 tipo_logradouro: row.tipo_logradouro || "",

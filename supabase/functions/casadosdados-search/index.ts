@@ -103,16 +103,30 @@ serve(async (req) => {
         razao_social: empresasMap[row.cnpj_base]?.razao_social || row.nome_fantasia || "",
         nome_fantasia: row.nome_fantasia || "",
         data_abertura: row.data_inicio_atividade || "",
+        situacao_cadastral: "ATIVA",
         cnae_principal: { codigo: row.cnae_fisc_principal, descricao: "" },
-        municipio: row.municipio?.toString() || "",
-        uf: row.uf || "",
-        bairro: row.bairro || "",
-        cep: row.cep || "",
-        ddd1: row.ddd_1 || "",
-        telefone1: row.telefone_1 || "",
-        ddd2: row.ddd_2 || "",
-        telefone2: row.telefone_2 || "",
-        email: row.correio_eletronico || ""
+        capital_social: empresasMap[row.cnpj_base]?.capital_social || 0,
+        porte: "",
+        natureza_juridica: "",
+        endereco: {
+            tipo_logradouro: "",
+            logradouro: "",
+            numero: "",
+            complemento: "",
+            bairro: row.bairro || "",
+            municipio: row.municipio?.toString() || "",
+            uf: row.uf || "",
+            cep: row.cep || ""
+        },
+        contato_telefonico: row.telefone_1 ? [{
+            ddd: row.ddd_1 || "",
+            numero: row.telefone_1,
+            tipo: "TELEFONE"
+        }] : [],
+        contato_email: row.correio_eletronico ? [{
+            email: row.correio_eletronico,
+            dominio: ""
+        }] : []
     }));
 
     return new Response(JSON.stringify({

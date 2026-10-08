@@ -57,18 +57,30 @@ serve(async (req) => {
         query = query.gte('data_inicio_atividade', payload.data_abertura.inicio);
     }
 
-    if (payload.query?.termo) {
-        query = query.ilike('nome_fantasia', `%${payload.query.termo}%`);
+    // A busca textual vem dentro de payload.busca_textual[0].texto[0]
+    const termo = payload.busca_textual?.[0]?.texto?.[0];
+    if (termo) {
+        query = query.ilike('nome_fantasia', `%${termo}%`);
     }
 
-    // Limita para não explodir a resposta
-    query = query.limit(50);
+    // Filtros de contato
+    if (payload.mais_filtros?.com_email) {
+        query = query.not('correio_eletronico', 'is', null).neq('correio_eletronico', '');
+    }
+    if (payload.mais_filtros?.com_telefone) {
+        query = query.not('telefone_1', 'is', null).neq('telefone_1', '');
+    }
+
+    // Limita pela requisição
+    const limite = payload.limite || 50;
+    query = query.limit(limite);
 
     const { data, error } = await query;
 
     if (error) {
         throw error;
     }
+
     
     // Busca as Razões Sociais separadamente já que não temos Foreign Key rígida no banco
     const bases = [...new Set(data.map((d: any) => d.cnpj_base))];

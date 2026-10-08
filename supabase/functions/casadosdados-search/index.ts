@@ -30,11 +30,9 @@ serve(async (req) => {
         .select(`
             cnpj,
             cnpj_base,
-            nome_fantasia,
-            data_inicio_atividade,
+            nome_fantasia, situacao_cadastral, data_situacao_cadastral, data_inicio_atividade,
             cnae_fisc_principal,
-            bairro,
-            cep,
+            tipo_logradouro, logradouro, numero, complemento, bairro, cep,
             uf,
             municipio,
             ddd_1,
@@ -89,7 +87,7 @@ serve(async (req) => {
     if (bases.length > 0) {
         const { data: empresas } = await supabaseCnpj
             .from('rfb_empresas')
-            .select('cnpj_base, razao_social, capital_social')
+            .select('cnpj_base, razao_social, capital_social, porte_empresa')
             .in('cnpj_base', bases);
             
         if (empresas) {
@@ -103,16 +101,16 @@ serve(async (req) => {
         razao_social: empresasMap[row.cnpj_base]?.razao_social || row.nome_fantasia || "",
         nome_fantasia: row.nome_fantasia || "",
         data_abertura: row.data_inicio_atividade || "",
-        situacao_cadastral: "ATIVA",
-        cnae_principal: { codigo: row.cnae_fisc_principal, descricao: "" },
+        situacao_cadastral: { situacao_atual: { "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral] || "DESCONHECIDA", data: row.data_situacao_cadastral || "" },
+        atividade_principal: { codigo: row.cnae_fisc_principal, descricao: "" },
         capital_social: empresasMap[row.cnpj_base]?.capital_social || 0,
-        porte: "",
+        porte_empresa: { codigo: empresasMap[row.cnpj_base]?.porte_empresa || "", descricao: { "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[empresasMap[row.cnpj_base]?.porte_empresa] || "" },
         natureza_juridica: "",
         endereco: {
-            tipo_logradouro: "",
-            logradouro: "",
-            numero: "",
-            complemento: "",
+            tipo_logradouro: row.tipo_logradouro || "",
+            logradouro: row.logradouro || "",
+            numero: row.numero || "",
+            complemento: row.complemento || "",
             bairro: row.bairro || "",
             municipio: row.municipio?.toString() || "",
             uf: row.uf || "",

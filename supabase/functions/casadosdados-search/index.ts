@@ -41,8 +41,7 @@ serve(async (req) => {
             telefone_1,
             ddd_2,
             telefone_2,
-            correio_eletronico,
-            rfb_empresas(razao_social, capital_social)
+            correio_eletronico
         `);
 
     // Filtros de estado e ddd baseados no payload
@@ -58,8 +57,6 @@ serve(async (req) => {
         query = query.gte('data_inicio_atividade', payload.data_abertura.inicio);
     }
 
-    // Busca textual no nome fantasia
-    // TODO: Ajustar para buscar com pg_trgm de forma eficiente ou full-text search
     if (payload.query?.termo) {
         query = query.ilike('nome_fantasia', `%${payload.query.termo}%`);
     }
@@ -72,11 +69,26 @@ serve(async (req) => {
     if (error) {
         throw error;
     }
+    
+    // Busca as Razões Sociais separadamente já que não temos Foreign Key rígida no banco
+    const bases = [...new Set(data.map((d: any) => d.cnpj_base))];
+    const empresasMap: any = {};
+    
+    if (bases.length > 0) {
+        const { data: empresas } = await supabaseCnpj
+            .from('rfb_empresas')
+            .select('cnpj_base, razao_social, capital_social')
+            .in('cnpj_base', bases);
+            
+        if (empresas) {
+            empresas.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
+        }
+    }
 
     // Mapeia os dados para o formato exato que o CRM RoiLead espera no frontend
     const cnpjsFormatted = data.map((row: any) => ({
         cnpj: row.cnpj,
-        razao_social: row.rfb_empresas?.razao_social || row.nome_fantasia || "",
+        razao_social: empresasMap[row.cnpj_base]?.razao_social || row.nome_fantasia || "",
         nome_fantasia: row.nome_fantasia || "",
         data_abertura: row.data_inicio_atividade || "",
         cnae_principal: { codigo: row.cnae_fisc_principal, descricao: "" },

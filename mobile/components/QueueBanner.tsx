@@ -26,15 +26,7 @@ export function QueueBanner({ isMyTurn, currentTurnUser, myPosition, totalMember
     );
   }
 
-  return (
-    <View style={[styles.container, styles.waiting, { borderColor: 'rgba(234, 179, 8, 0.2)' }]}>
-      <Feather name="clock" size={24} color={colors.warning} style={styles.waitingIcon} />
-      <View style={styles.textContainer}>
-        <Text style={[styles.waitingTitle, { color: colors.warning }]}>Vez de: {turnUserName}</Text>
-
-      </View>
-    </View>
-  );
+  return null;
 }
 
 const styles = StyleSheet.create({

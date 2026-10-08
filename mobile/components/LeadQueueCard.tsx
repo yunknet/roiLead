@@ -143,7 +143,7 @@ export function LeadQueueCard({
               isMyTurn ? { color: '#FFFFFF' } : { color: colors.textSecondary }
             ]}
           >
-            {isMyTurn ? `Sua vez, ${turnUserName}!` : `Vez de: ${turnUserName}`}
+            {isMyTurn ? `Sua vez, ${turnUserName}!` : `Vez de ${turnUserName}`}
           </Text>
         </View>
         <View

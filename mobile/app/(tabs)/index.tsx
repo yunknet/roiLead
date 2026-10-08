@@ -57,6 +57,55 @@ export default function QueueScreen() {
   const [auditData, setAuditData] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
+  // Modais de Termos de Uso
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [acceptingTerms, setAcceptingTerms] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      const checkTerms = async () => {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('terms_accepted')
+            .eq('id', userId)
+            .single();
+          if (data && !data.terms_accepted) {
+            setShowTermsModal(true);
+          }
+        } catch (err) {
+          console.error("Erro ao checar termos:", err);
+        }
+      };
+      checkTerms();
+    }
+  }, [userId]);
+
+  const handleAcceptTerms = async () => {
+    setAcceptingTerms(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString()
+        })
+        .eq('id', userId!);
+        
+      if (error) throw error;
+      setShowTermsModal(false);
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível aceitar os termos.');
+    } finally {
+      setAcceptingTerms(false);
+    }
+  };
+
+  const handleDeclineTerms = async () => {
+    await supabase.auth.signOut();
+    router.replace('/(auth)/login');
+  };
+
   const logoSrc = scheme === 'dark'
     ? require('../../public/cupula-logo-dark.png')
     : require('../../public/cupula-logo.png');
@@ -601,6 +650,53 @@ export default function QueueScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Termos de Uso (Bloqueante) */}
+      <Modal visible={showTermsModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 24, maxWidth: 400 }]}>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>Termos de Uso</Text>
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                Para continuar usando o roiLead, você precisa aceitar nossos termos de uso.
+              </Text>
+            </View>
+
+            <ScrollView style={{ maxHeight: 250, backgroundColor: colors.background, padding: 12, borderRadius: 8, marginBottom: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text, marginBottom: 4 }}>1. Coleta de Dados e Privacidade</Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 8, lineHeight: 20 }}>
+                Ao continuar, você autoriza o roiLead a coletar e armazenar seu endereço de e-mail e número de telefone para fins de identificação, acesso aos serviços do plano e comunicação sobre atualizações da plataforma.
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 16, lineHeight: 20 }}>
+                O roiLead não compartilha essas informações com terceiros, exceto quando necessário para processar pagamentos através dos nossos parceiros.
+              </Text>
+
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text, marginBottom: 4 }}>2. Comunicação e Transparência</Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 8, lineHeight: 20 }}>
+                Ao aceitar estes termos, você está ciente de que não enviaremos e-mails de marketing ou promoções externas, mas poderemos usar o seu e-mail e telefone para contatos referentes exclusivamente ao funcionamento, cobranças ou suporte da sua conta roiLead.
+              </Text>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'column', gap: 10 }}>
+              <TouchableOpacity 
+                style={{ backgroundColor: colors.primary, paddingVertical: 14, borderRadius: 8, alignItems: 'center' }}
+                onPress={handleAcceptTerms}
+                disabled={acceptingTerms}
+              >
+                {acceptingTerms ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Sim, eu aceito</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: 'transparent', paddingVertical: 14, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}
+                onPress={handleDeclineTerms}
+                disabled={acceptingTerms}
+              >
+                <Text style={{ color: colors.text, fontWeight: '600', fontSize: 16 }}>Recusar e Sair</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }

@@ -1,9 +1,15 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, LogBox } from 'react-native';
 import { AuthProvider } from '../hooks/useAuth';
 import { useThemeColors } from '../theme/colors';
+
+// Ignora o erro padrão do Supabase quando o token expira no modo de desenvolvimento
+LogBox.ignoreLogs([
+  'AuthApiError: Invalid Refresh Token',
+  'AuthSessionMissingError',
+]);
 
 export default function RootLayout() {
   const colors = useThemeColors();

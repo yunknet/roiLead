@@ -50,22 +50,40 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Buscar o token do usuário
-    const { data: tokenData, error: tokenError } = await supabase
+    // Buscar TODOS os tokens do usuário (ele pode ter múltiplos dispositivos: Android + iOS)
+    const { data: tokensData, error: tokenError } = await supabase
       .from('push_tokens')
-      .select('expo_token')
+      .select('expo_token, platform')
       .eq('user_id', userId)
-      .single()
 
-    if (tokenError || !tokenData?.expo_token) {
+    if (tokenError || !tokensData || tokensData.length === 0) {
         console.log(`Usuário ${userId} não possui token de push registrado.`)
         return new Response(JSON.stringify({ message: "Usuário sem token push" }), { headers: corsHeaders, status: 200 })
     }
 
-    const expoToken = tokenData.expo_token
-    console.log(`Enviando push para o token: ${expoToken}`)
+    console.log(`Encontrados ${tokensData.length} dispositivo(s) para o usuário ${userId}`)
 
-    // Disparar para a API do Expo
+    // Montar mensagens individuais para cada dispositivo (Android e iOS têm configs diferentes)
+    const messages = tokensData.map((tokenEntry) => {
+      const isAndroid = tokenEntry.platform === 'android'
+
+      return {
+        to: tokenEntry.expo_token,
+        sound: 'default',
+        title: '🚨 Sua Vez!',
+        body: `Novo lead (${leadNiche}): ${leadName}. Você tem 3 minutos para capturar!`,
+        data: { leadId: record.id, niche: leadNiche },
+        priority: 'high',
+        // Android: canal de notificação obrigatório (Android 8+)
+        ...(isAndroid && { channelId: 'cupula' }),
+        // iOS: badge no ícone do app
+        ...(!isAndroid && { badge: 1 }),
+      }
+    })
+
+    console.log(`Enviando push para ${messages.length} dispositivo(s):`, messages.map(m => m.to))
+
+    // Enviar todas as notificações de uma vez (a API do Expo aceita array)
     const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
@@ -73,20 +91,14 @@ serve(async (req) => {
         'Accept-encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        to: expoToken,
-        sound: 'default',
-        title: '🚨 Sua Vez!',
-        body: `Novo lead (${leadNiche}): ${leadName}. Você tem 3 minutos para capturar!`,
-        data: { leadId: record.id, niche: leadNiche },
-      }),
+      body: JSON.stringify(messages),
     })
 
     const expoResult = await expoResponse.json()
     console.log("Resultado Expo:", expoResult)
 
     return new Response(
-      JSON.stringify({ success: true, expoResult }),
+      JSON.stringify({ success: true, devices: tokensData.length, expoResult }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 

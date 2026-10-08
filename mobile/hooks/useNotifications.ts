@@ -6,6 +6,31 @@ interface UseNotificationsReturn {
   expoPushToken: string | null;
   pushEnabled: boolean;
   registerForPushNotifications: () => Promise<void>;
+  unregisterForPushNotifications: () => Promise<void>;
+}
+
+export async function removePushTokenFromDevice() {
+  try {
+    const Notifications = await import('expo-notifications');
+    let projectId = undefined;
+    try {
+      const Constants = await import('expo-constants');
+      projectId = Constants.default.expoConfig?.extra?.eas?.projectId || 
+                  Constants.default.easConfig?.projectId;
+    } catch (e) {}
+
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+    const token = tokenData.data;
+
+    if (token) {
+      await supabase.rpc('remove_device_token', { p_expo_token: token });
+      console.log('Push token removido com sucesso do banco via RPC.');
+    }
+  } catch (error) {
+    console.warn('Erro ao remover push token do dispositivo:', error);
+  }
 }
 
 export function useNotifications(userId: string | null): UseNotificationsReturn {
@@ -65,16 +90,12 @@ export function useNotifications(userId: string | null): UseNotificationsReturn 
       setPushEnabled(true);
       registeredRef.current = true;
 
-      // Salva o token no Supabase para uso futuro pela Edge Function de push
-      await supabase.from('push_tokens').upsert(
-        {
-          user_id: userId,
-          expo_token: token,
-          platform: Platform.OS,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'expo_token' }
-      );
+      // Chama a função segura no banco de dados para garantir exclusividade do token
+      await supabase.rpc('register_device_token', {
+        p_user_id: userId,
+        p_expo_token: token,
+        p_platform: Platform.OS
+      });
 
       // Configuração do canal de notificação no Android
       if (Platform.OS === 'android') {
@@ -91,6 +112,16 @@ export function useNotifications(userId: string | null): UseNotificationsReturn 
     }
   }, [userId]);
 
+  const unregisterForPushNotifications = useCallback(async () => {
+    if (!userId) return;
+    
+    await removePushTokenFromDevice();
+    
+    setExpoPushToken(null);
+    setPushEnabled(false);
+    registeredRef.current = false;
+  }, [userId]);
+
   useEffect(() => {
     if (userId) {
       registerForPushNotifications();
@@ -101,5 +132,6 @@ export function useNotifications(userId: string | null): UseNotificationsReturn 
     expoPushToken,
     pushEnabled,
     registerForPushNotifications,
+    unregisterForPushNotifications,
   };
 }

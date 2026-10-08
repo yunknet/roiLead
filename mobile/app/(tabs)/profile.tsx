@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useThemeColors } from '../../theme/colors';
@@ -6,8 +7,9 @@ import { Feather } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const { user, userEmail, accessInfo, signOut } = useAuth();
-  const { pushEnabled, registerForPushNotifications } = useNotifications(user?.id || null);
+  const { pushEnabled, registerForPushNotifications, unregisterForPushNotifications } = useNotifications(user?.id || null);
   const colors = useThemeColors();
+  const router = useRouter();
 
   const handleLogout = () => {
     Alert.alert(
@@ -15,7 +17,10 @@ export default function ProfileScreen() {
       'Tem certeza que deseja sair?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sair', style: 'destructive', onPress: signOut },
+        { text: 'Sair', style: 'destructive', onPress: async () => {
+          await signOut();
+          router.replace('/(auth)/login');
+        } },
       ]
     );
   };
@@ -23,6 +28,8 @@ export default function ProfileScreen() {
   const handleTogglePush = async () => {
     if (!pushEnabled) {
       await registerForPushNotifications();
+    } else {
+      await unregisterForPushNotifications();
     }
   };
 

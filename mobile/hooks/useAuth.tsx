@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import { removePushTokenFromDevice } from './useNotifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,7 +20,7 @@ interface AuthContextType {
   selectedNiche: Niche | null;
   setSelectedNiche: (niche: Niche | null) => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string, phone?: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   checkAccess: (email: string, targetNiche?: Niche) => Promise<{ hasAccess: boolean; hasName: boolean }>;
@@ -136,12 +137,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signUp = useCallback(async (
+    email: string, 
+    password: string, 
+    firstName?: string, 
+    lastName?: string, 
+    phone?: string
+  ): Promise<{ error: string | null }> => {
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+          }
+        }
+      });
       if (error) {
         return { error: error.message };
       }
+
+      if (data?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            first_name: firstName || '',
+            last_name: lastName || '',
+            phone_number: phone || '',
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (profileError) {
+          console.error('Erro ao criar perfil automaticamente:', profileError);
+        }
+      }
+
       return { error: null };
     } catch (err: any) {
       return { error: err.message || 'Erro desconhecido ao cadastrar.' };
@@ -165,7 +202,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     try {
-      const redirectTo = makeRedirectUri();
+      const redirectTo = makeRedirectUri({
+        scheme: 'cupula',
+        path: 'auth/callback',
+      });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -193,10 +233,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setAccessInfo(null);
-    setSelectedNicheState(null);
-    await AsyncStorage.removeItem('selected_niche');
+    try {
+      // 1. Remove o token deste aparelho do banco para não receber notificações da conta que saiu
+      await removePushTokenFromDevice();
+      
+      // 2. Desloga a sessão do Supabase
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Erro ao deslogar do Supabase:', err);
+    } finally {
+      setAccessInfo(null);
+      setSelectedNicheState(null);
+      await AsyncStorage.removeItem('selected_niche');
+    }
   }, []);
 
   const refreshAccess = useCallback(async () => {

@@ -67,14 +67,14 @@ export function CapturedLeadCard({
   });
 
   const handleCopyPhone = () => {
-    Clipboard.setString(lead.phone);
+    Clipboard.setStringAsync(lead.phone);
     setCopiedPhone(true);
     setTimeout(() => setCopiedPhone(false), 2000);
   };
 
   const handleCopyEmail = () => {
     if (email) {
-      Clipboard.setString(email);
+      Clipboard.setStringAsync(email);
       setCopiedEmail(true);
       setTimeout(() => setCopiedEmail(false), 2000);
     }

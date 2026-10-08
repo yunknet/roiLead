@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "928515293013",
+    "project_id": "cupula-leads",
+    "storage_bucket": "cupula-leads.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:928515293013:android:63d281d8e25c579680b9dc",
+        "android_client_info": {
+          "package_name": "com.roilead.cupula"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCirkuL0ksod8OB8LJMJPl6zOJ64XAM0L4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

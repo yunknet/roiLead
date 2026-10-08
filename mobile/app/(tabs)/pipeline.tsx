@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -28,6 +29,9 @@ export default function PipelineScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
+  const [isCreatingColumn, setIsCreatingColumn] = useState(false);
+  const [isSavingColumn, setIsSavingColumn] = useState(false);
+  const [isDeletingColumn, setIsDeletingColumn] = useState(false);
   const colors = useThemeColors();
 
   const {
@@ -40,6 +44,7 @@ export default function PipelineScreen() {
     handleStatusChange,
     handleCreateColumn,
     handleUpdateColumnName,
+    handleDeleteColumn,
   } = useLeads(selectedNiche as Niche | null, userId);
 
   // Filtra leads do nicho selecionado
@@ -88,20 +93,45 @@ export default function PipelineScreen() {
   };
 
   const handleAddNewColumn = async () => {
+    if (isCreatingColumn) return;
+    setIsCreatingColumn(true);
     const { success, error } = await handleCreateColumn();
     if (success) {
       Alert.alert('Sucesso', 'Nova etapa criada! Você pode renomeá-la clicando no ícone de lápis.');
     } else {
       Alert.alert('Erro', error || 'Não foi possível criar.');
     }
+    setIsCreatingColumn(false);
   };
 
   const saveColumnName = async () => {
     if (editingColumn && newColumnName.trim()) {
+      setIsSavingColumn(true);
       await handleUpdateColumnName(editingColumn, newColumnName);
+      setIsSavingColumn(false);
     }
     setEditingColumn(null);
     setNewColumnName('');
+  };
+
+  const confirmDeleteColumn = (columnId: string) => {
+    Alert.alert(
+      'Deletar Etapa',
+      'Tem certeza que deseja excluir esta etapa permanentemente?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Deletar', 
+          style: 'destructive', 
+          onPress: async () => {
+            setIsDeletingColumn(true);
+            await handleDeleteColumn(columnId);
+            setIsDeletingColumn(false);
+            setEditingColumn(null);
+          } 
+        },
+      ]
+    );
   };
 
   // Cores das colunas
@@ -210,9 +240,23 @@ export default function PipelineScreen() {
         })}
         
         {/* Botão Nova Etapa */}
-        <TouchableOpacity style={[styles.newColumnButton, { borderColor: colors.border }]} onPress={handleAddNewColumn}>
-          <Feather name="plus" size={24} color={colors.textMuted} />
-          <Text style={[styles.newColumnText, { color: colors.textMuted }]}>Nova Etapa</Text>
+        <TouchableOpacity 
+          style={[
+            styles.newColumnButton, 
+            { borderColor: colors.border },
+            isCreatingColumn && { opacity: 0.5 }
+          ]} 
+          onPress={handleAddNewColumn}
+          disabled={isCreatingColumn}
+        >
+          {isCreatingColumn ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <Feather name="plus" size={24} color={colors.textMuted} />
+          )}
+          <Text style={[styles.newColumnText, { color: colors.textMuted }]}>
+            {isCreatingColumn ? 'Criando...' : 'Nova Etapa'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -230,12 +274,44 @@ export default function PipelineScreen() {
               autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setEditingColumn(null)}>
-                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={saveColumnName}>
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Salvar</Text>
-              </TouchableOpacity>
+              {/* Se for uma coluna customizada, exibe o botão de deletar (lado esquerdo) */}
+              {editingColumn?.startsWith('custom_') ? (
+                <TouchableOpacity 
+                  style={[styles.modalButton, { flex: 0, paddingHorizontal: 16 }]} 
+                  onPress={() => confirmDeleteColumn(editingColumn)}
+                  disabled={isSavingColumn || isDeletingColumn}
+                >
+                  {isDeletingColumn ? (
+                    <ActivityIndicator size="small" color={colors.danger} />
+                  ) : (
+                    <Feather name="trash-2" size={20} color={colors.danger} />
+                  )}
+                </TouchableOpacity>
+              ) : <View style={{ flex: 1 }} />}
+
+              <View style={{ flexDirection: 'row', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
+                <TouchableOpacity 
+                  style={styles.modalButton} 
+                  onPress={() => {
+                    setEditingColumn(null);
+                    setNewColumnName('');
+                  }}
+                  disabled={isSavingColumn || isDeletingColumn}
+                >
+                  <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: colors.primary }]} 
+                  onPress={saveColumnName}
+                  disabled={isSavingColumn || isDeletingColumn}
+                >
+                  {isSavingColumn ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Salvar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>

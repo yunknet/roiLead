@@ -61,11 +61,17 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
 
       if (error) throw error;
       
-      const mappedLeads = (data || []).map((lead: any) => ({
-        ...lead,
-        phone: lead.cupula_leads_private?.phone || lead.phone,
-        notes: lead.cupula_leads_private?.notes || lead.notes
-      })) as SharkLead[];
+      const mappedLeads = (data || []).map((lead: any) => {
+        const privateData = Array.isArray(lead.cupula_leads_private) 
+            ? lead.cupula_leads_private[0] 
+            : lead.cupula_leads_private;
+            
+        return {
+          ...lead,
+          phone: privateData?.phone || lead.phone,
+          notes: privateData?.notes || lead.notes
+        };
+      }) as SharkLead[];
       
       setLeads(mappedLeads);
 
@@ -192,7 +198,7 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
           }, { onConflict: 'user_id,niche' });
       }
 
-      await fetchLeads();
+      fetchLeads();
       return { success: true };
     } catch (error: any) {
       console.error('Erro ao capturar lead:', error);
@@ -217,7 +223,7 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
         return { success: false, error: error.message };
       }
 
-      await fetchLeads();
+      fetchLeads();
       return { success: true };
     } catch (error: any) {
       return { success: false, error: 'Erro ao mover o lead. Sem permissão ou falha de conexão.' };
@@ -235,7 +241,7 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
 
       if (error) throw error;
 
-      await fetchLeads();
+      fetchLeads();
       return { success: true };
     } catch (error: any) {
       console.error('Erro ao deletar lead:', error);
@@ -282,7 +288,7 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
         }, { onConflict: 'user_id,niche,column_id' });
 
       if (error) throw error;
-      await fetchLeads();
+      fetchLeads();
       return { success: true };
     } catch (error: any) {
       console.error('Erro ao adicionar coluna:', error);
@@ -318,13 +324,33 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
         }, { onConflict: 'user_id,niche,column_id' });
 
       if (error) throw error;
-      await fetchLeads();
+      fetchLeads();
       return { success: true };
     } catch (error: any) {
       console.error('Erro ao atualizar nome da coluna:', error);
       return { success: false, error: 'Erro ao atualizar nome da etapa.' };
     }
   }, [selectedNiche, currentUserId, customColumns, fetchLeads]);
+
+  const handleDeleteColumn = useCallback(async (columnId: string): Promise<{ success: boolean; error?: string }> => {
+    if (!selectedNiche || !currentUserId) return { success: false, error: 'Usuário ou nicho não definido' };
+    
+    try {
+      const { error } = await supabase
+        .from('cupula_settings')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('niche', selectedNiche)
+        .eq('column_id', columnId);
+
+      if (error) throw error;
+      fetchLeads();
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erro ao deletar coluna:', error);
+      return { success: false, error: 'Erro ao deletar etapa.' };
+    }
+  }, [selectedNiche, currentUserId, fetchLeads]);
 
   // Realtime + backup interval — Replica a lógica da web (linhas 565-581)
   useEffect(() => {
@@ -372,5 +398,6 @@ export function useLeads(selectedNiche: Niche | null, currentUserId: string | nu
     fetchAuditData,
     handleCreateColumn,
     handleUpdateColumnName,
+    handleDeleteColumn,
   };
 }

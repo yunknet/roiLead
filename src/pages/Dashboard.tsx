@@ -36,7 +36,7 @@ import { toast } from "sonner";
 import { ModeToggle } from "@/components/ModeToggle";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
-import { WhatsappChat } from "@/components/crm/WhatsappChat";
+import { LeadSearchForm } from "@/components/crm/LeadSearchForm";
 import { AIAgentSettings } from "@/components/crm/AIAgentSettings";
 
 
@@ -51,7 +51,7 @@ const menuItems = [
   { icon: MessageCircle, label: "roiLead", id: "search" },
   { icon: Kanban, label: "CRM", id: "crm" },
   { icon: Bot, label: "Agente IA", id: "agent", isNew: true },
-  { icon: CupulaIcon, label: "Cúpula de Leads", id: "cupula_leads", isNew: true },
+  { icon: CupulaIcon, label: "Cúpula de Leads (em breve)", id: "cupula_leads", isNew: true, disabled: true },
   { icon: CreditCard, label: "Assinatura", id: "subscription" },
   { icon: Settings, label: "Configurações", id: "settings" },
 ];
@@ -102,7 +102,7 @@ const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("search");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [whatsappInitialLead, setWhatsappInitialLead] = useState<any>(null);
+
 
   const [userProfile, setUserProfile] = useState<{
     firstName: string;
@@ -150,9 +150,7 @@ const Dashboard = () => {
     return normalize(details).includes(term);
   });
 
-  const [isChatMinimized, setIsChatMinimized] = useState(false);
-
-  const handleOpenWhatsApp = async (phone: string, title?: string, company?: string, requestDetails?: string) => {
+  const handleOpenWhatsApp = async (phone: string) => {
     let cleanPhone = phone.replace(/\D/g, "");
     if (!cleanPhone) {
       toast.error("Número de telefone não encontrado.");
@@ -161,49 +159,8 @@ const Dashboard = () => {
     if (cleanPhone.length <= 11) {
       cleanPhone = `55${cleanPhone}`;
     }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: existingLead } = await supabase
-          .from('crm_leads')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('phone', cleanPhone)
-          .maybeSingle();
-
-        if (!existingLead) {
-          await supabase.from('crm_leads').insert({
-            user_id: user.id,
-            title: title || cleanPhone,
-            phone: cleanPhone,
-            company: company || "WhatsApp",
-            request_details: requestDetails || null,
-            status: 'new',
-            value: 0
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Erro ao pré-criar lead no CRM:", err);
-    }
-
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
-
-    if (isMobile) {
-      window.open(`https://wa.me/${cleanPhone}`, '_blank');
-      toast.success("Abrindo o aplicativo do WhatsApp...");
-    } else {
-      setWhatsappInitialLead({
-        phone: cleanPhone,
-        title: title || cleanPhone,
-        company: company || title || cleanPhone,
-        requestDetails,
-        timestamp: Date.now()
-      });
-      setIsChatMinimized(false);
-      toast.success("Abrindo conversa...");
-    }
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    toast.success("Abrindo o aplicativo do WhatsApp...");
   };
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -658,13 +615,14 @@ const Dashboard = () => {
             {menuItems.map((item) => (
               <li key={item.id}>
                 <button
+                  disabled={item.disabled}
                   onClick={() => {
                     setActiveMenu(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeMenu === item.id
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${item.disabled ? "opacity-50 cursor-not-allowed" : ""} ${activeMenu === item.id && !item.disabled
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent"
+                    : !item.disabled ? "text-sidebar-foreground hover:bg-sidebar-accent" : "text-sidebar-foreground"
                     }`}
                 >
                   <item.icon className="w-5 h-5" />
@@ -710,10 +668,10 @@ const Dashboard = () => {
             <Button 
                 variant="default" 
                 size="sm" 
-                onClick={() => window.location.href = "https://roilead.com.br/cupula-de-leads"}
-                className="hidden sm:flex bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-lg px-4 shadow-sm transition-all"
+                disabled={true}
+                className="hidden sm:flex bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-lg px-4 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                Cúpula de Leads
+                Cúpula de Leads (em breve)
             </Button>
             <div className="flex items-center gap-2">
                 <ModeToggle />
@@ -731,6 +689,9 @@ const Dashboard = () => {
               <div className="flex flex-1 h-full min-h-0">
                 <div className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
                   <div className="space-y-6">
+                    {hasActiveSubscription && (
+                      <LeadSearchForm onSearchComplete={() => window.location.reload()} />
+                    )}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div className="flex flex-col gap-2">
                         <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
@@ -1248,45 +1209,7 @@ const Dashboard = () => {
             </Dialog>
           </div>
 
-          <div className={`hidden lg:flex transition-all duration-300 ${isChatMinimized ? 'w-[60px]' : 'w-[450px]'} border-l border-border bg-card overflow-hidden relative group`}>
-            <Button
-              variant="default"
-              size="icon"
-              className={`absolute top-3 ${isChatMinimized ? 'left-1/2 -translate-x-1/2' : 'left-2'} z-50 w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all flex items-center justify-center`}
-              onClick={() => setIsChatMinimized(!isChatMinimized)}
-              title={isChatMinimized ? "Expandir WhatsApp" : "Minimizar WhatsApp"}
-            >
-              {isChatMinimized ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            </Button>
 
-
-            {hasActiveSubscription ? (
-              !isChatMinimized ? (
-                <WhatsappChat
-                  initialContact={whatsappInitialLead}
-                  onNavigateToAgent={() => setActiveMenu("agent")}
-                />
-              ) : (
-                <div className="flex flex-col items-center pt-20 h-full w-full bg-muted/10 cursor-pointer" onClick={() => setIsChatMinimized(false)}>
-                  <MessageCircle className="w-7 h-7 text-primary opacity-40 mb-6" />
-                  <span style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-black text-muted-foreground/40 tracking-[0.3em] uppercase">
-                    WhatsApp
-                  </span>
-                </div>
-              )
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-muted/30">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6 shadow-inner">
-                  <Lock className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-bold text-foreground mb-3">WhatsApp Conectado</h3>
-                <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
-                  Para integrar seu WhatsApp, conversar com os leads salvos no CRM e usar mensagens instantâneas, escolha um plano de assinatura.
-                </p>
-              </div>
-
-            )}
-          </div>
 
         </div>
       </main>
@@ -1543,6 +1466,34 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
                             >
                               <MessageCircle className="w-3 h-3" />
                               Chamar
+                            </button>
+
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const { data: { user } } = await supabase.auth.getUser();
+                                  if (!user) return toast.error("Usuário não logado");
+
+                                  const notesStr = `Nicho: ${lead.atividade_principal?.descricao ? lead.atividade_principal.descricao.substring(0, 50) : "Geral"} | CNPJ: ${cnpj} | Porte: ${porte} | Tel: ${telefone} | Email: ${email} | Loc: ${municipio}/${uf}`;
+                                  
+                                  const { error } = await supabase.from('crm_leads').insert({
+                                    user_id: user.id,
+                                    title: nome,
+                                    phone: telefone,
+                                    notes: notesStr,
+                                    status: "new"
+                                  });
+
+                                  if (error) throw error;
+                                  toast.success("Enviado para a coluna Novos do CRM!");
+                                } catch (err: any) {
+                                  toast.error(err.message || "Erro ao enviar pro CRM");
+                                }
+                              }}
+                              className="w-full text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-2 py-1 rounded font-bold transition-colors flex items-center justify-center shadow-sm whitespace-nowrap mt-1"
+                            >
+                              Enviar p/ CRM
                             </button>
                           </div>
                         </div>

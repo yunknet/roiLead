@@ -614,11 +614,17 @@ export function CupulaBoard() {
 
             if (error) throw error;
             
-            const mappedLeads = (data || []).map((lead: any) => ({
-                ...lead,
-                phone: lead.cupula_leads_private?.phone || lead.phone,
-                notes: lead.cupula_leads_private?.notes || lead.notes
-            })) as SharkLead[];
+            const mappedLeads = (data || []).map((lead: any) => {
+                const privateData = Array.isArray(lead.cupula_leads_private) 
+                    ? lead.cupula_leads_private[0] 
+                    : lead.cupula_leads_private;
+                    
+                return {
+                    ...lead,
+                    phone: privateData?.phone || lead.phone,
+                    notes: privateData?.notes || lead.notes
+                };
+            }) as SharkLead[];
             
             setLeads(mappedLeads);
 

@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useThemeColors } from '../../theme/colors';
 import { WHATSAPP_ADMIN_NUMBER } from '../../lib/constants';
@@ -7,10 +8,16 @@ import { Feather } from '@expo/vector-icons';
 export default function RestrictedScreen() {
   const { signOut } = useAuth();
   const colors = useThemeColors();
+  const router = useRouter();
 
   const handleContactAdmin = () => {
     const message = encodeURIComponent('Olá! Gostaria de solicitar acesso à Cúpula de Leads.');
     Linking.openURL(`https://wa.me/${WHATSAPP_ADMIN_NUMBER}?text=${message}`);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace('/(auth)/login');
   };
 
   return (
@@ -28,7 +35,7 @@ export default function RestrictedScreen() {
         </View>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={signOut} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut} activeOpacity={0.8}>
         <Text style={[styles.logoutButtonText, { color: colors.textDimmed }]}>Sair</Text>
       </TouchableOpacity>
     </View>

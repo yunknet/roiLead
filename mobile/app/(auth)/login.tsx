@@ -8,20 +8,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Image,
   useColorScheme,
+  ScrollView,
 } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useThemeColors } from '../../theme/colors';
+import { Feather } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const { signIn, signUp, signInWithGoogle, checkAccess } = useAuth();
   const colors = useThemeColors();
@@ -39,12 +45,23 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!isLoginMode) {
+      if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
+        setAuthError('Preencha todos os campos do perfil.');
+        return;
+      }
+      if (!acceptTerms) {
+        setAuthError('Você precisa aceitar os termos para continuar.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const formattedEmail = email.trim().toLowerCase();
       const { error } = isLoginMode 
         ? await signIn(formattedEmail, password)
-        : await signUp(formattedEmail, password);
+        : await signUp(formattedEmail, password, firstName.trim(), lastName.trim(), phone.trim());
 
       if (error) {
         let errorMessage = error;
@@ -83,9 +100,6 @@ export default function LoginScreen() {
       if (error) {
         setAuthError(error);
       } else {
-        // Quando a autenticação volta pro app, o useEffect no (index) e useAuth deve capturar
-        // Mas podemos forçar o redirecionamento aqui garantindo que checkAccess vai rodar
-        // Se a sessão for definida, vamos para o root e ele decide
         router.replace('/');
       }
     } catch (err: any) {
@@ -100,8 +114,11 @@ export default function LoginScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        {/* Logo / Título */}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Image source={logoSrc} style={styles.logo} resizeMode="contain" />
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -109,7 +126,6 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Botão Google */}
         <TouchableOpacity
           style={[styles.googleButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={handleGoogle}
@@ -128,26 +144,47 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Formulário */}
         <View style={styles.form}>
+          {!isLoginMode && (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.inputContainer, { flex: 1 }]}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Nome</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  placeholder="João"
+                  placeholderTextColor={colors.textDimmed}
+                  value={firstName}
+                  onChangeText={(t) => { setFirstName(t); setAuthError(''); }}
+                  autoCapitalize="words"
+                  editable={!loading}
+                />
+              </View>
+              <View style={[styles.inputContainer, { flex: 1 }]}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Sobrenome</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  placeholder="Silva"
+                  placeholderTextColor={colors.textDimmed}
+                  value={lastName}
+                  onChangeText={(t) => { setLastName(t); setAuthError(''); }}
+                  autoCapitalize="words"
+                  editable={!loading}
+                />
+              </View>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>E-mail</Text>
             <TextInput
               style={[
                 styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.text,
-                }
+                { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }
               ]}
               placeholder="seu@email.com"
               placeholderTextColor={colors.textDimmed}
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setAuthError('');
-              }}
+              onChangeText={(text) => { setEmail(text); setAuthError(''); }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -155,29 +192,70 @@ export default function LoginScreen() {
             />
           </View>
 
+          {!isLoginMode && (
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>WhatsApp</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                placeholder="(11) 99999-9999"
+                placeholderTextColor={colors.textDimmed}
+                value={phone}
+                onChangeText={(t) => { setPhone(t); setAuthError(''); }}
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Senha</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.text,
-                }
-              ]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textDimmed}
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setAuthError('');
-              }}
-              secureTextEntry
-              editable={!loading}
-              onSubmitEditing={handleAuth}
-            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+              <Text style={[styles.label, { color: colors.textSecondary, marginBottom: 0 }]}>Senha</Text>
+              {isLoginMode && (
+                <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Esqueceu a senha?</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, paddingRight: 50 }
+                ]}
+                placeholder={isLoginMode ? "••••••••" : "Mínimo 6 caracteres"}
+                placeholderTextColor={colors.textDimmed}
+                value={password}
+                onChangeText={(text) => { setPassword(text); setAuthError(''); }}
+                secureTextEntry={!showPassword}
+                editable={!loading}
+                onSubmitEditing={handleAuth}
+              />
+              <TouchableOpacity 
+                style={{ position: 'absolute', right: 15, top: '50%', transform: [{ translateY: -10 }] }}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                <Feather name={showPassword ? "eye-off" : "eye"} size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          {!isLoginMode && (
+            <View style={styles.termsContainer}>
+              <TouchableOpacity 
+                style={styles.checkboxContainer} 
+                onPress={() => { setAcceptTerms(!acceptTerms); setAuthError(''); }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, { borderColor: colors.border }, acceptTerms && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                  {acceptTerms && <AntDesign name="check" size={14} color="#fff" />}
+                </View>
+                <Text style={[styles.termsText, { color: colors.textSecondary }]}>
+                  Aceito os <Text style={{ color: colors.primary }}>Termos de Uso</Text> e a <Text style={{ color: colors.primary }}>Política de Privacidade</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {!!authError && (
             <Text style={[styles.errorText, { color: colors.danger || '#ef4444' }]}>
@@ -198,15 +276,17 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.buttonText}>{isLoginMode ? 'Entrar' : 'Criar Conta'}</Text>
+              <Text style={styles.buttonText}>{isLoginMode ? 'Entrar' : 'Criar conta'}</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Switch Mode */}
         <TouchableOpacity
           style={styles.switchModeContainer}
-          onPress={() => setIsLoginMode(!isLoginMode)}
+          onPress={() => {
+            setIsLoginMode(!isLoginMode);
+            setAuthError('');
+          }}
           disabled={loading}
         >
           <Text style={[styles.switchModeText, { color: colors.textMuted }]}>
@@ -218,7 +298,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.footer, { color: colors.textDimmed }]}>roiLead © 2026</Text>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -227,10 +307,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   header: {
     alignItems: 'center',
@@ -276,7 +357,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   form: {
-    gap: 20,
+    gap: 16,
   },
   inputContainer: {
     gap: 8,
@@ -291,6 +372,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+  },
+  termsContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   errorText: {
     fontSize: 14,

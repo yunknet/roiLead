@@ -53,17 +53,42 @@ AS $$
 BEGIN
     -- If there's sensitive data trying to be saved in the public table
     IF NEW.phone IS NOT NULL OR NEW.notes IS NOT NULL THEN
-        -- Safely store it in the private vault
-        INSERT INTO public.cupula_leads_private (lead_id, phone, notes)
-        VALUES (NEW.id, NEW.phone, NEW.notes)
-        ON CONFLICT (lead_id) DO UPDATE 
-        SET phone = EXCLUDED.phone, 
-            notes = EXCLUDED.notes,
-            updated_at = timezone('utc'::text, now());
-        
-        -- Erase from the public row before it hits the table
-        NEW.phone := NULL;
-        NEW.notes := NULL;
+        IF TG_OP = 'INSERT' THEN
+            -- Salva o dado COMPLETO no cofre privado (email, telefone, tudo)
+            INSERT INTO public.cupula_leads_private (lead_id, phone, notes)
+            VALUES (NEW.id, NEW.phone, NEW.notes)
+            ON CONFLICT (lead_id) DO UPDATE 
+            SET phone = EXCLUDED.phone, notes = EXCLUDED.notes, updated_at = timezone('utc'::text, now());
+            
+            -- Apaga o telefone da tabela principal antes de salvar
+            NEW.phone := NULL;
+            
+            -- Mantém na tabela principal APENAS as especificações (tags com 🔸) e limpa emails/notas privadas
+            IF NEW.notes IS NOT NULL THEN
+                NEW.notes := (
+                    SELECT string_agg(trim(part), ' | ')
+                    FROM unnest(string_to_array(NEW.notes, '|')) AS part
+                    WHERE part LIKE '%🔸%'
+                );
+            END IF;
+            
+        ELSIF TG_OP = 'UPDATE' THEN
+            -- Se enviarem um telefone NOVO no update, joga pro cofre e apaga da publica
+            IF NEW.phone IS NOT NULL AND NEW.phone IS DISTINCT FROM OLD.phone THEN
+                UPDATE public.cupula_leads_private SET phone = NEW.phone, updated_at = timezone('utc'::text, now()) WHERE lead_id = NEW.id;
+                NEW.phone := NULL;
+            END IF;
+            
+            -- Se enviarem uma nota NOVA contendo "Email:", joga pro cofre e recorta
+            IF NEW.notes IS NOT NULL AND NEW.notes IS DISTINCT FROM OLD.notes AND NEW.notes LIKE '%Email:%' THEN
+                UPDATE public.cupula_leads_private SET notes = NEW.notes, updated_at = timezone('utc'::text, now()) WHERE lead_id = NEW.id;
+                NEW.notes := (
+                    SELECT string_agg(trim(part), ' | ')
+                    FROM unnest(string_to_array(NEW.notes, '|')) AS part
+                    WHERE part LIKE '%🔸%'
+                );
+            END IF;
+        END IF;
     END IF;
     
     RETURN NEW;

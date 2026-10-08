@@ -1,9 +1,17 @@
 import { Tabs } from 'expo-router';
 import { useThemeColors } from '../../theme/colors';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../hooks/useNotifications';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const colors = useThemeColors();
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  
+  // Instancia o hook de notificações para garantir registro automático ao logar no app
+  useNotifications(user?.id || null);
 
   return (
     <Tabs
@@ -13,9 +21,9 @@ export default function TabLayout() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          paddingBottom: Math.max(insets.bottom, 12),
           paddingTop: 8,
+          height: 60 + Math.max(insets.bottom, 0),
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textDimmed,

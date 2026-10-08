@@ -153,7 +153,7 @@ export default function CompleteRegistration() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="phone">WhatsApp (com DDD)</Label>
+                                <Label htmlFor="phone">Celular/Telefone (com DDD)</Label>
                                 <Input
                                     id="phone"
                                     placeholder="11999999999"

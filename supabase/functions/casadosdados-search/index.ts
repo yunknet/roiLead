@@ -80,14 +80,14 @@ serve(async (req) => {
     }
 
     
-    // Busca as Razões Sociais separadamente já que não temos Foreign Key rígida no banco
+    // 1. Busca as Razões Sociais separadamente
     const bases = [...new Set(data.map((d: any) => d.cnpj_base))];
     const empresasMap: any = {};
     
     if (bases.length > 0) {
         const { data: empresas } = await supabaseCnpj
             .from('rfb_empresas')
-            .select('cnpj_base, razao_social, capital_social, porte_empresa')
+            .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_do_responsavel')
             .in('cnpj_base', bases);
             
         if (empresas) {
@@ -95,37 +95,69 @@ serve(async (req) => {
         }
     }
 
+    // 2. Busca Dicionários
+    const municipiosCodes = [...new Set(data.map((d: any) => d.municipio?.toString()))].filter(Boolean);
+    const cnaesCodes = [...new Set(data.map((d: any) => d.cnae_fisc_principal?.toString()))].filter(Boolean);
+    const naturezasCodes = [...new Set(Object.values(empresasMap).map((e: any) => e.natureza_juridica?.toString()))].filter(Boolean);
+
+    const [resMun, resCnaes, resNat] = await Promise.all([
+        municipiosCodes.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodes) : Promise.resolve({ data: [] }),
+        cnaesCodes.length > 0 ? supabaseCnpj.from('rfb_cnaes').select('codigo, descricao').in('codigo', cnaesCodes) : Promise.resolve({ data: [] }),
+        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] })
+    ]);
+
+    const dicMun = Object.fromEntries((resMun.data || []).map((m: any) => [m.codigo, m.descricao]));
+    const dicCnae = Object.fromEntries((resCnaes.data || []).map((c: any) => [c.codigo, c.descricao]));
+    const dicNat = Object.fromEntries((resNat.data || []).map((n: any) => [n.codigo, n.descricao]));
+
     // Mapeia os dados para o formato exato que o CRM RoiLead espera no frontend
-    const cnpjsFormatted = data.map((row: any) => ({
-        cnpj: row.cnpj,
-        razao_social: empresasMap[row.cnpj_base]?.razao_social || row.nome_fantasia || "",
-        nome_fantasia: row.nome_fantasia || "",
-        data_abertura: row.data_inicio_atividade || "",
-        situacao_cadastral: { situacao_atual: { "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral] || "DESCONHECIDA", data: row.data_situacao_cadastral || "" },
-        atividade_principal: { codigo: row.cnae_fisc_principal, descricao: "" },
-        capital_social: empresasMap[row.cnpj_base]?.capital_social || 0,
-        porte_empresa: { codigo: empresasMap[row.cnpj_base]?.porte_empresa || "", descricao: { "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[empresasMap[row.cnpj_base]?.porte_empresa] || "" },
-        natureza_juridica: "",
-        endereco: {
-            tipo_logradouro: row.tipo_logradouro || "",
-            logradouro: row.logradouro || "",
-            numero: row.numero || "",
-            complemento: row.complemento || "",
-            bairro: row.bairro || "",
-            municipio: row.municipio?.toString() || "",
-            uf: row.uf || "",
-            cep: row.cep || ""
-        },
-        contato_telefonico: row.telefone_1 ? [{
-            ddd: row.ddd_1 || "",
-            numero: row.telefone_1,
-            tipo: "TELEFONE"
-        }] : [],
-        contato_email: row.correio_eletronico ? [{
-            email: row.correio_eletronico,
-            dominio: ""
-        }] : []
-    }));
+    const cnpjsFormatted = data.map((row: any) => {
+        const emp = empresasMap[row.cnpj_base] || {};
+        return {
+            cnpj: row.cnpj,
+            razao_social: emp.razao_social || row.nome_fantasia || "",
+            nome_fantasia: row.nome_fantasia || "",
+            data_abertura: row.data_inicio_atividade || "",
+            situacao_cadastral: { 
+                situacao_atual: { "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral] || "DESCONHECIDA", 
+                data: row.data_situacao_cadastral || "" 
+            },
+            atividade_principal: { 
+                codigo: row.cnae_fisc_principal, 
+                descricao: dicCnae[row.cnae_fisc_principal] || "" 
+            },
+            capital_social: emp.capital_social || 0,
+            porte_empresa: { 
+                codigo: emp.porte_empresa || "", 
+                descricao: { "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[emp.porte_empresa] || "" 
+            },
+            codigo_natureza_juridica: emp.natureza_juridica || "",
+            descricao_natureza_juridica: dicNat[emp.natureza_juridica] || "",
+            qualificacao_responsavel: {
+                codigo: emp.qualificacao_do_responsavel || "",
+                descricao: emp.qualificacao_do_responsavel == "50" ? "Empresário" : emp.qualificacao_do_responsavel == "49" ? "Sócio-Administrador" : "Responsável"
+            },
+            endereco: {
+                tipo_logradouro: row.tipo_logradouro || "",
+                logradouro: row.logradouro || "",
+                numero: row.numero || "",
+                complemento: row.complemento || "",
+                bairro: row.bairro || "",
+                municipio: dicMun[row.municipio?.toString()] || row.municipio?.toString() || "",
+                uf: row.uf || "",
+                cep: row.cep || ""
+            },
+            contato_telefonico: row.telefone_1 ? [{
+                ddd: row.ddd_1 || "",
+                numero: row.telefone_1,
+                tipo: "TELEFONE"
+            }] : [],
+            contato_email: row.correio_eletronico ? [{
+                email: row.correio_eletronico,
+                dominio: ""
+            }] : []
+        };
+    });
 
     return new Response(JSON.stringify({
         success: true,

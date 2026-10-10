@@ -11,7 +11,7 @@ export function HeroRoiLead() {
     useEffect(() => {
         if (isManual) return;
         const timer = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % 3);
+            setCurrentSlide((prev) => (prev + 1) % 2);
         }, 5000);
         return () => clearInterval(timer);
     }, [isManual]);
@@ -19,25 +19,18 @@ export function HeroRoiLead() {
     return (
         <div className="flex flex-col overflow-hidden bg-background">
             <div className="max-w-7xl mx-auto pt-8 sm:pt-12 pb-8 px-4 text-center">
-                <HoverBorderGradient
-                    containerClassName="mb-10 mx-auto"
-                    className="bg-background text-foreground flex items-center gap-2"
-                    as="div"
-                >
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-sm">
-                        Geração de Leads Inteligente via WhatsApp
-                    </span>
-                </HoverBorderGradient>
+                <p className="text-primary text-xs sm:text-sm font-bold tracking-widest uppercase mb-6 mx-auto animate-slide-up">
+                    Geração de Leads Inteligente via Contato
+                </p>
 
-                <h1 className="text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 leading-tight animate-slide-up">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-medium text-foreground mb-6 leading-[1.1] animate-slide-up tracking-tight">
                     A maneira mais fácil <br className="hidden sm:block" />
                     de encontrar seu{" "}
-                    <span className="text-gradient">próximo</span> cliente
+                    <span className="font-extrabold text-gradient">próximo</span> cliente
                 </h1>
 
-                <p className="text-base sm:text-lg text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up px-4">
-                    Busque empresas por região e nicho diretamente no seu WhatsApp.
+                <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-slide-up px-4 font-light">
+                    Busque empresas por região e nicho diretamente no seu Contato.
                     Receba contatos prontos para prospectar.
                 </p>
 
@@ -97,11 +90,7 @@ export function HeroRoiLead() {
                                     className={`h-2 rounded-full transition-all duration-500 hover:bg-primary/80 ${currentSlide === 1 ? "w-10 bg-primary" : "w-2 bg-muted-foreground/30"}`} 
                                     title="Ver CRM Funil"
                                 />
-                                <button 
-                                    onClick={() => {setCurrentSlide(2); setIsManual(true);}} 
-                                    className={`h-2 rounded-full transition-all duration-500 hover:bg-primary/80 ${currentSlide === 2 ? "w-10 bg-primary" : "w-2 bg-muted-foreground/30"}`} 
-                                    title="Ver Agente IA"
-                                />
+                                
                             </div>
                         </div>
                     </>
@@ -128,17 +117,13 @@ export function HeroRoiLead() {
                                 <div className="flex flex-col gap-2">
                                     <div onClick={() => {setCurrentSlide(0); setIsManual(true);}} className={`h-10 w-full rounded-md flex items-center px-3 cursor-pointer transition-colors hover:bg-muted ${currentSlide === 0 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground"}`}>
                                         <Search className="w-4 h-4 md:mr-3" />
-                                        <span className="hidden md:block text-sm">Histórico</span>
+                                        <span className="hidden md:block text-sm">roiLead</span>
                                     </div>
                                     <div onClick={() => {setCurrentSlide(1); setIsManual(true);}} className={`h-10 w-full rounded-md flex items-center px-3 cursor-pointer transition-colors hover:bg-muted ${currentSlide === 1 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground"}`}>
                                         <MessageSquare className="w-4 h-4 md:mr-3" />
                                         <span className="hidden md:block text-sm">CRM</span>
                                     </div>
-                                    <div onClick={() => {setCurrentSlide(2); setIsManual(true);}} className={`h-10 w-full rounded-md flex items-center px-3 cursor-pointer transition-colors hover:bg-muted ${currentSlide === 2 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground"}`}>
-                                        <Bot className="w-4 h-4 md:mr-3" />
-                                        <span className="hidden md:block text-sm flex-1">Agente IA</span>
-                                        {currentSlide === 2 && <span className="hidden md:inline-block bg-primary text-background text-[8px] px-1.5 py-0.5 rounded-sm uppercase">Novo</span>}
-                                    </div>
+                                    
                                     <div className="h-10 w-full rounded-md flex items-center px-3 text-muted-foreground cursor-not-allowed opacity-50">
                                         <CreditCard className="w-4 h-4 md:mr-3" />
                                         <span className="hidden md:block text-sm font-medium">Assinatura</span>
@@ -170,10 +155,38 @@ export function HeroRoiLead() {
                             <div className="flex flex-1 overflow-hidden">
                                 {currentSlide === 0 && (
                                     <div className="flex-1 p-6 overflow-y-auto space-y-6 animate-in fade-in duration-500">
+                                        
+                                        <div className="bg-card border border-border p-5 rounded-2xl shadow-sm mb-6">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <Search className="w-4 h-4 text-primary" />
+                                                <h3 className="text-lg font-bold text-foreground">Nova Busca de Leads</h3>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-semibold text-foreground">Palavra-chave</label>
+                                                    <div className="h-9 bg-background border border-border rounded-md px-3 flex items-center text-xs text-muted-foreground">Ex: Engenharia Civil...</div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-semibold text-foreground">Estado(s)</label>
+                                                    <div className="h-9 bg-background border border-border rounded-md px-3 flex items-center text-xs text-muted-foreground">Ex: SP, MG</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                                                <div className="flex items-center gap-2 bg-secondary/30 px-3 py-1.5 rounded-lg border border-border">
+                                                    <span className="text-xs font-semibold">Quantidade:</span>
+                                                    <span className="text-xs bg-background px-2 py-0.5 rounded border border-border">50</span>
+                                                </div>
+                                                <div className="bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 cursor-pointer">
+                                                    <Search className="w-3.5 h-3.5" /> Minerar Leads
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <h2 className="text-2xl font-bold text-foreground">Histórico de Pesquisas</h2>
                                             <p className="text-sm text-muted-foreground mt-1">Veja o registro de todas as suas solicitações de leads.</p>
                                         </div>
+  
                                         
                                         <div className="space-y-3">
                                             {[
@@ -243,92 +256,7 @@ export function HeroRoiLead() {
                                     </div>
                                 )}
 
-                                {currentSlide === 2 && (
-                                    <div className="flex-1 p-6 overflow-y-auto space-y-6 animate-in fade-in duration-500">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
-                                                <Bot className="w-5 h-5 text-success" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-xl font-bold flex items-center gap-2">Meu Agente de Inteligência Artificial <span className="bg-success text-white text-[10px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Novo</span></h2>
-                                                <p className="text-xs text-muted-foreground mt-0.5">Crie a personalidade e regras do seu vendedor automático para interagir com leads.</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-card border border-border p-5 rounded-2xl shadow-sm space-y-6 relative overflow-hidden flex flex-col justify-center mb-6">
-                                            <div className="absolute top-0 right-0 w-32 h-32 bg-success/5 rounded-bl-full pointer-events-none" />
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h3 className="font-bold text-sm">Status do Agente</h3>
-                                                    <p className="text-xs text-muted-foreground">Ligar ou desligar a inteligência artificial para novas conversas.</p>
-                                                </div>
-                                                <div className="w-10 h-5 bg-success rounded-full relative shadow-inner">
-                                                    <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm" />
-                                                </div>
-                                            </div>
-                                            <div className="bg-warning/5 border border-warning/20 rounded-xl p-3 flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <Pause className="w-4 h-4 text-warning" />
-                                                    <div>
-                                                        <div className="text-xs font-bold text-warning-foreground">Pausa Temporária (Handover)</div>
-                                                        <div className="text-[10px] text-muted-foreground">O agente está operando normalmente.</div>
-                                                    </div>
-                                                </div>
-                                                <div className="px-3 py-1.5 border border-warning/50 text-warning rounded-md text-[10px] font-bold">Travar Agente</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-card border border-border p-5 rounded-xl shadow-sm mb-6">
-                                            <h3 className="font-bold text-sm mb-1">Instruções do Vendedor (System Prompt)</h3>
-                                            <p className="text-[10px] text-muted-foreground mb-3">Descreva como o seu Agente deve ler, pensar e responder aos clientes.</p>
-                                            <div className="w-full bg-muted/30 border border-border rounded-lg p-3 h-24 text-[10px] font-mono text-muted-foreground overflow-hidden">
-                                                # IDENTIDADE E MISSÃO<br/>Você é um vendedor especialista focado em contatar empresas...
-                                                <br/><br/># REGRAS<br/>Seja direto e persuasivo...
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                <div className="w-72 border-l border-border bg-card hidden xl:flex flex-col">
-                                    <div className="p-4 border-b border-border space-y-4 bg-sidebar/30">
-                                        <div className="flex items-center gap-2 text-success font-semibold">
-                                            <MessageSquare className="w-4 h-4" />
-                                            <span>WhatsApp</span>
-                                        </div>
-                                        <div className="relative">
-                                            <Search className="w-3 h-3 absolute left-2.5 top-2.5 text-muted-foreground" />
-                                            <div className="h-8 w-full bg-background rounded-full border border-border text-xs flex items-center pl-8 text-muted-foreground shadow-sm">
-                                                Pesquisar conversa...
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between bg-background p-2.5 rounded-lg border border-border shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <Bot className="w-4 h-4 text-primary" />
-                                                <span className="text-xs font-medium text-foreground">Agente de IA</span>
-                                            </div>
-                                            <div className="w-8 h-4 bg-success rounded-full relative cursor-pointer opacity-90 shadow-inner">
-                                                <div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                                        {[
-                                            { name: "Carlos Silva", msg: "Bom dia, tenho interesse na plataforma." },
-                                            { name: "Amanda Ferreira", msg: "Podemos agendar uma reunião hoje?" },
-                                            { name: "Construtora Nova Era", msg: "Obrigado pelo envio das cotações." },
-                                            { name: "Roberto Macedo", msg: "AIAgent: Olá Roberto, como posso ajudar?" },
-                                            { name: "Tech Solutions LTDA", msg: "Envia o relatório por favor." },
-                                            { name: "Distribuidora Lider", msg: "Acabei de realizar o pagamento." },
-                                        ].map((contact, i) => (
-                                            <div key={i} className="p-3 hover:bg-muted rounded-lg cursor-pointer flex flex-col gap-1 transition-colors">
-                                                <span className="text-sm font-semibold text-foreground truncate">{contact.name}</span>
-                                                <span className="text-[11px] text-muted-foreground truncate">{contact.msg}</span>
-                                            </div>
-                                        ))}
-                                    </div>
                                 </div>
-                            </div>
                         </div>
                     </div>
                 </div>

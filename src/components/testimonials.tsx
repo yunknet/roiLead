@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const testimonials = [
     {
-        text: "O sistema transformou nossa prospecção. Agora conseguimos listas de construtoras com WhatsApp em segundos, direto na palma da mão!",
+        text: "O sistema transformou nossa prospecção. Agora conseguimos listas de construtoras com Contato em segundos, direto na palma da mão!",
         image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop",
         name: "Mariana Souza",
         role: "Gestora de Vendas",

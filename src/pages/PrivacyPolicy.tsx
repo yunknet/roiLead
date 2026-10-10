@@ -42,7 +42,7 @@ const PrivacyPolicy = () => {
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
               <li>Nome</li>
               <li>Endereço de e-mail</li>
-              <li>Número de telefone (WhatsApp)</li>
+              <li>Número de telefone (Contato)</li>
               <li>Informações relacionadas ao uso da plataforma roiLead, como dados de cadastro, plano contratado, status de assinatura e histórico de interações com o sistema</li>
             </ul>
 
@@ -123,7 +123,7 @@ const PrivacyPolicy = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">8. Criptografia de Mensagens</h2>
-            <p className="text-muted-foreground mb-3">As mensagens trocadas pelo usuário através da integração com o WhatsApp são protegidas por criptografia AES-256-GCM de ponta-a-ponta.</p>
+            <p className="text-muted-foreground mb-3">As mensagens trocadas pelo usuário através da integração com o Contato são protegidas por criptografia AES-256-GCM de ponta-a-ponta.</p>
             <p className="text-muted-foreground mb-3">Isso significa que:</p>
             <ul className="list-disc list-inside text-muted-foreground space-y-2">
               <li>As mensagens são criptografadas antes de serem armazenadas no banco de dados</li>

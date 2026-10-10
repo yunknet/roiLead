@@ -10,7 +10,12 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
+import { DashboardLayout } from "./layouts/DashboardLayout";
+import Search from "./pages/dashboard/Search";
+import Crm from "./pages/dashboard/Crm";
+import SubscriptionPage from "./pages/dashboard/Subscription";
+import Settings from "./pages/dashboard/Settings";
+import CupulaLeadsPage from "./pages/dashboard/CupulaLeads";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import CompleteRegistration from "./pages/CompleteRegistration";
@@ -36,7 +41,13 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<Search />} />
+              <Route path="crm" element={<Crm />} />
+              <Route path="subscription" element={<SubscriptionPage />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="cupula_leads" element={<CupulaLeadsPage />} />
+            </Route>
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/complete-registration" element={<CompleteRegistration />} />

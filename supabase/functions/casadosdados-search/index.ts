@@ -24,7 +24,23 @@ serve(async (req) => {
 
     const supabaseCnpj = createClient(CNPJ_DB_URL, CNPJ_DB_KEY);
 
-    // Constrói a query no banco novo
+    // Resolvendo Municipio (nomes -> codigos)
+    let municipioCodes: string[] = [];
+    if (payload.municipio && payload.municipio.length > 0) {
+        const { data: munData } = await supabaseCnpj
+            .from('rfb_municipios')
+            .select('codigo')
+            .or(payload.municipio.map((m: string) => `descricao.ilike.%${m}%`).join(','));
+        
+        if (munData && munData.length > 0) {
+            municipioCodes = munData.map(m => m.codigo);
+        } else {
+            // Se buscou municipio e não achou o codigo, forçar a não trazer nada
+            municipioCodes = ['00000']; 
+        }
+    }
+
+    // Constrói a query principal
     let query = supabaseCnpj
         .from('rfb_estabelecimentos')
         .select(`
@@ -43,77 +59,155 @@ serve(async (req) => {
             correio_eletronico
         `);
 
-    // Filtros de estado e ddd baseados no payload
+    // UF
     if (payload.uf && payload.uf.length > 0) {
         query = query.in('uf', payload.uf.map((u: string) => u.toUpperCase()));
     }
     
+    // DDD
     if (payload.ddd && payload.ddd.length > 0) {
         query = query.in('ddd_1', payload.ddd);
     }
+
+    // Municipio
+    if (municipioCodes.length > 0) {
+        query = query.in('municipio', municipioCodes);
+    }
+
+    // Bairro
+    if (payload.bairro && payload.bairro.length > 0) {
+        query = query.or(payload.bairro.map((b: string) => `bairro.ilike.%${b}%`).join(','));
+    }
+
+    // CNAE Principal
+    if (payload.codigo_atividade_principal && payload.codigo_atividade_principal.length > 0) {
+        query = query.in('cnae_fisc_principal', payload.codigo_atividade_principal);
+    }
+
+    // Situação Cadastral ("ATIVA" -> "2", etc)
+    if (payload.situacao_cadastral && payload.situacao_cadastral.length > 0) {
+        const codigosSituacao = payload.situacao_cadastral.map((s: string) => {
+            if (s === "ATIVA") return "2";
+            if (s === "BAIXADA") return "8";
+            if (s === "SUSPENSA") return "3";
+            if (s === "INAPTA") return "4";
+            if (s === "NULA") return "1";
+            return s;
+        });
+        query = query.in('situacao_cadastral', codigosSituacao);
+    }
+
+    // Matriz ou Filial ("MATRIZ" -> 1, "FILIAL" -> 2)
+    if (payload.matriz_filial) {
+        if (payload.matriz_filial === "MATRIZ") query = query.eq('identificador_matriz_filial', 1);
+        if (payload.matriz_filial === "FILIAL") query = query.eq('identificador_matriz_filial', 2);
+    }
     
+    // Data de Abertura
     if (payload.data_abertura?.inicio) {
         query = query.gte('data_inicio_atividade', payload.data_abertura.inicio);
     }
+    if (payload.data_abertura?.fim) {
+        query = query.lte('data_inicio_atividade', payload.data_abertura.fim);
+    }
 
-    // A busca textual vem dentro de payload.busca_textual[0].texto[0]
+    // Busca textual (Nome Fantasia)
     const termo = payload.busca_textual?.[0]?.texto?.[0];
     if (termo) {
         query = query.ilike('nome_fantasia', `%${termo}%`);
     }
 
-    // Filtros de contato
+    // Contatos
     if (payload.mais_filtros?.com_email) {
         query = query.not('correio_eletronico', 'is', null).neq('correio_eletronico', '');
     }
-    if (payload.mais_filtros?.com_telefone) {
+    if (payload.mais_filtros?.com_telefone || payload.mais_filtros?.somente_celular || payload.mais_filtros?.somente_fixo) {
         query = query.not('telefone_1', 'is', null).neq('telefone_1', '');
     }
 
-    // Limita pela requisição
-    const limite = payload.limite || 50;
-    query = query.limit(limite);
+    // LIMIT E PAGINAÇÃO (PONTO 3 DO CLAUDE)
+    const limite = payload.limite || 30;
+    const pagina = payload.pagina || 1;
+    const offset = (pagina - 1) * limite;
+    
+    // O Supabase range é inclusivo (0 a 29 = 30 itens)
+    query = query.range(offset, offset + limite - 1);
 
-    const { data, error } = await query;
+    let { data, error } = await query;
 
     if (error) {
         throw error;
     }
 
-    // 1. Busca as Razões Sociais separadamente
+    // 1. Busca as Razões Sociais e filtra capital social / MEI
     const bases = [...new Set(data.map((d: any) => d.cnpj_base))];
     const empresasMap: any = {};
+    const simplesMap: any = {};
     
     if (bases.length > 0) {
-        const { data: empresas, error: empError } = await supabaseCnpj
-            .from('rfb_empresas')
-            .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel')
-            .in('cnpj_base', bases);
-            
-        if (empError) console.error("Erro ao buscar empresas:", empError);
-        if (empresas) {
-            empresas.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
+        const [resEmp, resSimp] = await Promise.all([
+            supabaseCnpj.from('rfb_empresas')
+                .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel')
+                .in('cnpj_base', bases),
+            supabaseCnpj.from('rfb_simples')
+                .select('*')
+                .in('cnpj_base', bases)
+        ]);
+
+        if (resEmp.data) {
+            resEmp.data.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
         }
+        if (resSimp.data) {
+            resSimp.data.forEach((s: any) => { simplesMap[s.cnpj_base] = s; });
+        }
+
+        // Aplicando os filtros in-memory (para Capital Social, Simples, MEI)
+        data = data.filter((row: any) => {
+            const emp = empresasMap[row.cnpj_base];
+            const simp = simplesMap[row.cnpj_base];
+
+            // Capital Social
+            if (payload.capital_social) {
+                const cap = emp?.capital_social || 0;
+                if (payload.capital_social.minimo > 0 && cap < payload.capital_social.minimo) return false;
+                if (payload.capital_social.maximo > 0 && cap > payload.capital_social.maximo) return false;
+            }
+
+            // Natureza Juridica
+            if (payload.codigo_natureza_juridica && payload.codigo_natureza_juridica.length > 0) {
+                if (!payload.codigo_natureza_juridica.includes(emp?.natureza_juridica?.toString())) return false;
+            }
+
+            // Simples / MEI
+            if (payload.simples) {
+                if (payload.simples.optante === true && simp?.opcao_simples !== 'S') return false;
+                if (payload.simples.excluir_optante === true && simp?.opcao_simples === 'S') return false;
+            }
+            if (payload.mei) {
+                if (payload.mei.optante === true && simp?.opcao_mei !== 'S') return false;
+                if (payload.mei.excluir_optante === true && simp?.opcao_mei === 'S') return false;
+            }
+
+            return true;
+        });
     }
 
-    // 2. Busca Dicionários e Simples Nacional
-    const municipiosCodes = [...new Set(data.map((d: any) => d.municipio?.toString()))].filter(Boolean);
+    // 2. Busca Dicionários para os códigos restantes
+    const municipiosCodesFin = [...new Set(data.map((d: any) => d.municipio?.toString()))].filter(Boolean);
     const cnaesCodes = [...new Set(data.map((d: any) => d.cnae_fisc_principal?.toString()))].filter(Boolean);
     const naturezasCodes = [...new Set(Object.values(empresasMap).map((e: any) => e.natureza_juridica?.toString()))].filter(Boolean);
 
-    const [resMun, resCnaes, resNat, resSimples] = await Promise.all([
-        municipiosCodes.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodes) : Promise.resolve({ data: [] }),
+    const [resMun, resCnaes, resNat] = await Promise.all([
+        municipiosCodesFin.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodesFin) : Promise.resolve({ data: [] }),
         cnaesCodes.length > 0 ? supabaseCnpj.from('rfb_cnaes').select('codigo, descricao').in('codigo', cnaesCodes) : Promise.resolve({ data: [] }),
-        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] }),
-        bases.length > 0 ? supabaseCnpj.from('rfb_simples').select('*').in('cnpj_base', bases) : Promise.resolve({ data: [] })
+        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] })
     ]);
 
     const dicMun = Object.fromEntries((resMun.data || []).map((m: any) => [m.codigo, m.descricao]));
     const dicCnae = Object.fromEntries((resCnaes.data || []).map((c: any) => [c.codigo, c.descricao]));
     const dicNat = Object.fromEntries((resNat.data || []).map((n: any) => [n.codigo, n.descricao]));
-    const simplesMap = Object.fromEntries((resSimples.data || []).map((s: any) => [s.cnpj_base, s]));
 
-    // Mapeia os dados para o formato exato que o CRM RoiLead espera no frontend
+    // Mapeia os dados para o formato exato
     const cnpjsFormatted = data.map((row: any) => {
         const emp = empresasMap[row.cnpj_base] || {};
         const simp = simplesMap[row.cnpj_base] || {};
@@ -177,7 +271,9 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
         success: true,
-        cnpjs: cnpjsFormatted
+        cnpjs: cnpjsFormatted,
+        total: cnpjsFormatted.length,
+        pagina: pagina
     }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

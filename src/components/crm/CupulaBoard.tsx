@@ -213,7 +213,7 @@ function LeadQueueCard({
     );
 }
 
-function WhatsAppIcon(props: any) {
+function ContatoIcon(props: any) {
     return (
         <svg
             viewBox="0 0 24 24"
@@ -407,8 +407,8 @@ function CapturedLeadCard({
                             size="sm"
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 rounded-xl shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
-                            <WhatsAppIcon className="w-4 h-4" />
-                            Chamar no WhatsApp
+                            <ContatoIcon className="w-4 h-4" />
+                            Chamar no Contato
                         </Button>
                     )}
                 </div>
@@ -1196,7 +1196,7 @@ export function CupulaBoard() {
                             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-sm text-foreground space-y-2">
                                 <p className="font-semibold text-blue-600 dark:text-blue-400">🎯 Como funciona?</p>
                                 <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                                    <li>Fale com nosso consultor no WhatsApp.</li>
+                                    <li>Fale com nosso consultor no Contato.</li>
                                     <li>Verifique se você está apto para o módulo exclusivo.</li>
                                     <li>Liberação manual após validação de perfil.</li>
                                 </ul>
@@ -1211,7 +1211,7 @@ export function CupulaBoard() {
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
                                 onClick={handleAccessRequest}
                             >
-                                <WhatsAppIcon className="w-4 h-4 mr-2" />
+                                <ContatoIcon className="w-4 h-4 mr-2" />
                                 Acessar Cúpula de Leads
                             </Button>
                         </DialogFooter>

@@ -225,7 +225,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                                         </div>
                                     </div>
 
-                                    {lead.company && lead.company !== "WhatsApp" && (
+                                    {lead.company && lead.company !== "Contato" && (
                                         <div className="grid grid-cols-[100px_1fr] gap-2">
                                             <span className="text-muted-foreground">Sócios:</span>
                                             <span className="font-medium text-xs leading-relaxed">{lead.company}</span>
@@ -283,7 +283,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                         className="w-full h-12 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-lg font-bold text-base gap-3 active:scale-[0.98] transition-all"
                     >
                         <MessageCircle className="w-5 h-5 flex-shrink-0" />
-                        Chamar no WhatsApp
+                        Chamar no Contato
                     </Button>
 
                     <Button

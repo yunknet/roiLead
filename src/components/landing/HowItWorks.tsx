@@ -35,7 +35,7 @@ export const HowItWorks = () => {
                 <span className="text-emerald-600 font-bold text-[10px]">B2B</span>
               </div>
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg animate-[spin_40s_linear_infinite_reverse]">
-                <span className="text-foreground font-bold text-[10px]">WhatsApp</span>
+                <span className="text-foreground font-bold text-[10px]">Contato</span>
               </div>
               <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center shadow-lg animate-[spin_40s_linear_infinite_reverse]">
                 <span className="text-emerald-500 font-bold text-[10px]">ROI</span>
@@ -98,7 +98,7 @@ export const HowItWorks = () => {
               <CheckCircle2 className="text-primary w-6 h-6" /> Como funciona na prática
             </h4>
             <p>
-              O processo é desenhado para ser tão simples quanto enviar uma mensagem. O usuário assina a plataforma diretamente pelo site e tem o seu acesso liberado automaticamente via WhatsApp. A partir daí, basta solicitar os leads desejados diretamente no seu canal do WhatsApp. Por exemplo, você pode digitar: <em className="text-foreground font-medium">"Quero 30 médicos em São Paulo, capital de 1 milhão a 5 milhões"</em> ou <em className="text-foreground font-medium">"Busco 30 empresas do agronegócio com capital de 100 mil a 900 mil em Goiás"</em>.
+              O processo é desenhado para ser tão simples quanto enviar uma mensagem. O usuário assina a plataforma diretamente pelo site e tem o seu acesso liberado automaticamente via Contato. A partir daí, basta solicitar os leads desejados diretamente no seu canal do Contato. Por exemplo, você pode digitar: <em className="text-foreground font-medium">"Quero 30 médicos em São Paulo, capital de 1 milhão a 5 milhões"</em> ou <em className="text-foreground font-medium">"Busco 30 empresas do agronegócio com capital de 100 mil a 900 mil em Goiás"</em>.
             </p>
           </div>
 

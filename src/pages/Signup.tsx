@@ -244,7 +244,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">WhatsApp</Label>
+              <Label htmlFor="phone">Contato</Label>
               <Input
                 id="phone"
                 type="tel"

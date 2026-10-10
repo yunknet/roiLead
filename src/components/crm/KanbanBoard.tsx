@@ -436,7 +436,7 @@ export function KanbanBoard({ onCallLead }: { onCallLead?: (phone: string, title
                                                 <ShoppingBag className="w-3 h-3 shrink-0" /> <span className="truncate">{lead.product_tag || 'Produto'}</span>
                                             </span>
                                         </div>
-                                        {lead.company && lead.company !== "WhatsApp" && (
+                                        {lead.company && lead.company !== "Contato" && (
                                             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                                 <Briefcase className="w-3 h-3 shrink-0" />
                                                 <span className="truncate" title={`Sócios: ${lead.company}`}>Sócios: {lead.company}</span>

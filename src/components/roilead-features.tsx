@@ -38,7 +38,7 @@ export function RoiLeadFeatures() {
 const features = [
     {
         title: "Busca Inteligente de Leads",
-        description: "Encontre empresas por nicho, região, tamanho e outros critérios diretamente no WhatsApp.",
+        description: "Encontre empresas por nicho, região, tamanho e outros critérios diretamente no Contato.",
         icon: <Search className="h-6 w-6 text-emerald-500" />,
     },
     {
@@ -52,8 +52,8 @@ const features = [
         icon: <Filter className="h-6 w-6 text-emerald-500" />,
     },
     {
-        title: "Integração WhatsApp",
-        description: "Conecte seu número e receba leads diretamente no chat. Prospecte sem sair do WhatsApp.",
+        title: "Integração Contato",
+        description: "Conecte seu número e receba leads diretamente no chat. Prospecte sem sair do Contato.",
         icon: <MessageCircle className="h-6 w-6 text-emerald-500" />,
     },
     {

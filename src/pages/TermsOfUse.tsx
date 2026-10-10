@@ -30,7 +30,7 @@ const TermsOfUse = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Termos de Uso do roiLead (www.roilead.com.br)</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              O roiLead é uma plataforma de inteligência voltada à geração automatizada de leads para empresas, utilizando tecnologia de automação e integração com WhatsApp. Estes Termos de Uso têm como objetivo explicar, de forma clara e transparente, como funcionam nossos serviços e quais são os direitos e responsabilidades dos usuários ao utilizarem a plataforma.
+              O roiLead é uma plataforma de inteligência voltada à geração automatizada de leads para empresas, utilizando tecnologia de automação e integração com Contato. Estes Termos de Uso têm como objetivo explicar, de forma clara e transparente, como funcionam nossos serviços e quais são os direitos e responsabilidades dos usuários ao utilizarem a plataforma.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-4">
               Caso tenha qualquer dúvida ou solicitação, entre em contato pelo e-mail: 📧 contato@roilead.com.br
@@ -45,7 +45,7 @@ const TermsOfUse = () => {
             <ul className="list-disc list-inside text-muted-foreground space-y-2">
               <li><strong className="text-foreground">roiLead:</strong> Refere-se à plataforma acessível pelo domínio www.roilead.com.br, incluindo seus proprietários, mantenedores, sucessores e prestadores de serviços vinculados.</li>
               <li><strong className="text-foreground">Usuário:</strong> Pessoa física ou jurídica que se cadastra ou utiliza os serviços do roiLead.</li>
-              <li><strong className="text-foreground">Serviços:</strong> Funcionalidades oferecidas pelo roiLead, incluindo geração automatizada de leads, envio de mensagens via WhatsApp, gestão de contatos e acesso às integrações da plataforma.</li>
+              <li><strong className="text-foreground">Serviços:</strong> Funcionalidades oferecidas pelo roiLead, incluindo geração automatizada de leads, envio de mensagens via Contato, gestão de contatos e acesso às integrações da plataforma.</li>
               <li><strong className="text-foreground">Conta de Usuário:</strong> Registro criado pelo usuário para acesso aos serviços do roiLead.</li>
               <li><strong className="text-foreground">Dispositivo de Acesso:</strong> Qualquer computador, smartphone ou outro dispositivo utilizado para acessar a plataforma.</li>
             </ul>
@@ -54,7 +54,7 @@ const TermsOfUse = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Objetivo do roiLead</h2>
             <p className="text-muted-foreground">
-              O roiLead tem como objetivo fornecer uma solução automatizada de geração de leads, permitindo que usuários recebam contatos qualificados diretamente por meio do WhatsApp, de forma prática, escalável e segura.
+              O roiLead tem como objetivo fornecer uma solução automatizada de geração de leads, permitindo que usuários recebam contatos qualificados diretamente por meio do Contato, de forma prática, escalável e segura.
             </p>
           </section>
 
@@ -69,7 +69,7 @@ const TermsOfUse = () => {
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
               <li>Nome completo</li>
               <li>Endereço de e-mail válido</li>
-              <li>Número de telefone (WhatsApp)</li>
+              <li>Número de telefone (Contato)</li>
               <li>Plano contratado (mensal ou anual)</li>
             </ul>
             <p className="text-muted-foreground mb-4">O usuário declara ser maior de 18 anos e garante que todas as informações fornecidas são verdadeiras, completas e atualizadas.</p>
@@ -94,7 +94,7 @@ const TermsOfUse = () => {
             <p className="text-muted-foreground mb-3">O usuário poderá, conforme o plano contratado:</p>
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
               <li>Receber leads gerados automaticamente</li>
-              <li>Interagir com o sistema via WhatsApp</li>
+              <li>Interagir com o sistema via Contato</li>
               <li>Ter seu número validado e autorizado para uso do serviço</li>
               <li>Gerenciar dados básicos de cadastro</li>
               <li>Receber comunicações operacionais relacionadas ao serviço</li>
@@ -122,7 +122,7 @@ const TermsOfUse = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Condições de Pagamento</h2>
             <p className="text-muted-foreground mb-3">
-              Atualmente, o acesso à plataforma roiLead é concedido mediante pagamento único no valor de R$ 432,00 ou mensal de R$ 97,00, garantindo ao usuário a utilização conforme as condições vigentes no momento da contratação.
+              Atualmente, o acesso à plataforma roiLead é concedido mediante pagamento único no valor de R$ 497,00 ou mensal de R$ 97,00, garantindo ao usuário a utilização conforme as condições vigentes no momento da contratação.
             </p>
             <p className="text-muted-foreground mb-3">
               No entanto, a roiLead reserva-se o direito de, a qualquer momento, realizar atualizações em seu modelo de negócios, funcionalidades, estrutura de acesso ou política comercial. Em decorrência dessas possíveis atualizações, o formato de cobrança poderá ser alterado para modelo de assinatura recorrente (mensal) ou sofrer reajustes de valores para novos acessos.
@@ -189,7 +189,7 @@ const TermsOfUse = () => {
             <h3 className="text-lg font-medium text-foreground mb-3">Finalidade</h3>
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
               <li>Prestação do serviço contratado</li>
-              <li>Validação de acesso ao WhatsApp</li>
+              <li>Validação de acesso ao Contato</li>
               <li>Segurança e prevenção a fraudes</li>
               <li>Comunicação operacional</li>
             </ul>
@@ -209,7 +209,7 @@ const TermsOfUse = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">Cláusula de Integrações e Terceiros</h2>
             <p className="text-muted-foreground mb-3">O roiLead utiliza serviços de terceiros, incluindo:</p>
             <ul className="list-disc list-inside text-muted-foreground space-y-2 mb-4">
-              <li>WhatsApp (Meta)</li>
+              <li>Contato (Meta)</li>
               <li>Infraestrutura em nuvem</li>
               <li>Supabase ou banco de dados equivalente</li>
               <li>Processadores de pagamento</li>

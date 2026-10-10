@@ -8,7 +8,7 @@ import {
 const faqs = [
   {
     question: "Como funciona a busca de leads?",
-    answer: "É muito simples: envie uma mensagem no WhatsApp descrevendo o que precisa e nossa IA faz o resto. Você pode pedir algo direto como '3 construtoras em Curitiba' ou ser bem específico: 'Empresas de TI em São Paulo, abertas há menos de 2 anos com capital acima de 50 mil'. Em segundos, você recebe os contatos prontos para prospectar.",
+    answer: "É muito simples: envie uma mensagem no Contato descrevendo o que precisa e nossa IA faz o resto. Você pode pedir algo direto como '3 construtoras em Curitiba' ou ser bem específico: 'Empresas de TI em São Paulo, abertas há menos de 2 anos com capital acima de 50 mil'. Em segundos, você recebe os contatos prontos para prospectar.",
   },
   {
     question: "De onde vêm os dados dos leads?",
@@ -19,8 +19,8 @@ const faqs = [
     answer: "Sim! Você pode buscar por cidade, estado ou região. Por exemplo: 'Empresas de saúde em São Paulo' ou 'Indústrias em Santa Catarina'.",
   },
   {
-    question: "Os leads vêm com telefone de WhatsApp?",
-    answer: "Fornecemos telefones comerciais verificados. Alguns podem ser WhatsApp, outros telefones fixos. Você recebe todas as informações disponíveis para contato.",
+    question: "Os leads vêm com telefone de Contato?",
+    answer: "Fornecemos telefones comerciais verificados. Alguns podem ser Contato, outros telefones fixos. Você recebe todas as informações disponíveis para contato.",
   },
   {
     question: "Posso exportar os leads para uma planilha Excel?",

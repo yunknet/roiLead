@@ -15,7 +15,7 @@ const plans = [
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
-      "WhatsApp conectado",
+      "Contato conectado",
       "Filtros avançados",
       "Histórico ilimitado",
       "Acesso imediato"
@@ -26,14 +26,14 @@ const plans = [
     id: "anual",
     name: "Anual",
     description: "O melhor custo-benefício.",
-    price: "36,00",
-    period: "/mês",
-    installment: "12x R$ 36,00",
+    price: "497,00",
+    period: "/ano",
+    installment: "em até 12x de R$ 52,93",
     savings: "Economia de 63% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
-      "WhatsApp conectado",
+      "Contato conectado",
       "Filtros avançados",
       "Suporte prioritário",
       "Histórico ilimitado",

@@ -88,19 +88,22 @@ export function LeadSearchForm({ onSearchComplete }: { onSearchComplete?: () => 
 
       if (error) throw error;
       
-      // Save search history
-      const { error: insertError } = await supabase.from('lead_requests').insert({
-        user_id: user.id,
-        request_details: `Busca no sistema: ${formData.busca_textual} ${formData.municipio}`,
-        leads_data: data?.cnpjs || [],
-      });
-      
-      if (insertError) {
-        console.error("Erro no insert:", insertError);
-        throw new Error("Erro ao salvar histórico: " + insertError.message);
-      }
-
-      toast.success(`Busca concluída! ${data?.cnpjs?.length || 0} empresas encontradas.`);
+              // Save search history
+        const fetchedLeads = data?.cnpjs || [];
+        if (fetchedLeads.length > 0) {
+          const { error: insertError } = await supabase.from('lead_requests').insert({
+            user_id: user.id,
+            request_details: `Busca no sistema: ${formData.busca_textual} ${formData.municipio}`,
+            leads_data: fetchedLeads,
+          });
+          
+          if (insertError) {
+            console.error("Erro no insert:", insertError);
+            throw new Error("Erro ao salvar histórico: " + insertError.message);
+          }
+        }
+  
+        toast.success(`Busca concluída! ${fetchedLeads.length} empresas encontradas.`);
       
       if (onSearchComplete) {
         setTimeout(() => onSearchComplete(), 2000);
@@ -262,13 +265,13 @@ export function LeadSearchForm({ onSearchComplete }: { onSearchComplete?: () => 
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
           <div className="flex items-center gap-3 w-full sm:w-auto bg-secondary/30 p-2 px-4 rounded-lg border border-border">
-            <Label htmlFor="quantidade" className="whitespace-nowrap">Qtd. de Empresas:</Label>
+            <Label htmlFor="quantidade" className="whitespace-nowrap">Quantidade de Empresas:</Label>
             <Input
               id="quantidade"
               name="quantidade"
               type="number"
               min="1"
-              max="50"
+              max="1000"
               value={formData.quantidade}
               onChange={(e) => setFormData(p => ({ ...p, quantidade: e.target.value }))}
               className="w-20 h-9"
@@ -284,3 +287,5 @@ export function LeadSearchForm({ onSearchComplete }: { onSearchComplete?: () => 
     </div>
   );
 }
+
+

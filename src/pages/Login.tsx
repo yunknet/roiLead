@@ -184,7 +184,7 @@ const Login = () => {
             Leads qualificados em segundos
           </h2>
           <p className="text-muted-foreground">
-            Busque empresas por região e nicho diretamente no seu WhatsApp.
+            Busque empresas por região e nicho diretamente no seu Contato.
           </p>
         </div>
       </div>

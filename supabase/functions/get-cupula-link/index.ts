@@ -12,7 +12,7 @@ serve(async (req) => {
 
   try {
     // Retorna a secret configurada no Supabase que contém o link
-    const checkoutLink = Deno.env.get('SHARK_HUBLA') || 'https://hub.la';
+    const checkoutLink = Deno.env.get('SHARK_LASTLINK') || 'https://hub.la';
 
     return new Response(JSON.stringify({ link: checkoutLink }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

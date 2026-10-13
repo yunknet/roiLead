@@ -225,7 +225,7 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
       const exportData = leads.map(lead => ({
         Nome: lead.nome_fantasia || lead['Nome Fantasia'] || lead.razao_social || lead['Razão Social'] || 'N/A',
         CNPJ: lead.cnpj || lead.CNPJ || '',
-        Telefone: lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || '',
+        Telefone: lead.contato_telefonico?.[0]?.completo || (lead.contato_telefonico?.[0]?.ddd && lead.contato_telefonico?.[0]?.numero ? `(${lead.contato_telefonico[0].ddd}) ${lead.contato_telefonico[0].numero}` : lead.contato_telefonico?.[0]?.numero) || lead.Telefone || '',
         Email: lead.contato_email?.[0]?.email || lead.Email || '',
         Cidade: lead.endereco?.municipio || lead.Cidade || '',
         UF: lead.endereco?.uf || lead.UF || '',
@@ -292,7 +292,8 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
                     const cnpj = lead.cnpj || lead.CNPJ || '';
                     const cidade = lead.endereco?.municipio || lead.Cidade || '';
                     const uf = lead.endereco?.uf || lead.UF || '';
-                    const telefone = lead.contato_telefonico?.[0]?.completo || lead.contato_telefonico?.[0]?.numero || lead.Telefone || 'N/A';
+                    const telObj = lead.contato_telefonico?.[0];
+                    const telefone = telObj?.completo || (telObj?.ddd && telObj?.numero ? `(${telObj.ddd}) ${telObj.numero}` : telObj?.numero) || lead.Telefone || 'N/A';
                     const email = lead.contato_email?.[0]?.email || lead.Email || 'N/A';
 
                     return (

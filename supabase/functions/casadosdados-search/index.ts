@@ -257,11 +257,20 @@ serve(async (req) => {
                 uf: row.uf || "",
                 cep: row.cep || ""
             },
-            contato_telefonico: row.telefone_1 ? [{
-                ddd: row.ddd_1 || "",
-                numero: row.telefone_1,
-                tipo: "TELEFONE"
-            }] : [],
+            contato_telefonico: [
+                ...(row.telefone_1 ? [{
+                    ddd: row.ddd_1 || "",
+                    numero: row.telefone_1,
+                    completo: row.ddd_1 ? `(${row.ddd_1}) ${row.telefone_1}` : row.telefone_1,
+                    tipo: "TELEFONE"
+                }] : []),
+                ...(row.telefone_2 ? [{
+                    ddd: row.ddd_2 || "",
+                    numero: row.telefone_2,
+                    completo: row.ddd_2 ? `(${row.ddd_2}) ${row.telefone_2}` : row.telefone_2,
+                    tipo: "TELEFONE"
+                }] : [])
+            ],
             contato_email: row.correio_eletronico ? [{
                 email: row.correio_eletronico,
                 dominio: ""

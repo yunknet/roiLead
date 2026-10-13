@@ -337,7 +337,11 @@ serve(async (req: Request) => {
       'compra_cancelada',
       'refund',
       'charge_refunded',
-      'order_refunded'
+      'order_refunded',
+      'chargeback',
+      'dispute',
+      'estorno',
+      'estornado'
     ].some(term => eventType.includes(term))) {
 
       const { email, firstName, phone } = getCustomerData(eventData)

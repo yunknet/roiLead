@@ -70,7 +70,16 @@ serve(async (req: Request) => {
       'invoice.paid',
       'subscription.activated',
       'compra_aprovada',
+      'compra_completa',
+      'compra completa',
+      'completa',
+      'completed',
+      'order_completed',
       'pagamento_aprovado',
+      'pagamento_de_renovacao_efetuado',
+      'pagamento de renovacao efetuado',
+      'renovacao',
+      'renewal',
       'subscription_payment_success',
       'order_approved',
       'charge_paid',
@@ -333,6 +342,7 @@ serve(async (req: Request) => {
       'subscription.deactivated',
       'reembolso_solicitado',
       'pagamento_reembolsado',
+      'pagamento reembolsado',
       'subscription_canceled',
       'compra_cancelada',
       'refund',
@@ -341,7 +351,13 @@ serve(async (req: Request) => {
       'chargeback',
       'dispute',
       'estorno',
-      'estornado'
+      'estornado',
+      'pagamento_estornado',
+      'pagamento estornado',
+      'assinatura_cancelada',
+      'assinatura cancelada',
+      'assinatura_expirada',
+      'assinatura expirada'
     ].some(term => eventType.includes(term))) {
 
       const { email, firstName, phone } = getCustomerData(eventData)

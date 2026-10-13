@@ -31,8 +31,19 @@ serve(async (req: Request) => {
 
     // 1. Pega o Payload
     const payload = await req.json().catch(() => ({}))
-    const eventType = String(payload.type || payload.event_type || payload.event || payload.status || "UNKNOWN").toLowerCase()
-    const eventData = payload.data || payload.event || payload || {}
+    const eventType = String(
+      payload.type || 
+      payload.event_type || 
+      payload.event || 
+      payload.event_name || 
+      payload.status || 
+      payload.action || 
+      payload.data?.status || 
+      payload.data?.event || 
+      payload.data?.event_type || 
+      "UNKNOWN"
+    ).toLowerCase()
+    const eventData = payload.data || payload.event_data || payload.event || payload || {}
 
     console.log(`⚡ Evento Recebido: ${eventType}`)
 
@@ -75,7 +86,15 @@ serve(async (req: Request) => {
       'completa',
       'completed',
       'order_completed',
+      'paymentconfirmed',
+      'payment_confirmed',
+      'payment confirmed',
+      'pedido_aprovado',
+      'pedido aprovado',
       'pagamento_aprovado',
+      'pagamento aprovado',
+      'pagamento_efetuado',
+      'pagamento efetuado',
       'pagamento_de_renovacao_efetuado',
       'pagamento de renovacao efetuado',
       'renovacao',
@@ -343,12 +362,18 @@ serve(async (req: Request) => {
       'reembolso_solicitado',
       'pagamento_reembolsado',
       'pagamento reembolsado',
+      'payment_refund',
+      'paymentrefund',
       'subscription_canceled',
       'compra_cancelada',
+      'compra cancelada',
+      'pedido_cancelado',
       'refund',
       'charge_refunded',
       'order_refunded',
       'chargeback',
+      'payment_chargeback',
+      'paymentchargeback',
       'dispute',
       'estorno',
       'estornado',

@@ -3,12 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 serve(async (req: Request) => {
   try {
-    // 🔒 SECURANÇA: CRÍTICO
+    // 🔒 SEGURANÇA: CRÍTICO
     // Verifica se a requisição tem o segredo configurado (no header ou na query string)
-    // Se você não configurou isso na Hubla, configure agora!
     const secret = Deno.env.get("LASTLINK_WEBHOOK_SECRET")
     if (secret) {
-      const tokenHeader = req.headers.get("authorization")
+      const tokenHeader = req.headers.get("authorization") || req.headers.get("x-lastlink-token") || req.headers.get("x-webhook-token")
       const url = new URL(req.url)
       const tokenQuery = url.searchParams.get("token")
 
@@ -17,7 +16,7 @@ serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
       }
     } else {
-      console.warn("⚠️ ALERTA DE SEGURANÇA: LASTLINK_WEBHOOK_SECRET não configurado. Qualquer pessoa pode simular pagamentos!")
+      console.warn("⚠️ ALERTA DE SEGURANÇA: LASTLINK_WEBHOOK_SECRET não configurado no Supabase.")
     }
 
     const supabase = createClient(
@@ -27,33 +26,34 @@ serve(async (req: Request) => {
 
     const evoUrl = Deno.env.get("EVOLUTION_API_URL")
     const evoKey = Deno.env.get("EVOLUTION_GLOBAL_KEY") || Deno.env.get("EVOLUTION_API_KEY")
-    // Força o nome correto da instância (roiLead) para evitar erro de Case Sensitive (maiúsculas/minúsculas)
+    // Força o nome correto da instância (roiLead) para evitar erro de Case Sensitive
     const evoInstance = Deno.env.get("EVOLUTION_INSTANCE") || "roiLead"
 
     // 1. Pega o Payload
-    const payload = await req.json()
+    const payload = await req.json().catch(() => ({}))
     const eventType = String(payload.type || payload.event_type || payload.event || payload.status || "UNKNOWN").toLowerCase()
-    const eventData = payload.data || payload.event || payload
+    const eventData = payload.data || payload.event || payload || {}
 
     console.log(`⚡ Evento Recebido: ${eventType}`)
 
     // --- FUNÇÃO DE BUSCA DE DADOS (ROBUSTA & SEGURA) ---
     const getCustomerData = (data: any) => {
-      const invoice = data.invoice || {}
+      const invoice = data.invoice || data.order || {}
       // Tenta achar o objeto de usuário em vários lugares possíveis do payload
-      const user = data.user || data.customer || data.payer || invoice.payer || data.subscriber || {}
+      const user = data.user || data.customer || data.payer || invoice.payer || invoice.customer || data.subscriber || payload.customer || payload.user || {}
 
       // E-mail: varre todas as possibilidades
-      const email = user.email || data.email || invoice.email || data.userEmail
+      const email = (user.email || data.email || invoice.email || data.userEmail || payload.email || "").toLowerCase().trim()
 
       // Telefone: varre todas as possibilidades e limpa
-      let phone = user.phone || data.phone || invoice.phone || data.userPhone || ""
-      if (phone) phone = phone.replace(/\D/g, "")
+      let phone = user.phone || user.phone_number || user.cellphone || data.phone || invoice.phone || data.userPhone || ""
+      if (phone) phone = String(phone).replace(/\D/g, "")
 
       // Nome: varre e formata
-      const firstName = user.firstName || data.first_name || user.name || data.userName || ""
-      const lastName = user.lastName || ""
-      const fullName = `${firstName} ${lastName}`.trim() || firstName || "Cliente"
+      const rawName = user.name || user.fullName || user.firstName || data.first_name || data.userName || data.name || ""
+      const firstName = user.firstName || (rawName ? String(rawName).trim().split(' ')[0] : "") || "Cliente"
+      const lastName = user.lastName || (rawName ? String(rawName).trim().split(' ').slice(1).join(' ') : "") || ""
+      const fullName = String(user.fullName || rawName || `${firstName} ${lastName}`).trim() || firstName || "Cliente"
 
       return { email, firstName, fullName, phone, invoice, user }
     }
@@ -65,41 +65,80 @@ serve(async (req: Request) => {
     // ====================================================
     // GRUPO 1: VENDA APROVADA / ASSINATURA ATIVA
     // ====================================================
-    const isPaid = ['invoice.payment_succeeded', 'invoice.paid', 'subscription.activated', 'compra_aprovada', 'pagamento_aprovado', 'subscription_payment_success', 'order_approved'].includes(eventType?.toLowerCase());
+    const isPaid = [
+      'invoice.payment_succeeded',
+      'invoice.paid',
+      'subscription.activated',
+      'compra_aprovada',
+      'pagamento_aprovado',
+      'subscription_payment_success',
+      'order_approved',
+      'charge_paid',
+      'payment_approved',
+      'approved',
+      'paid'
+    ].some(term => eventType.includes(term));
     
     if (isPaid) {
 
       const { email, firstName, fullName, phone, invoice } = getCustomerData(eventData)
 
-      const cents = invoice.amount?.totalCents || 0;
-      const amount = cents > 0 ? cents / 100 : (Number(eventData.amount) || 0);
+      // Extração robusta do valor pago (em reais)
+      let rawAmount = 0;
+      if (invoice.amount?.totalCents) {
+        rawAmount = invoice.amount.totalCents / 100;
+      } else {
+        const potentialAmounts = [
+          eventData.amount,
+          eventData.total,
+          eventData.order?.total,
+          eventData.order?.amount,
+          eventData.order?.paid_amount,
+          eventData.price,
+          eventData.transaction?.amount,
+          payload.amount,
+          payload.total
+        ];
+        for (const amt of potentialAmounts) {
+          if (amt !== undefined && amt !== null && !isNaN(Number(amt)) && Number(amt) > 0) {
+            rawAmount = Number(amt);
+            break;
+          }
+        }
+      }
+
+      // Se for centavos (ex: 49700 ou 9700), normaliza dividindo por 100
+      const normalizedAmount = rawAmount > 1000 ? rawAmount / 100 : rawAmount;
 
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       const senderEmail = "Equipe roiLead <contato@roilead.com.br>";
 
-      // Identifica o plano de forma robusta e inteligente (v3.0)
-      // Tenta cruzar dados de Nome do Produto/Oferta + Valor Pago para evitar erros de centavos/decimal
-      const productInfo = eventData.product?.name || eventData.offer?.name || "";
+      // Junta todos os nomes possíveis de produto, oferta ou plano
+      const allProductTexts = [
+        eventData.product?.name,
+        eventData.offer?.name,
+        eventData.plan?.name,
+        eventData.order?.plan_name,
+        eventData.order?.offer_name,
+        eventData.order?.product_name,
+        eventData.products?.[0]?.name,
+        eventData.items?.[0]?.name,
+        payload.product_name,
+        payload.offer_name,
+        payload.plan_name
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      // Identifica o plano cruzando Nomes e Valores (Anual: R$ 497 | Mensal: R$ 97)
       let planName = "Mensal";
-
-      // Hubla amount pode vir em centavos (ex: 6700) ou decimal (67.00)
-      // Se for > 1000, provavelmente é centavos e precisamos dividir por 100
-      const normalizedAmount = amount > 1000 ? amount / 100 : amount;
-
-      if (productInfo.toLowerCase().includes("shark tank")) {
-        planName = productInfo;
-      } else if (productInfo.toLowerCase().includes("anual")) {
+      if (allProductTexts.includes("anual") || allProductTexts.includes("yearly") || normalizedAmount >= 200) {
         planName = "Anual";
-      } else if (productInfo.toLowerCase().includes("mensal")) {
+      } else if (allProductTexts.includes("mensal") || allProductTexts.includes("monthly") || (normalizedAmount > 0 && normalizedAmount < 200)) {
         planName = "Mensal";
       } else {
-        // Fallback pelo valor caso não tenha nome claro no payload
         planName = normalizedAmount > 100 ? "Anual" : "Mensal";
       }
 
-      // --- FLUXO NORMAL DE ASSINATURA ---
-      const tokensToAdd = 0; // Nesta função agora é sempre 0 (tokens são na huba-webhook-agente)
-      const externalId = invoice.paymentSession?.utm?.content || invoice.id || `sub_${Date.now()}`
+      const externalId = eventData.order?.id || eventData.order?.code || invoice.paymentSession?.utm?.content || invoice.id || eventData.id || eventData.transaction_id || `sub_${Date.now()}`;
 
       const { data: existingSubStatus } = await supabase
         .from("subscriptions")
@@ -129,14 +168,14 @@ serve(async (req: Request) => {
         if (userProfile && userProfile.id) {
           userId = userProfile.id
         } else {
-          // Fallback final: tenta achar no Auth Admin se não tiver perfil
+          // Fallback: tenta achar no Auth Admin se não tiver perfil
           const { data: authUsers } = await supabase.auth.admin.listUsers()
           const existing = authUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
           if (existing) {
             userId = existing.id
           } else {
-            console.log(`✨ Criando usuário automático de Checkout (Senha: 12345) para ${email}`)
+            console.log(`✨ Criando usuário automático de Checkout (Senha: ${defaultPassword}) para ${email}`)
             isNewUser = true
 
             const { data: newUserReq, error: authErr } = await supabase.auth.admin.createUser({
@@ -148,7 +187,7 @@ serve(async (req: Request) => {
 
             if (authErr) {
               console.error("❌ Erro ao criar auth.user:", authErr)
-              // Resolve falha de concorrência (Outro evento pode ter criado no mesmo milissegundo)
+              // Resolve falha de concorrência
               const { data: authRetry } = await supabase.auth.admin.listUsers()
               const existingRetry = authRetry?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
               if (existingRetry) {
@@ -160,6 +199,7 @@ serve(async (req: Request) => {
             }
           }
         }
+
         // Calcula a data de expiração baseada no plano
         const now = new Date();
         const expiresAt = new Date(now);
@@ -169,8 +209,7 @@ serve(async (req: Request) => {
           expiresAt.setDate(now.getDate() + 30);
         }
 
-        // Upsert na tabela subscriptions
-        // Agora usamos external_reference_id como chave única (garantido pela migration de segurança)
+        // Upsert na tabela subscriptions com chave única external_reference_id
         const upsertData: any = {
           email: email,
           full_name: fullName,
@@ -189,9 +228,6 @@ serve(async (req: Request) => {
 
         if (dbError) {
           console.error("❌ Erro no upsert (Subscriptions):", dbError.message)
-          // Se falhou por chave duplicada (provavelmente o email já existia num external_id antigo)
-          // Em vez de upsert com onConflict por email (que pode dar ruim se a constraint tiver outro nome), 
-          // a gente apenas FAZ UM UPDATE explícito para o email.
           console.log("⚠️ Tentando fallback seguro por email...")
           const subData: any = {
             email: email,
@@ -226,14 +262,13 @@ serve(async (req: Request) => {
           console.log("✅ Banco atualizado: Assinatura ATIVA")
         }
 
-        // Atualiza status no Profile tbm para garantir o acesso imediato
+        // Atualiza status no Profile para garantir acesso imediato
         if (userId) {
           const { error: profileErr } = await supabase.from('profiles').update({
             payment_status: 'PAID'
           }).eq('id', userId)
 
           if (profileErr) {
-            // Caso não exista, ele faz um upsert de segurança
             await supabase.from('profiles').upsert({
               id: userId,
               email: email,
@@ -250,24 +285,30 @@ serve(async (req: Request) => {
       // BLOCO DE ENVIO 1: CONTA & LOGIN (Pagamento Confirmado)
       // ====================================================
       if (alreadyPaid) {
-        console.log("⏭️ Pagamento já processado anteriormente. Pulando envios de e-mail/whats de boas vindas.");
-      } else if (tokensToAdd === 0 && (eventType === 'invoice.payment_succeeded' || eventType === 'invoice.paid')) {
-
+        console.log("⏭️ Pagamento já processado anteriormente. Pulando envios de boas-vindas.");
+      } else {
         if (isNewUser) {
-          // 1. E-mail de Boas-vindas (Novo Usuário)
+          // 1. E-mail de Boas-vindas (Novo Usuário) com senha provisória
           if (email && resendApiKey) {
             const emailSubject = "Seu acesso ao roiLead chegou! 🚀";
-            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a utilizar as nossas automações, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>${defaultPassword}</b><br><br>(Recomendamos que você altere sua SENHA e também o NÚMERO de contato após o primeiro login por segurança).<br><br>Equipe roiLead.`;
+            const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo ao roiLead.<br><br>Vi que seu pagamento do plano <b>${planName}</b> foi confirmado! ✅<br><br>Para que você não perca tempo e já comece a minerar seus leads, você já pode acessar a plataforma agora mesmo com os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>${defaultPassword}</b><br><br>(Recomendamos que você altere sua SENHA no menu Configurações após o primeiro login por segurança).<br><br>Equipe roiLead.`;
             await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
           }
 
-          // 2. WhatsApp de Login (Novo Usuário)
+          // 2. WhatsApp de Login (Novo Usuário) com senha provisória
           if (phone && evoUrl && evoInstance && evoKey) {
             const msgLogin = `Olá, ${firstName}! Tudo bem? 🤖\n\nSou o assistente virtual do *roiLead*.\n\nVi que seu pagamento do plano *${planName}* foi confirmado! ✅\n\nPara facilitar, já criei sua conta temporária! Acesse: https://roilead.com.br/login\n\nUtilize seu E-mail: *${email}*\nSua Senha padrão: *${defaultPassword}*\n\nPor segurança, peço que após entrar, vá no Menu Configurações e altere sua senha. ⚠️`
             await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgLogin)
           }
+
+          // 3. Dicas de uso no WhatsApp (4 segundos depois)
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          if (phone && evoUrl && evoInstance && evoKey) {
+            const msgInstrucoes = `📋 *DICAS DE USO - roiLead*\n\nCom a plataforma você pode minerar empresas com precisão:\n📍 Local: Estado, Cidade, DDD\n🏢 Perfil: Capital Social, Data de Abertura\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional\n📞 Contato: Apenas com Celular/WhatsApp e E-mail\n\n💡 *Acesse seu painel agora:* https://roilead.com.br/dashboard\n\nBoas prospecções e muito sucesso! 🚀`
+            await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgInstrucoes)
+          }
         } else {
-          // E-mail e WhatsApp para veterano (Acesso reativado ou renovado)
+          // E-mail e WhatsApp para veterano (Acesso liberado ou renovado)
           if (email && resendApiKey) {
             const emailSubject = "Pagamento Confirmado - roiLead! ✅";
             const emailHtml = `Olá, ${firstName}!<br><br>Seja bem-vindo de volta ao roiLead! 🚀<br><br>Seu pagamento do plano <b>${planName}</b> foi confirmado com sucesso e seu acesso já está liberado.<br><br>Você já pode acessar a plataforma com seu e-mail e senha habituais.<br><br>👉 <a href="https://roilead.com.br/login">Clique aqui para entrar</a>`;
@@ -279,37 +320,34 @@ serve(async (req: Request) => {
           }
         }
       }
-
-      // ====================================================
-      // BLOCO DE ENVIO 2: INSTRUÇÕES DE USO (Assinatura Ativa)
-      // ====================================================
-      if (eventType === 'subscription.activated') {
-        // Pequeno delay para garantir que a mensagem de boas-vindas chegue ANTES das instruções
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        if (phone && evoUrl && evoInstance && evoKey) {
-          const msgInstrucoes = `📋 *DICAS DE USO - roiLead*\n\nDiferente de buscas simples, aqui você tem filtros de precisão. Você pode solicitar empresas por:\n📍 Local: Estado, Cidade.\n🏢 Perfil: Capital Social, Data de Abertura.\n⚖️ Tipo: Incluir/Excluir MEI, Simples Nacional.\n📞 Contato: Apenas com Celular/WhatsApp.\n\n💡 *COMO PEDIR (Exemplo):*\n"Busque Transportadoras em Guarulhos, com capital acima de 100 mil, que não sejam MEI."\n\n⚠️ *IMPORTANTE:*\nPor aqui te envio o Resumo Essencial. Todos os dados completos ficam no seu Dashboard: https://roilead.com.br/dashboard\n\nVamos começar? Me diga: qual segmento e cidade você quer atacar hoje? 👇`
-          await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, msgInstrucoes)
-        }
-      }
-
-
     }
 
     // ====================================================
     // GRUPO 2: CANCELAMENTO / REEMBOLSO / EXPIRAÇÃO
     // ====================================================
-    else if (['invoice.refunded', 'subscription.canceled', 'canceledsubscription', 'subscription.desactivated', 'subscription.deactivated', 'reembolso_solicitado', 'pagamento_reembolsado', 'subscription_canceled', 'compra_cancelada', 'carrinho_abandonado'].includes(eventType?.toLowerCase())) {
+    else if ([
+      'invoice.refunded',
+      'subscription.canceled',
+      'canceledsubscription',
+      'subscription.desactivated',
+      'subscription.deactivated',
+      'reembolso_solicitado',
+      'pagamento_reembolsado',
+      'subscription_canceled',
+      'compra_cancelada',
+      'refund',
+      'charge_refunded',
+      'order_refunded'
+    ].some(term => eventType.includes(term))) {
 
-      const { email, firstName, phone, user: userData } = getCustomerData(eventData)
+      const { email, firstName, phone } = getCustomerData(eventData)
 
       console.log(`🚫 Gerenciando encerramento de acesso roiLead para: ${maskEmail(email)} (Motivo: ${eventType})`)
 
       if (email) {
-        // Define o status do banco baseado no evento
-        const isExpiration = eventType === 'subscription.deactivated' || eventType === 'subscription.desactivated';
+        const isExpiration = eventType.includes('deactivated') || eventType.includes('desactivated') || eventType.includes('expirada');
         const subStatus = isExpiration ? 'expired' : 'canceled';
-        const payStatus = eventType === 'invoice.refunded' ? 'refunded' : (isExpiration ? 'expired' : 'canceled');
+        const payStatus = eventType.includes('refund') || eventType.includes('reembolso') ? 'refunded' : (isExpiration ? 'expired' : 'canceled');
 
         const { error } = await supabase
           .from("subscriptions")
@@ -323,53 +361,37 @@ serve(async (req: Request) => {
         if (error) console.error("❌ Erro ao atualizar banco (Encerramento):", error)
         else console.log(`✅ Banco atualizado: Status ${subStatus.toUpperCase()}`)
 
-        // Remove acesso no perfil
         await supabase.from('profiles').update({
           payment_status: 'NONE',
           access_status: 'NEW'
         }).eq('email', email)
-
-        // --- TRAVA DE SEGURANÇA: Estorno de Tokens ---
-        // Se o evento for de reembolso, zeramos o saldo de tokens por precaução
-        if (eventType === 'invoice.refunded') {
-          const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .ilike('email', email)
-            .maybeSingle();
-
-          if (userProfile?.id) {
-            console.log(`💸 Reembolso detectado para ${email}. Zerando saldo de tokens.`);
-            await supabase
-              .from('ai_agents')
-              .update({ tokens_balance: 0 })
-              .eq('user_id', userProfile.id);
-          }
-        }
       }
 
       if (phone && evoUrl && evoInstance && evoKey) {
         let textMessage = "";
 
-        if (eventType === 'subscription.deactivated' || eventType === 'subscription.desactivated') {
-          // MENSAGEM DE EXPIRAÇÃO (Tempo acabou)
-          textMessage = `Olá, ${firstName}! 👋\n\nNotei aqui que sua assinatura do *roiLead* chegou ao fim hoje.\n\nEspero que tenha gerado bons negócios nesse período! 🚀\n\nCaso queira continuar encontrando leads qualificados, basta realizar a renovação acessando seu painel: https://roilead.com.br/dashboard\n\nQualquer dúvida, estamos por aqui! 👇`
+        if (eventType.includes('deactivated') || eventType.includes('expirad')) {
+          textMessage = `Olá, ${firstName}! 👋\n\nNotei aqui que sua assinatura do *roiLead* chegou ao fim.\n\nEspero que tenha gerado excelentes negócios nesse período! 🚀\n\nPara renovar seu acesso, basta entrar no seu painel: https://roilead.com.br/dashboard\n\nQualquer dúvida, estamos por aqui! 👇`
         } else {
-          // MENSAGEM DE CANCELAMENTO OU REEMBOLSO
-          textMessage = `Olá, ${firstName}. 👋\n\nNotei aqui que sua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os benefícios, você pode assinar novamente acessando o painel.`
+          textMessage = `Olá, ${firstName}. 👋\n\nSua assinatura do *roiLead* foi cancelada/reembolsada e seu acesso foi pausado.\n\nPara voltar a aproveitar todos os recursos, você pode assinar novamente acessando: https://roilead.com.br`
         }
 
         await sendWhatsapp(evoUrl, evoKey, evoInstance, phone, textMessage)
       }
     }
 
-    // Resposta padrão 200 para a Hubla não ficar retentando em loop se for um evento desconhecido
-    return new Response(JSON.stringify({ success: true }), { status: 200 })
+    // Retorna sempre 200 para a LastLink saber que o webhook foi recebido
+    return new Response(JSON.stringify({ success: true }), { 
+      headers: { "Content-Type": "application/json" },
+      status: 200 
+    })
 
   } catch (err: any) {
     console.error("❌ Erro Crítico:", err.message)
-    // Retornamos 400 apenas em erro crítico de execução, mas idealmente 200 pra não travar a fila da Hubla
-    return new Response(JSON.stringify({ error: err.message }), { status: 200 })
+    return new Response(JSON.stringify({ error: err.message }), { 
+      headers: { "Content-Type": "application/json" },
+      status: 200 
+    })
   }
 })
 
@@ -379,7 +401,6 @@ async function sendWhatsapp(url: string, key: string, instance: string, phone: s
     let cleanPhone = phone
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11) cleanPhone = "55" + cleanPhone
 
-    // Remove espaços do instance name e garante o nome correto (roiLead) como segurança final
     const safeInstanceName = (instance || "roiLead").trim()
 
     const response = await fetch(`${url}/message/sendText/${safeInstanceName}`, {

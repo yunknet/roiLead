@@ -4,19 +4,34 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 serve(async (req: Request) => {
   try {
     // 🔒 SEGURANÇA: CRÍTICO
-    // Verifica se a requisição tem o segredo configurado (no header ou na query string)
-    const secret = Deno.env.get("LASTLINK_WEBHOOK_SECRET")
-    if (secret) {
-      const tokenHeader = req.headers.get("authorization") || req.headers.get("x-lastlink-token") || req.headers.get("x-webhook-token")
-      const url = new URL(req.url)
-      const tokenQuery = url.searchParams.get("token")
+    // Aceita múltiplos tokens válidos (tanto o padrão do roiLead quanto o novo gerado pelo Playbook na LastLink)
+    const configuredSecret = Deno.env.get("LASTLINK_WEBHOOK_SECRET")
+    const validTokens = [
+      configuredSecret,
+      "3e760a7746354c4eae112b2a65257a04",
+      "9ccc07a475ce45ca9b36c1f22066642a"
+    ].filter(Boolean) as string[]
 
-      if (tokenHeader !== secret && tokenHeader !== `Bearer ${secret}` && tokenQuery !== secret) {
+    if (validTokens.length > 0) {
+      const authHeader = req.headers.get("authorization") || ""
+      const tokenHeader = req.headers.get("x-lastlink-token") || req.headers.get("x-webhook-token") || ""
+      const url = new URL(req.url)
+      const tokenQuery = url.searchParams.get("token") || ""
+
+      const cleanAuth = authHeader.replace(/^Bearer\s+/i, "").trim()
+
+      const isAuthorized = validTokens.some(t => 
+        (cleanAuth && t === cleanAuth) || 
+        (tokenHeader && t === tokenHeader.trim()) || 
+        (tokenQuery && t === tokenQuery.trim())
+      )
+
+      if (!isAuthorized) {
         console.error("⛔ Acesso Negado: Token de webhook inválido.")
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
       }
     } else {
-      console.warn("⚠️ ALERTA DE SEGURANÇA: LASTLINK_WEBHOOK_SECRET não configurado no Supabase.")
+      console.warn("⚠️ ALERTA DE SEGURANÇA: Nenhum token de webhook configurado.")
     }
 
     const supabase = createClient(
@@ -378,6 +393,7 @@ serve(async (req: Request) => {
       'subscription.desactivated',
       'subscription.deactivated',
       'reembolso_solicitado',
+      'reembolso solicitado',
       'pagamento_reembolsado',
       'pagamento reembolsado',
       'payment_refund',
@@ -386,6 +402,11 @@ serve(async (req: Request) => {
       'compra_cancelada',
       'compra cancelada',
       'pedido_cancelado',
+      'pedido cancelado',
+      'pedido_de_compra_cancelado',
+      'pedido de compra cancelado',
+      'pedido_de_compra_expirada',
+      'pedido de compra expirada',
       'refund',
       'charge_refunded',
       'order_refunded',
@@ -400,7 +421,10 @@ serve(async (req: Request) => {
       'assinatura_cancelada',
       'assinatura cancelada',
       'assinatura_expirada',
-      'assinatura expirada'
+      'assinatura expirada',
+      'fim_liberacao_de_acesso',
+      'fim liberacao de acesso',
+      'fim liberação de acesso'
     ].some(term => eventType.includes(term))) {
 
       const { email, firstName, phone } = getCustomerData(eventData)

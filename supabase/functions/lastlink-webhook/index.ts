@@ -153,12 +153,20 @@ serve(async (req: Request) => {
         eventData.items?.[0]?.name,
         payload.product_name,
         payload.offer_name,
-        payload.plan_name
+        payload.plan_name,
+        eventData.product?.code,
+        eventData.product_codigo,
+        payload.product_code
       ].filter(Boolean).join(" ").toLowerCase();
 
-      // Identifica o plano cruzando Nomes e Valores (Anual: R$ 497 | Mensal: R$ 97)
+      // Detecta se é a compra do Playbook (Bônus de 7 dias)
+      const isPlaybook = allProductTexts.includes("playbook") || allProductTexts.includes("playbook-yuri");
+
+      // Identifica o plano cruzando Nomes e Valores
       let planName = "Mensal";
-      if (allProductTexts.includes("anual") || allProductTexts.includes("yearly") || normalizedAmount >= 200) {
+      if (isPlaybook) {
+        planName = "Trial Playbook (7 dias)";
+      } else if (allProductTexts.includes("anual") || allProductTexts.includes("yearly") || normalizedAmount >= 200) {
         planName = "Anual";
       } else if (allProductTexts.includes("mensal") || allProductTexts.includes("monthly") || (normalizedAmount > 0 && normalizedAmount < 200)) {
         planName = "Mensal";
@@ -176,11 +184,12 @@ serve(async (req: Request) => {
 
       const alreadyPaid = existingSubStatus?.payment_status === "paid";
 
-      console.log(`💰 Aprovado roiLead: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Já processado: ${alreadyPaid}`)
+      console.log(`💰 Aprovado: ${maskEmail(email)} | R$ ${normalizedAmount} | Plano: ${planName} | Playbook: ${isPlaybook} | Já processado: ${alreadyPaid}`)
 
       let isNewUser = false
       const safeFirstName = firstName ? firstName.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '') : "cliente";
-      const defaultPassword = `${safeFirstName}12345`;
+      // Se for Playbook, a senha é fixa e amigável: playbook123 (conforme informado no e-mail de entrega)
+      const defaultPassword = isPlaybook ? "playbook123" : `${safeFirstName}12345`;
 
       if (email) {
         // Busca usuário para vincular (opcional, mas bom ter)
@@ -231,7 +240,9 @@ serve(async (req: Request) => {
         // Calcula a data de expiração baseada no plano
         const now = new Date();
         const expiresAt = new Date(now);
-        if (planName === "Anual") {
+        if (isPlaybook) {
+          expiresAt.setDate(now.getDate() + 7); // Exatos 7 dias de trial a partir da compra
+        } else if (planName === "Anual") {
           expiresAt.setFullYear(now.getFullYear() + 1);
         } else {
           expiresAt.setDate(now.getDate() + 30);
@@ -314,6 +325,13 @@ serve(async (req: Request) => {
       // ====================================================
       if (alreadyPaid) {
         console.log("⏭️ Pagamento já processado anteriormente. Pulando envios de boas-vindas.");
+      } else if (isPlaybook) {
+        console.log(`🎁 [PLAYBOOK TRIAL] Usuário ${maskEmail(email)} ativado com 7 dias de trial. Apenas e-mail (sem WhatsApp).`);
+        if (isNewUser && email && resendApiKey) {
+          const emailSubject = "Seu bônus de 7 dias no roiLead chegou! 🚀";
+          const emailHtml = `Olá, ${firstName}!<br><br>Parabéns pela sua compra do <b>Playbook</b>! 🎉<br><br>Seu bônus de <b>7 dias grátis</b> de acesso completo ao <b>roiLead</b> (Gerador de Leads B2B) já foi liberado com sucesso.<br><br>Para começar a minerar seus leads agora mesmo, utilize os dados abaixo:<br><br>👉 Link de Acesso: <a href="https://roilead.com.br/login">https://roilead.com.br/login</a><br><br>E-mail: <b>${email}</b><br><br>Senha provisória: <b>${defaultPassword}</b><br><br>(Recomendamos alterar sua senha no menu Configurações após o primeiro acesso por segurança).<br><br>Bons estudos e excelentes prospecções!<br>Equipe roiLead.`;
+          await sendEmail(resendApiKey, senderEmail, email, emailSubject, emailHtml);
+        }
       } else {
         if (isNewUser) {
           // 1. E-mail de Boas-vindas (Novo Usuário) com senha provisória
@@ -412,7 +430,22 @@ serve(async (req: Request) => {
         }).eq('email', email)
       }
 
-      if (phone && evoUrl && evoInstance && evoKey) {
+      const allProductTextsCancel = [
+        eventData.product?.name,
+        eventData.offer?.name,
+        eventData.plan?.name,
+        eventData.order?.plan_name,
+        eventData.order?.offer_name,
+        eventData.order?.product_name,
+        eventData.products?.[0]?.name,
+        payload.product_name,
+        payload.offer_name,
+        eventData.product?.code,
+        eventData.product_codigo
+      ].filter(Boolean).join(" ").toLowerCase();
+      const isPlaybookCancel = allProductTextsCancel.includes("playbook");
+
+      if (!isPlaybookCancel && phone && evoUrl && evoInstance && evoKey) {
         let textMessage = "";
 
         if (eventType.includes('deactivated') || eventType.includes('expirad')) {

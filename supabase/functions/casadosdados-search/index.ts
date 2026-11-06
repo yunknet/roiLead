@@ -66,6 +66,37 @@ const phoneType = (numero: any) => {
   return 'TELEFONE';
 };
 
+// Replica a regra de acesso do DashboardLayout (o formulário de busca só aparece para assinantes)
+const temAssinaturaAtiva = async (client: any, user: any) => {
+  const [resProfile, resSub] = await Promise.all([
+    client.from('profiles').select('access_status, payment_status').eq('id', user.id).maybeSingle(),
+    user.email
+      ? client.from('subscriptions')
+          .select('subscription_status, expires_at')
+          .ilike('email', user.email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (resProfile.error) throw resProfile.error;
+  if (resSub.error) throw resSub.error;
+  const profile = resProfile.data;
+  const sub = resSub.data;
+
+  if (profile?.access_status === 'PAID_USER') return true;
+  if (sub) {
+    const isTimeValid = sub.expires_at ? new Date(sub.expires_at) > new Date() : true;
+    return isTimeValid && sub.subscription_status !== 'canceled' && sub.subscription_status !== 'refunded';
+  }
+  return profile?.payment_status === 'PAID';
+};
+
+// Busca por razão social só deve ser ligada depois de criar o índice trigram na VPS
+// (supabase/vps-cnpj/indices_busca.sql). Sem índice, a busca varre a tabela inteira.
+const BUSCA_RAZAO_SOCIAL = Deno.env.get('BUSCA_RAZAO_SOCIAL') === 'true';
+const MAX_BASES_RAZAO = 200;
+
 const SITUACAO_CODIGOS: Record<string, string> = {
   NULA: '1', ATIVA: '2', SUSPENSA: '3', INAPTA: '4', BAIXADA: '8',
 };
@@ -89,6 +120,14 @@ serve(async (req) => {
     const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData?.user) {
       throw new HttpError(401, 'Sessão inválida ou expirada. Faça login novamente.');
+    }
+
+    // ===== ASSINATURA: mesma regra do painel (DashboardLayout), consultada com o token do próprio usuário =====
+    const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    if (!(await temAssinaturaAtiva(userClient, authData.user))) {
+      throw new HttpError(403, 'Assinatura inativa. Assine um plano para realizar pesquisas.');
     }
 
     let payload: any;
@@ -155,6 +194,19 @@ serve(async (req) => {
         municipioCodes = codigos.length > 0 ? codeVariantsList(codigos, 4) : ['00000'];
     }
 
+    // Razão social fica em rfb_empresas: resolve os cnpj_base antes (somente com o índice criado)
+    const termo = sanitizeFilterValue(payload.busca_textual?.[0]?.texto?.[0]);
+    let basesRazao: string[] = [];
+    if (termo && BUSCA_RAZAO_SOCIAL && payload.busca_textual?.[0]?.razao_social !== false) {
+        const { data: empresasRazao, error: razaoError } = await supabaseCnpj
+            .from('rfb_empresas')
+            .select('cnpj_base')
+            .ilike('razao_social', `%${termo}%`)
+            .limit(MAX_BASES_RAZAO);
+        if (razaoError) throw razaoError;
+        basesRazao = [...new Set((empresasRazao || []).map((e: any) => String(e.cnpj_base).replace(/\D/g, '')))].filter(Boolean);
+    }
+
     // Constrói a query principal (somente filtros que o banco consegue aplicar)
     const buildQuery = () => {
         let query = supabaseCnpj
@@ -192,10 +244,13 @@ serve(async (req) => {
             query = query.in('municipio', municipioCodes);
         }
 
+        // Grupos OR (bairro e busca textual): o PostgREST aceita um único "or", então combina com and(...)
+        const gruposOr: string[] = [];
+
         // Bairro
         const bairros = toArray(payload.bairro).map(sanitizeFilterValue).filter(Boolean);
         if (bairros.length > 0) {
-            query = query.or(bairros.map((b) => `bairro.ilike.%${b}%`).join(','));
+            gruposOr.push(bairros.map((b) => `bairro.ilike.%${b}%`).join(','));
         }
 
         // CNAE Principal
@@ -225,10 +280,19 @@ serve(async (req) => {
             query = query.lte('data_inicio_atividade', payload.data_abertura.fim);
         }
 
-        // Busca textual (Nome Fantasia)
-        const termo = sanitizeFilterValue(payload.busca_textual?.[0]?.texto?.[0]);
+        // Busca textual (Nome Fantasia, e Razão Social quando habilitada)
         if (termo) {
-            query = query.ilike('nome_fantasia', `%${termo}%`);
+            if (basesRazao.length > 0) {
+                gruposOr.push(`nome_fantasia.ilike.%${termo}%,cnpj_base.in.(${basesRazao.join(',')})`);
+            } else {
+                query = query.ilike('nome_fantasia', `%${termo}%`);
+            }
+        }
+
+        if (gruposOr.length === 1) {
+            query = query.or(gruposOr[0]);
+        } else if (gruposOr.length > 1) {
+            query = query.or(`and(${gruposOr.map((g) => `or(${g})`).join(',')})`);
         }
 
         // Contatos
@@ -452,6 +516,10 @@ serve(async (req) => {
       return jsonResponse({ error: error.message }, error.status);
     }
     console.error('casadosdados-search error:', error);
+    // 57014 = statement timeout do Postgres (busca ampla demais para os índices atuais)
+    if ((error as any)?.code === '57014') {
+      return jsonResponse({ error: 'A busca demorou demais. Adicione filtros (UF, município ou CNAE) e tente novamente.' }, 504);
+    }
     return jsonResponse({ error: 'Erro interno ao consultar a base de dados. Tente novamente.' }, 500);
   }
 });

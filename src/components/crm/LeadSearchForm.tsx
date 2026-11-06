@@ -86,8 +86,20 @@ export function LeadSearchForm({ onSearchComplete }: { onSearchComplete?: () => 
         body: payload
       });
 
-      if (error) throw error;
-      
+      if (error) {
+        // A Edge Function devolve { error: "mensagem" } no corpo; mostra essa mensagem em vez da genérica
+        let message = error.message;
+        try {
+          const body = await (error as any).context?.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // corpo não é JSON: mantém a mensagem padrão
+        }
+        throw new Error(message);
+      }
+
+      if (data?.aviso) toast.warning(data.aviso);
+
               // Save search history
         const fetchedLeads = data?.cnpjs || [];
         if (fetchedLeads.length > 0) {

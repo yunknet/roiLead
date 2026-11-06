@@ -11,6 +11,7 @@ const corsHeaders = {
 const MAX_LIMITE = 1000;
 const MAX_PAGINA = 1000;
 const LOTE = 1000;               // linhas brutas buscadas por vez na VPS
+const IN_CHUNK = 200;            // valores por consulta .in() (limite de tamanho de URL)
 const MAX_LINHAS_VARRIDAS = 20000; // teto de varredura quando há filtros em memória
 
 class HttpError extends Error {
@@ -109,6 +110,19 @@ serve(async (req) => {
     }
 
     const supabaseCnpj = createClient(CNPJ_DB_URL, CNPJ_DB_KEY);
+
+    // .in() com centenas de valores estoura o tamanho da URL na VPS: consulta em grupos menores
+    const selectIn = async (table: string, columns: string, column: string, values: any[]) => {
+        if (values.length === 0) return [];
+        const grupos: any[][] = [];
+        for (let i = 0; i < values.length; i += IN_CHUNK) grupos.push(values.slice(i, i + IN_CHUNK));
+        const resultados = await Promise.all(grupos.map(async (grupo) => {
+            const { data, error } = await supabaseCnpj.from(table).select(columns).in(column, grupo);
+            if (error) throw error;
+            return data || [];
+        }));
+        return resultados.flat();
+    };
 
     // LIMIT E PAGINAÇÃO (validados e com teto)
     const limite = toInt(payload.limite, 30, 1, MAX_LIMITE);
@@ -263,19 +277,13 @@ serve(async (req) => {
     const carregaEmpresas = async (rows: any[]) => {
         const bases = [...new Set(rows.map((d: any) => d.cnpj_base))].filter((b) => b && !(b in empresasMap));
         if (bases.length === 0) return;
-        const [resEmp, resSimp] = await Promise.all([
-            supabaseCnpj.from('rfb_empresas')
-                .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel')
-                .in('cnpj_base', bases),
-            supabaseCnpj.from('rfb_simples')
-                .select('*')
-                .in('cnpj_base', bases)
+        const [empresas, simples] = await Promise.all([
+            selectIn('rfb_empresas', 'cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel', 'cnpj_base', bases),
+            selectIn('rfb_simples', '*', 'cnpj_base', bases)
         ]);
-        if (resEmp.error) throw resEmp.error;
-        if (resSimp.error) throw resSimp.error;
         bases.forEach((b) => { empresasMap[b] = null; });
-        (resEmp.data || []).forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
-        (resSimp.data || []).forEach((s: any) => { simplesMap[s.cnpj_base] = s; });
+        empresas.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
+        simples.forEach((s: any) => { simplesMap[s.cnpj_base] = s; });
     };
 
     const passaFiltros = (row: any) => {
@@ -355,15 +363,16 @@ serve(async (req) => {
     const cnaesCodes = codeVariantsList(data.map((d: any) => d.cnae_fisc_principal).filter((c: any) => c !== null && c !== undefined && c !== ''), 7);
     const naturezasCodes = codeVariantsList(empresasUsadas.map((e: any) => e.natureza_juridica).filter((c: any) => c !== null && c !== undefined && c !== ''), 4);
 
+    // Dicionários são só descrições: se falharem, a resposta sai sem a descrição em vez de quebrar
     const [resMun, resCnaes, resNat] = await Promise.all([
-        municipiosCodesFin.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodesFin) : Promise.resolve({ data: [] }),
-        cnaesCodes.length > 0 ? supabaseCnpj.from('rfb_cnaes').select('codigo, descricao').in('codigo', cnaesCodes) : Promise.resolve({ data: [] }),
-        naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] })
+        selectIn('rfb_municipios', 'codigo, descricao', 'codigo', municipiosCodesFin).catch(() => []),
+        selectIn('rfb_cnaes', 'codigo, descricao', 'codigo', cnaesCodes).catch(() => []),
+        selectIn('rfb_naturezas', 'codigo, descricao', 'codigo', naturezasCodes).catch(() => [])
     ]);
 
-    const dicMun = Object.fromEntries(((resMun as any).data || []).map((m: any) => [codeKey(m.codigo), m.descricao]));
-    const dicCnae = Object.fromEntries(((resCnaes as any).data || []).map((c: any) => [codeKey(c.codigo), c.descricao]));
-    const dicNat = Object.fromEntries(((resNat as any).data || []).map((n: any) => [codeKey(n.codigo), n.descricao]));
+    const dicMun = Object.fromEntries(resMun.map((m: any) => [codeKey(m.codigo), m.descricao]));
+    const dicCnae = Object.fromEntries(resCnaes.map((c: any) => [codeKey(c.codigo), c.descricao]));
+    const dicNat = Object.fromEntries(resNat.map((n: any) => [codeKey(n.codigo), n.descricao]));
 
     // Mapeia os dados para o formato exato
     const cnpjsFormatted = data.map((row: any) => {

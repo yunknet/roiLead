@@ -4,6 +4,69 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+// Limites de segurança (o formulário do front permite até 1000)
+const MAX_LIMITE = 1000;
+const MAX_PAGINA = 1000;
+const LOTE = 1000;               // linhas brutas buscadas por vez na VPS
+const MAX_LINHAS_VARRIDAS = 20000; // teto de varredura quando há filtros em memória
+
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+  });
+
+const toArray = (v: any): any[] => (v === undefined || v === null || v === '' ? [] : Array.isArray(v) ? v : [v]);
+
+// Remove acentos e padroniza em maiúsculas (a base da RFB não tem acentos)
+const normalizeText = (s: any) =>
+  String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+
+// Remove caracteres que alteram a sintaxe dos filtros do PostgREST (, ( ) " \) e curingas (% * _)
+const sanitizeFilterValue = (s: any) =>
+  normalizeText(s).replace(/[,()"\\%*_]/g, ' ').replace(/\s+/g, ' ').trim();
+
+const toInt = (v: any, def: number, min: number, max: number) => {
+  const n = parseInt(String(v ?? ''), 10);
+  if (Number.isNaN(n)) return def;
+  return Math.min(Math.max(n, min), max);
+};
+
+// Códigos da RFB podem estar gravados com ou sem zeros à esquerda (ex: "107" x "0107")
+const codeKey = (c: any) => String(c ?? '').trim().replace(/^0+(?=\d)/, '');
+const codeVariants = (c: any, width: number) => {
+  const raw = String(c ?? '').trim();
+  const key = codeKey(raw);
+  return [...new Set([raw, key, key.padStart(width, '0')])].filter(Boolean);
+};
+const codeVariantsList = (codes: any[], width: number) => [...new Set(codes.flatMap((c) => codeVariants(c, width)))];
+
+// Classifica o telefone: CELULAR, FIXO, TELEFONE (formato desconhecido) ou INVALIDO (lixo, ex: 99999999)
+const phoneType = (numero: any) => {
+  let d = String(numero ?? '').replace(/\D/g, '');
+  if (d.length === 10 || d.length === 11) d = d.slice(2); // veio com DDD junto
+  if (d.length < 8 || /^(\d)\1+$/.test(d)) return 'INVALIDO';
+  if (d.length === 9) return d[0] === '9' ? 'CELULAR' : 'TELEFONE';
+  if (d.length === 8) {
+    if ('6789'.includes(d[0])) return 'CELULAR';
+    if ('2345'.includes(d[0])) return 'FIXO';
+  }
+  return 'TELEFONE';
+};
+
+const SITUACAO_CODIGOS: Record<string, string> = {
+  NULA: '1', ATIVA: '2', SUSPENSA: '3', INAPTA: '4', BAIXADA: '8',
 };
 
 serve(async (req) => {
@@ -12,7 +75,30 @@ serve(async (req) => {
   }
 
   try {
-    const payload = await req.json();
+    if (req.method !== 'POST') {
+      throw new HttpError(405, 'Método não permitido');
+    }
+
+    // ===== AUTENTICAÇÃO: apenas usuários logados (a anon key sozinha não basta) =====
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+    if (!token) {
+      throw new HttpError(401, 'Não autenticado');
+    }
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
+    const { data: authData, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !authData?.user) {
+      throw new HttpError(401, 'Sessão inválida ou expirada. Faça login novamente.');
+    }
+
+    let payload: any;
+    try {
+      payload = await req.json();
+    } catch {
+      throw new HttpError(400, 'JSON inválido no corpo da requisição');
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new HttpError(400, 'Corpo da requisição deve ser um objeto JSON');
+    }
 
     // Conecta no Supabase da VPS (Self-Hosted)
     const CNPJ_DB_URL = Deno.env.get("CNPJ_DB_URL") || "https://geral-supabase.8ffod1.easypanel.host";
@@ -24,127 +110,159 @@ serve(async (req) => {
 
     const supabaseCnpj = createClient(CNPJ_DB_URL, CNPJ_DB_KEY);
 
-    // Resolvendo Municipio (nomes -> codigos)
+    // LIMIT E PAGINAÇÃO (validados e com teto)
+    const limite = toInt(payload.limite, 30, 1, MAX_LIMITE);
+    const pagina = toInt(payload.pagina, 1, 1, MAX_PAGINA);
+
+    // Resolvendo Municipio (nomes -> codigos): primeiro nome exato, depois parcial só para o que não achou
     let municipioCodes: string[] = [];
-    if (payload.municipio && payload.municipio.length > 0) {
-        const { data: munData } = await supabaseCnpj
+    const municipios = toArray(payload.municipio).map(sanitizeFilterValue).filter(Boolean);
+    if (toArray(payload.municipio).length > 0) {
+        const { data: exatos, error: exatosError } = await supabaseCnpj
             .from('rfb_municipios')
-            .select('codigo')
-            .or(payload.municipio.map((m: string) => `descricao.ilike.%${m}%`).join(','));
-        
-        if (munData && munData.length > 0) {
-            municipioCodes = munData.map(m => m.codigo);
-        } else {
-            // Se buscou municipio e não achou o codigo, forçar a não trazer nada
-            municipioCodes = ['00000']; 
+            .select('codigo, descricao')
+            .in('descricao', municipios.length > 0 ? municipios : ['__nenhum__']);
+        if (exatosError) throw exatosError;
+
+        const achados = new Set((exatos || []).map((m: any) => normalizeText(m.descricao)));
+        const codigos = (exatos || []).map((m: any) => m.codigo);
+
+        const faltantes = municipios.filter((m) => !achados.has(m));
+        if (faltantes.length > 0) {
+            const { data: parciais, error: parciaisError } = await supabaseCnpj
+                .from('rfb_municipios')
+                .select('codigo')
+                .or(faltantes.map((m) => `descricao.ilike.%${m}%`).join(','));
+            if (parciaisError) throw parciaisError;
+            (parciais || []).forEach((m: any) => codigos.push(m.codigo));
         }
+
+        // Se buscou municipio e não achou o codigo, forçar a não trazer nada
+        municipioCodes = codigos.length > 0 ? codeVariantsList(codigos, 4) : ['00000'];
     }
 
-    // Constrói a query principal
-    let query = supabaseCnpj
-        .from('rfb_estabelecimentos')
-        .select(`
-            cnpj,
-            cnpj_base,
-            identificador_matriz_filial,
-            nome_fantasia, situacao_cadastral, data_situacao_cadastral, data_inicio_atividade,
-            cnae_fisc_principal,
-            tipo_logradouro, logradouro, numero, complemento, bairro, cep,
-            uf,
-            municipio,
-            ddd_1,
-            telefone_1,
-            ddd_2,
-            telefone_2,
-            correio_eletronico
-        `);
+    // Constrói a query principal (somente filtros que o banco consegue aplicar)
+    const buildQuery = () => {
+        let query = supabaseCnpj
+            .from('rfb_estabelecimentos')
+            .select(`
+                cnpj,
+                cnpj_base,
+                identificador_matriz_filial,
+                nome_fantasia, situacao_cadastral, data_situacao_cadastral, data_inicio_atividade,
+                cnae_fisc_principal,
+                tipo_logradouro, logradouro, numero, complemento, bairro, cep,
+                uf,
+                municipio,
+                ddd_1,
+                telefone_1,
+                ddd_2,
+                telefone_2,
+                correio_eletronico
+            `);
 
-    // UF
-    if (payload.uf && payload.uf.length > 0) {
-        query = query.in('uf', payload.uf.map((u: string) => u.toUpperCase()));
-    }
-    
-    // DDD
-    if (payload.ddd && payload.ddd.length > 0) {
-        query = query.in('ddd_1', payload.ddd);
-    }
+        // UF
+        const ufs = toArray(payload.uf).map(sanitizeFilterValue).filter(Boolean);
+        if (ufs.length > 0) {
+            query = query.in('uf', ufs);
+        }
 
-    // Municipio
-    if (municipioCodes.length > 0) {
-        query = query.in('municipio', municipioCodes);
-    }
+        // DDD
+        const ddds = toArray(payload.ddd).map((d) => String(d).replace(/\D/g, '')).filter(Boolean);
+        if (ddds.length > 0) {
+            query = query.in('ddd_1', ddds);
+        }
 
-    // Bairro
-    if (payload.bairro && payload.bairro.length > 0) {
-        query = query.or(payload.bairro.map((b: string) => `bairro.ilike.%${b}%`).join(','));
-    }
+        // Municipio
+        if (municipioCodes.length > 0) {
+            query = query.in('municipio', municipioCodes);
+        }
 
-    // CNAE Principal
-    if (payload.codigo_atividade_principal && payload.codigo_atividade_principal.length > 0) {
-        query = query.in('cnae_fisc_principal', payload.codigo_atividade_principal);
-    }
+        // Bairro
+        const bairros = toArray(payload.bairro).map(sanitizeFilterValue).filter(Boolean);
+        if (bairros.length > 0) {
+            query = query.or(bairros.map((b) => `bairro.ilike.%${b}%`).join(','));
+        }
 
-    // Situação Cadastral ("ATIVA" -> "2", etc)
-    if (payload.situacao_cadastral && payload.situacao_cadastral.length > 0) {
-        const codigosSituacao = payload.situacao_cadastral.map((s: string) => {
-            if (s === "ATIVA") return "2";
-            if (s === "BAIXADA") return "8";
-            if (s === "SUSPENSA") return "3";
-            if (s === "INAPTA") return "4";
-            if (s === "NULA") return "1";
-            return s;
-        });
-        query = query.in('situacao_cadastral', codigosSituacao);
-    }
+        // CNAE Principal
+        const cnaes = toArray(payload.codigo_atividade_principal).map((c) => String(c).replace(/\D/g, '')).filter(Boolean);
+        if (cnaes.length > 0) {
+            query = query.in('cnae_fisc_principal', codeVariantsList(cnaes, 7));
+        }
 
-    // Matriz ou Filial ("MATRIZ" -> 1, "FILIAL" -> 2)
-    if (payload.matriz_filial) {
-        if (payload.matriz_filial === "MATRIZ") query = query.eq('identificador_matriz_filial', 1);
-        if (payload.matriz_filial === "FILIAL") query = query.eq('identificador_matriz_filial', 2);
-    }
-    
-    // Data de Abertura
-    if (payload.data_abertura?.inicio) {
-        query = query.gte('data_inicio_atividade', payload.data_abertura.inicio);
-    }
-    if (payload.data_abertura?.fim) {
-        query = query.lte('data_inicio_atividade', payload.data_abertura.fim);
-    }
+        // Situação Cadastral ("ATIVA" -> "2", etc)
+        const situacoes = toArray(payload.situacao_cadastral);
+        if (situacoes.length > 0) {
+            const codigosSituacao = situacoes.map((s: any) => SITUACAO_CODIGOS[normalizeText(s)] ?? String(s).replace(/\D/g, '')).filter(Boolean);
+            query = query.in('situacao_cadastral', codeVariantsList(codigosSituacao.length > 0 ? codigosSituacao : ['__nenhum__'], 2));
+        }
 
-    // Busca textual (Nome Fantasia)
-    const termo = payload.busca_textual?.[0]?.texto?.[0];
-    if (termo) {
-        query = query.ilike('nome_fantasia', `%${termo}%`);
-    }
+        // Matriz ou Filial ("MATRIZ" -> 1, "FILIAL" -> 2)
+        if (payload.matriz_filial) {
+            if (payload.matriz_filial === "MATRIZ") query = query.eq('identificador_matriz_filial', 1);
+            if (payload.matriz_filial === "FILIAL") query = query.eq('identificador_matriz_filial', 2);
+        }
 
-    // Contatos
-    if (payload.mais_filtros?.com_email) {
-        query = query.not('correio_eletronico', 'is', null).neq('correio_eletronico', '');
-    }
-    if (payload.mais_filtros?.com_telefone || payload.mais_filtros?.somente_celular || payload.mais_filtros?.somente_fixo) {
-        query = query.not('telefone_1', 'is', null).neq('telefone_1', '');
-    }
+        // Data de Abertura
+        if (payload.data_abertura?.inicio) {
+            query = query.gte('data_inicio_atividade', payload.data_abertura.inicio);
+        }
+        if (payload.data_abertura?.fim) {
+            query = query.lte('data_inicio_atividade', payload.data_abertura.fim);
+        }
 
-    // LIMIT E PAGINAÇÃO (PONTO 3 DO CLAUDE)
-    const limite = payload.limite || 30;
-    const pagina = payload.pagina || 1;
-    const offset = (pagina - 1) * limite;
-    
-    // O Supabase range é inclusivo (0 a 29 = 30 itens)
-    query = query.range(offset, offset + limite - 1);
+        // Busca textual (Nome Fantasia)
+        const termo = sanitizeFilterValue(payload.busca_textual?.[0]?.texto?.[0]);
+        if (termo) {
+            query = query.ilike('nome_fantasia', `%${termo}%`);
+        }
 
-    let { data, error } = await query;
+        // Contatos
+        if (payload.mais_filtros?.com_email) {
+            query = query.not('correio_eletronico', 'is', null).neq('correio_eletronico', '');
+        }
+        if (payload.mais_filtros?.com_telefone || payload.mais_filtros?.somente_celular || payload.mais_filtros?.somente_fixo) {
+            query = query.not('telefone_1', 'is', null).neq('telefone_1', '');
+        }
 
-    if (error) {
-        throw error;
-    }
+        return query;
+    };
 
-    // 1. Busca as Razões Sociais e filtra capital social / MEI
-    const bases = [...new Set(data.map((d: any) => d.cnpj_base))];
+    // Filtros que dependem de outras tabelas / pós-processamento
+    const naturezas = toArray(payload.codigo_natureza_juridica).map(codeKey).filter(Boolean);
+    const somenteCelular = !!payload.mais_filtros?.somente_celular;
+    const somenteFixo = !!payload.mais_filtros?.somente_fixo;
+    const comTelefone = !!payload.mais_filtros?.com_telefone || somenteCelular || somenteFixo;
+    const filtroEmMemoria = !!(
+        payload.capital_social?.minimo > 0 || payload.capital_social?.maximo > 0 ||
+        naturezas.length > 0 ||
+        payload.simples?.optante === true || payload.simples?.excluir_optante === true ||
+        payload.mei?.optante === true || payload.mei?.excluir_optante === true ||
+        comTelefone
+    );
+
+    const tiposPermitidos = somenteCelular && somenteFixo ? ['CELULAR', 'FIXO']
+        : somenteCelular ? ['CELULAR']
+        : somenteFixo ? ['FIXO']
+        : null;
+
+    const montaTelefones = (row: any) => {
+        const tels = [
+            { ddd: row.ddd_1, numero: row.telefone_1 },
+            { ddd: row.ddd_2, numero: row.telefone_2 },
+        ]
+            .filter((t) => t.numero)
+            .map((t) => ({ ...t, tipo: phoneType(t.numero) }))
+            .filter((t) => t.tipo !== 'INVALIDO');
+        return tiposPermitidos ? tels.filter((t) => tiposPermitidos.includes(t.tipo)) : tels;
+    };
+
+    // Busca Razões Sociais / Simples / MEI de um lote
     const empresasMap: any = {};
     const simplesMap: any = {};
-    
-    if (bases.length > 0) {
+    const carregaEmpresas = async (rows: any[]) => {
+        const bases = [...new Set(rows.map((d: any) => d.cnpj_base))].filter((b) => b && !(b in empresasMap));
+        if (bases.length === 0) return;
         const [resEmp, resSimp] = await Promise.all([
             supabaseCnpj.from('rfb_empresas')
                 .select('cnpj_base, razao_social, capital_social, porte_empresa, natureza_juridica, qualificacao_responsavel')
@@ -153,49 +271,89 @@ serve(async (req) => {
                 .select('*')
                 .in('cnpj_base', bases)
         ]);
+        if (resEmp.error) throw resEmp.error;
+        if (resSimp.error) throw resSimp.error;
+        bases.forEach((b) => { empresasMap[b] = null; });
+        (resEmp.data || []).forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
+        (resSimp.data || []).forEach((s: any) => { simplesMap[s.cnpj_base] = s; });
+    };
 
-        if (resEmp.data) {
-            resEmp.data.forEach((e: any) => { empresasMap[e.cnpj_base] = e; });
+    const passaFiltros = (row: any) => {
+        const emp = empresasMap[row.cnpj_base];
+        const simp = simplesMap[row.cnpj_base];
+
+        // Capital Social
+        if (payload.capital_social) {
+            const cap = Number(emp?.capital_social) || 0;
+            if (payload.capital_social.minimo > 0 && cap < payload.capital_social.minimo) return false;
+            if (payload.capital_social.maximo > 0 && cap > payload.capital_social.maximo) return false;
         }
-        if (resSimp.data) {
-            resSimp.data.forEach((s: any) => { simplesMap[s.cnpj_base] = s; });
+
+        // Natureza Juridica
+        if (naturezas.length > 0) {
+            if (!naturezas.includes(codeKey(emp?.natureza_juridica))) return false;
         }
 
-        // Aplicando os filtros in-memory (para Capital Social, Simples, MEI)
-        data = data.filter((row: any) => {
-            const emp = empresasMap[row.cnpj_base];
-            const simp = simplesMap[row.cnpj_base];
+        // Simples / MEI
+        if (payload.simples) {
+            if (payload.simples.optante === true && simp?.opcao_simples !== 'S') return false;
+            if (payload.simples.excluir_optante === true && simp?.opcao_simples === 'S') return false;
+        }
+        if (payload.mei) {
+            if (payload.mei.optante === true && simp?.opcao_mei !== 'S') return false;
+            if (payload.mei.excluir_optante === true && simp?.opcao_mei === 'S') return false;
+        }
 
-            // Capital Social
-            if (payload.capital_social) {
-                const cap = emp?.capital_social || 0;
-                if (payload.capital_social.minimo > 0 && cap < payload.capital_social.minimo) return false;
-                if (payload.capital_social.maximo > 0 && cap > payload.capital_social.maximo) return false;
-            }
+        // Telefone válido / somente celular / somente fixo
+        if (comTelefone && montaTelefones(row).length === 0) return false;
 
-            // Natureza Juridica
-            if (payload.codigo_natureza_juridica && payload.codigo_natureza_juridica.length > 0) {
-                if (!payload.codigo_natureza_juridica.includes(emp?.natureza_juridica?.toString())) return false;
-            }
+        return true;
+    };
 
-            // Simples / MEI
-            if (payload.simples) {
-                if (payload.simples.optante === true && simp?.opcao_simples !== 'S') return false;
-                if (payload.simples.excluir_optante === true && simp?.opcao_simples === 'S') return false;
-            }
-            if (payload.mei) {
-                if (payload.mei.optante === true && simp?.opcao_mei !== 'S') return false;
-                if (payload.mei.excluir_optante === true && simp?.opcao_mei === 'S') return false;
-            }
+    let data: any[] = [];
+    let temMais = false;
+    let varreduraIncompleta = false;
 
-            return true;
-        });
+    if (!filtroEmMemoria) {
+        // Caminho direto: o banco aplica todos os filtros, paginação normal
+        const offset = (pagina - 1) * limite;
+        // O Supabase range é inclusivo; busca 1 a mais para saber se há próxima página
+        const { data: rows, error } = await buildQuery().range(offset, offset + limite);
+        if (error) throw error;
+        temMais = (rows || []).length > limite;
+        data = (rows || []).slice(0, limite);
+        await carregaEmpresas(data);
+    } else {
+        // Filtros em memória: varre em lotes até preencher a página pedida,
+        // assim o usuário recebe a quantidade solicitada (e não menos)
+        const pular = (pagina - 1) * limite;
+        const precisa = pular + limite + 1;
+        const aprovados: any[] = [];
+        let offset = 0;
+        let acabou = false;
+        // Primeiro lote proporcional ao pedido (evita deixar buscas simples mais lentas)
+        let tamanho = Math.min(LOTE, Math.max(100, Math.ceil(precisa * 1.5)));
+        while (aprovados.length < precisa && offset < MAX_LINHAS_VARRIDAS) {
+            const { data: rows, error } = await buildQuery().range(offset, offset + tamanho - 1);
+            if (error) throw error;
+            const lote = rows || [];
+            offset += tamanho;
+            if (lote.length === 0) { acabou = true; break; }
+            await carregaEmpresas(lote);
+            lote.forEach((row: any) => { if (passaFiltros(row)) aprovados.push(row); });
+            if (lote.length < tamanho) { acabou = true; break; }
+            tamanho = LOTE;
+        }
+        temMais = aprovados.length > pular + limite || (!acabou && aprovados.length >= precisa);
+        varreduraIncompleta = !acabou && aprovados.length < precisa;
+        data = aprovados.slice(pular, pular + limite);
     }
 
     // 2. Busca Dicionários para os códigos restantes
-    const municipiosCodesFin = [...new Set(data.map((d: any) => d.municipio?.toString()))].filter(Boolean);
-    const cnaesCodes = [...new Set(data.map((d: any) => d.cnae_fisc_principal?.toString()))].filter(Boolean);
-    const naturezasCodes = [...new Set(Object.values(empresasMap).map((e: any) => e.natureza_juridica?.toString()))].filter(Boolean);
+    const empresasUsadas = data.map((d: any) => empresasMap[d.cnpj_base]).filter(Boolean);
+    const municipiosCodesFin = codeVariantsList(data.map((d: any) => d.municipio).filter((c: any) => c !== null && c !== undefined && c !== ''), 4);
+    const cnaesCodes = codeVariantsList(data.map((d: any) => d.cnae_fisc_principal).filter((c: any) => c !== null && c !== undefined && c !== ''), 7);
+    const naturezasCodes = codeVariantsList(empresasUsadas.map((e: any) => e.natureza_juridica).filter((c: any) => c !== null && c !== undefined && c !== ''), 4);
 
     const [resMun, resCnaes, resNat] = await Promise.all([
         municipiosCodesFin.length > 0 ? supabaseCnpj.from('rfb_municipios').select('codigo, descricao').in('codigo', municipiosCodesFin) : Promise.resolve({ data: [] }),
@@ -203,36 +361,36 @@ serve(async (req) => {
         naturezasCodes.length > 0 ? supabaseCnpj.from('rfb_naturezas').select('codigo, descricao').in('codigo', naturezasCodes) : Promise.resolve({ data: [] })
     ]);
 
-    const dicMun = Object.fromEntries((resMun.data || []).map((m: any) => [m.codigo, m.descricao]));
-    const dicCnae = Object.fromEntries((resCnaes.data || []).map((c: any) => [c.codigo, c.descricao]));
-    const dicNat = Object.fromEntries((resNat.data || []).map((n: any) => [n.codigo, n.descricao]));
+    const dicMun = Object.fromEntries(((resMun as any).data || []).map((m: any) => [codeKey(m.codigo), m.descricao]));
+    const dicCnae = Object.fromEntries(((resCnaes as any).data || []).map((c: any) => [codeKey(c.codigo), c.descricao]));
+    const dicNat = Object.fromEntries(((resNat as any).data || []).map((n: any) => [codeKey(n.codigo), n.descricao]));
 
     // Mapeia os dados para o formato exato
     const cnpjsFormatted = data.map((row: any) => {
         const emp = empresasMap[row.cnpj_base] || {};
         const simp = simplesMap[row.cnpj_base] || {};
-        
+
         return {
             cnpj: row.cnpj,
             matriz_filial: row.identificador_matriz_filial == 1 ? "MATRIZ" : "FILIAL",
             razao_social: emp.razao_social || row.nome_fantasia || "",
             nome_fantasia: row.nome_fantasia || "",
             data_abertura: row.data_inicio_atividade || "",
-            situacao_cadastral: { 
-                situacao_atual: { "1": "NULA", "2": "ATIVA", "3": "SUSPENSA", "4": "INAPTA", "8": "BAIXADA", "01": "NULA", "02": "ATIVA", "03": "SUSPENSA", "04": "INAPTA", "08": "BAIXADA" }[row.situacao_cadastral?.toString()] || "DESCONHECIDA", 
-                data: row.data_situacao_cadastral || "" 
+            situacao_cadastral: {
+                situacao_atual: { "1": "NULA", "2": "ATIVA", "3": "SUSPENSA", "4": "INAPTA", "8": "BAIXADA" }[codeKey(row.situacao_cadastral)] || "DESCONHECIDA",
+                data: row.data_situacao_cadastral || ""
             },
-            atividade_principal: { 
-                codigo: row.cnae_fisc_principal, 
-                descricao: dicCnae[row.cnae_fisc_principal] || "" 
+            atividade_principal: {
+                codigo: row.cnae_fisc_principal,
+                descricao: dicCnae[codeKey(row.cnae_fisc_principal)] || ""
             },
             capital_social: emp.capital_social || 0,
-            porte_empresa: { 
-                codigo: emp.porte_empresa?.toString() || "", 
-                descricao: { "1": "Micro Empresa", "3": "Empresa de Pequeno Porte", "5": "Demais", "01": "Micro Empresa", "03": "Empresa de Pequeno Porte", "05": "Demais" }[emp.porte_empresa?.toString()] || "" 
+            porte_empresa: {
+                codigo: emp.porte_empresa?.toString() || "",
+                descricao: { "1": "Micro Empresa", "3": "Empresa de Pequeno Porte", "5": "Demais" }[codeKey(emp.porte_empresa)] || ""
             },
             codigo_natureza_juridica: emp.natureza_juridica?.toString() || "",
-            descricao_natureza_juridica: dicNat[emp.natureza_juridica?.toString()] || "",
+            descricao_natureza_juridica: dicNat[codeKey(emp.natureza_juridica)] || "",
             qualificacao_responsavel: {
                 codigo: emp.qualificacao_responsavel?.toString() || "",
                 descricao: emp.qualificacao_responsavel == 50 ? "Empresário" : emp.qualificacao_responsavel == 49 ? "Sócio-Administrador" : "Responsável"
@@ -253,24 +411,16 @@ serve(async (req) => {
                 numero: row.numero || "",
                 complemento: row.complemento || "",
                 bairro: row.bairro || "",
-                municipio: dicMun[row.municipio?.toString()] || row.municipio?.toString() || "",
+                municipio: dicMun[codeKey(row.municipio)] || row.municipio?.toString() || "",
                 uf: row.uf || "",
                 cep: row.cep || ""
             },
-            contato_telefonico: [
-                ...(row.telefone_1 ? [{
-                    ddd: row.ddd_1 || "",
-                    numero: row.telefone_1,
-                    completo: row.ddd_1 ? `(${row.ddd_1}) ${row.telefone_1}` : row.telefone_1,
-                    tipo: "TELEFONE"
-                }] : []),
-                ...(row.telefone_2 ? [{
-                    ddd: row.ddd_2 || "",
-                    numero: row.telefone_2,
-                    completo: row.ddd_2 ? `(${row.ddd_2}) ${row.telefone_2}` : row.telefone_2,
-                    tipo: "TELEFONE"
-                }] : [])
-            ],
+            contato_telefonico: montaTelefones(row).map((t) => ({
+                ddd: t.ddd || "",
+                numero: t.numero,
+                completo: t.ddd ? `(${t.ddd}) ${t.numero}` : t.numero,
+                tipo: t.tipo
+            })),
             contato_email: row.correio_eletronico ? [{
                 email: row.correio_eletronico,
                 dominio: ""
@@ -278,20 +428,21 @@ serve(async (req) => {
         };
     });
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
         success: true,
         cnpjs: cnpjsFormatted,
         total: cnpjsFormatted.length,
-        pagina: pagina
-    }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        pagina: pagina,
+        limite: limite,
+        tem_mais: temMais,
+        ...(varreduraIncompleta ? { aviso: "Filtros muito restritivos: a busca foi interrompida antes de completar a quantidade pedida." } : {})
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    if (error instanceof HttpError) {
+      return jsonResponse({ error: error.message }, error.status);
+    }
+    console.error('casadosdados-search error:', error);
+    return jsonResponse({ error: 'Erro interno ao consultar a base de dados. Tente novamente.' }, 500);
   }
 });

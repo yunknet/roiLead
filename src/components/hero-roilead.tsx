@@ -35,7 +35,11 @@ export function HeroRoiLead() {
                 </p>
 
                 <div className="w-full max-w-[90vw] md:max-w-7xl mx-auto mb-8 px-2 sm:px-6 lg:px-8 xl:px-0 animate-slide-up">
-                    <VturbVideo />
+                    {/* Vídeo de apresentação ativo */}
+                    <PresentationVideo />
+
+                    {/* Vídeo do VTurb preservado para caso deseje voltar no futuro: */}
+                    {/* <VturbVideo /> */}
                 </div>
 
                 <div className="flex flex-col items-center justify-center gap-4 mb-12 animate-slide-up px-4">
@@ -276,6 +280,22 @@ export function HeroRoiLead() {
         </div>
     );
 }
+
+const PresentationVideo = () => {
+  return (
+    <div className="w-full relative shadow-2xl rounded-2xl overflow-hidden mx-auto bg-black border border-border/40" style={{ aspectRatio: '16/9' }}>
+      <video
+        className="w-full h-full object-cover"
+        controls
+        playsInline
+        preload="metadata"
+        src="/videos/videovsl.mp4"
+      >
+        Seu navegador não suporta a reprodução deste vídeo.
+      </video>
+    </div>
+  );
+};
 
 const VturbVideo = () => {
   useEffect(() => {

@@ -29,7 +29,7 @@ const plans = [
     price: "497,00",
     period: "/ano",
     installment: "em até 12x de R$ 52,93",
-    savings: "Economia de 63% — Plano completo com desconto exclusivo",
+    savings: "Economia de 57% — Plano completo com desconto exclusivo",
     features: [
       "Leads ilimitados",
       "Busca por região e nicho",
@@ -38,7 +38,7 @@ const plans = [
       "Suporte prioritário",
       "Histórico ilimitado",
       "Acesso imediato",
-      <strong>300 Créditos Grátis no Agente de IA 🎁</strong>
+      <strong>Bônus: Agente de IA no WhatsApp para solicitar leads 🎁</strong>
     ],
     popular: true,
   },

@@ -6,9 +6,9 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const plans = [
-  { id: 'mensal', name: 'Mensal', description: 'Ideal para testar a plataforma', price: '97,00', period: '/mês', features: ['Leads ilimitados', 'Busca por região e nicho', 'Contato conectado', 'Filtros avançados', 'Histórico ilimitado', 'Acesso imediato'], popular: false },
-  { id: 'anual', name: 'Anual', description: 'O melhor custo-benefício.', price: "497,00", period: "/ano",
-    installment: "em até 12x de R$ 52,93", savings: 'Economia de 63% — Plano completo com desconto exclusivo', features: ['Leads ilimitados', 'Busca por região e nicho', 'Contato conectado', 'Filtros avançados', 'Suporte prioritário', 'Histórico ilimitado', 'Acesso imediato'], popular: true }
+  { id: 'mensal', name: 'Mensal', description: 'Ideal para testar a plataforma', price: '67,00', period: '/mês', features: ['Leads ilimitados', 'Busca por região e nicho', 'Contato conectado', 'Filtros avançados', 'Histórico ilimitado', 'Acesso imediato'], popular: false },
+  { id: 'anual', name: 'Anual', description: 'O melhor custo-benefício.', price: "297,00", period: "/ano",
+    installment: "em até 12x de R$ 31,63", savings: 'Economia de 52% — Plano completo com desconto exclusivo', features: ['Leads ilimitados', 'Busca por região e nicho', 'Contato conectado', 'Filtros avançados', 'Suporte prioritário', 'Histórico ilimitado', 'Acesso imediato'], popular: true }
 ];
 
 export default function Subscription() {

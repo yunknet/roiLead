@@ -7,6 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Comparação em tempo constante (não revela por tempo de resposta quantos caracteres acertou)
+const chavesIguais = (a: string, b: string) => {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+};
+
 // Limites de segurança (o formulário do front permite até 1000)
 const MAX_LIMITE = 1000;
 const MAX_PAGINA = 1000;
@@ -111,23 +119,30 @@ serve(async (req) => {
       throw new HttpError(405, 'Método não permitido');
     }
 
-    // ===== AUTENTICAÇÃO: apenas usuários logados (a anon key sozinha não basta) =====
-    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-    if (!token) {
-      throw new HttpError(401, 'Não autenticado');
-    }
-    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
-    const { data: authData, error: authError } = await authClient.auth.getUser(token);
-    if (authError || !authData?.user) {
-      throw new HttpError(401, 'Sessão inválida ou expirada. Faça login novamente.');
-    }
+    // ===== ACESSO DE SERVIDOR (n8n/WhatsApp): chave secreta própria no header x-roilead-key =====
+    // O fluxo do WhatsApp já confere a assinatura pelo telefone antes de chamar a API.
+    const chaveServico = Deno.env.get('WHATSAPP_API_KEY') ?? '';
+    const viaServico = chaveServico.length >= 32 && chavesIguais(req.headers.get('x-roilead-key') ?? '', chaveServico);
 
-    // ===== ASSINATURA: mesma regra do painel (DashboardLayout), consultada com o token do próprio usuário =====
-    const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    if (!(await temAssinaturaAtiva(userClient, authData.user))) {
-      throw new HttpError(403, 'Assinatura inativa. Assine um plano para realizar pesquisas.');
+    if (!viaServico) {
+      // ===== AUTENTICAÇÃO: apenas usuários logados (a anon key sozinha não basta) =====
+      const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+      if (!token) {
+        throw new HttpError(401, 'Não autenticado');
+      }
+      const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const { data: authData, error: authError } = await authClient.auth.getUser(token);
+      if (authError || !authData?.user) {
+        throw new HttpError(401, 'Sessão inválida ou expirada. Faça login novamente.');
+      }
+
+      // ===== ASSINATURA: mesma regra do painel (DashboardLayout), consultada com o token do próprio usuário =====
+      const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      if (!(await temAssinaturaAtiva(userClient, authData.user))) {
+        throw new HttpError(403, 'Assinatura inativa. Assine um plano para realizar pesquisas.');
+      }
     }
 
     let payload: any;

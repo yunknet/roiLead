@@ -38,7 +38,9 @@ if (!original) {
 let reescrito = '';
 try { reescrito = String($('AI Agent2').first().json.output || ''); } catch (e) { reescrito = ''; }
 
-const ia = ($json && typeof $json === 'object' && !$json.erro) ? $json : {};
+let entrada = {};
+try { entrada = $input.first().json; } catch (e) { try { entrada = $json; } catch (e2) { entrada = {}; } }
+const ia = (entrada && typeof entrada === 'object' && !entrada.erro) ? entrada : {};
 let T = ' ' + norm(original) + ' ';
 const R = ' ' + norm(reescrito) + ' ';
 const ORIGINAL_CRU = ' ' + String(original || '') + ' ';

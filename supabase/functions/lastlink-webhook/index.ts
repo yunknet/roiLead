@@ -48,8 +48,12 @@ serve(async (req: Request) => {
     const payload = await req.json().catch(() => ({}))
     console.log("📦 Payload Completo Recebido da LastLink:", JSON.stringify(payload))
 
-    // LastLink envia propriedades tanto em PascalCase (Event, Data, Buyer, Purchase, Products) quanto em snake/camelCase
-    const rawEventType = String(
+    // LastLink envia propriedades em PascalCase (Event, Data, Buyer, Purchase, Products), via headers ou no corpo
+    let rawEventType = String(
+      req.headers.get("x-lastlink-event") ||
+      req.headers.get("x-event-name") ||
+      req.headers.get("x-event") ||
+      req.headers.get("event") ||
       payload.Event ||
       payload.event ||
       payload.type || 
@@ -68,7 +72,14 @@ serve(async (req: Request) => {
       payload.data?.event_type || 
       "UNKNOWN"
     )
-    const eventType = rawEventType.toLowerCase().trim()
+    let eventType = rawEventType.toLowerCase().trim()
+
+    // Fallback inteligente: se o payload contiver Buyer e Purchase/Products da LastLink mas o header/campo de evento não veio explícito
+    if (eventType === "unknown" && (payload.Purchase || payload.Buyer || payload.Data?.Purchase || payload.Data?.Buyer)) {
+      console.log("ℹ️ Detectado payload estruturado da LastLink (Buyer/Purchase presentes). Classificando como Purchase_Order_Confirmed.")
+      rawEventType = "Purchase_Order_Confirmed"
+      eventType = "purchase_order_confirmed"
+    }
     const eventData = payload.Data || payload.data || payload.event_data || payload.event || payload || {}
 
     console.log(`⚡ Evento Recebido: "${rawEventType}" (Normalizado: "${eventType}")`)
@@ -94,7 +105,7 @@ serve(async (req: Request) => {
       ).toLowerCase().trim()
 
       // Telefone: varre todas as possibilidades e limpa
-      let phone = user.Phone || user.phone || user.phone_number || user.phoneNumber || user.cellphone || user.Cellphone || data.Phone || data.phone || invoice.Phone || invoice.phone || data.userPhone || ""
+      let phone = user.PhoneNumber || user.phoneNumber || user.Phone || user.phone || user.phone_number || user.cellphone || user.Cellphone || data.PhoneNumber || data.phoneNumber || data.Phone || data.phone || invoice.Phone || invoice.phone || data.userPhone || ""
       if (phone) phone = String(phone).replace(/\D/g, "")
 
       // Nome: varre e formata
@@ -164,11 +175,16 @@ serve(async (req: Request) => {
         rawAmount = invoice.amount.totalCents / 100;
       } else {
         const potentialAmounts = [
-          eventData.Purchase?.Total,
+          eventData.Purchase?.Price?.Value,
+          eventData.Purchase?.OriginalPrice?.Value,
           eventData.Purchase?.Price,
-          eventData.purchase?.total,
+          eventData.Purchase?.Total,
+          eventData.Plan?.Amount,
+          eventData.purchase?.price?.value,
           eventData.purchase?.price,
+          eventData.purchase?.total,
           eventData.purchase?.amount,
+          eventData.plan?.amount,
           lastlinkProducts[0]?.Price,
           lastlinkProducts[0]?.price,
           eventData.amount,

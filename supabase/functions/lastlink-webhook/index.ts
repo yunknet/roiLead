@@ -46,40 +46,62 @@ serve(async (req: Request) => {
 
     // 1. Pega o Payload
     const payload = await req.json().catch(() => ({}))
-    const eventType = String(
+    console.log("📦 Payload Completo Recebido da LastLink:", JSON.stringify(payload))
+
+    // LastLink envia propriedades tanto em PascalCase (Event, Data, Buyer, Purchase, Products) quanto em snake/camelCase
+    const rawEventType = String(
+      payload.Event ||
+      payload.event ||
       payload.type || 
       payload.event_type || 
-      payload.event || 
+      payload.eventType ||
       payload.event_name || 
+      payload.eventName ||
       payload.status || 
+      payload.Status ||
       payload.action || 
+      payload.Action ||
+      payload.Data?.Event ||
+      payload.Data?.event ||
       payload.data?.status || 
       payload.data?.event || 
       payload.data?.event_type || 
       "UNKNOWN"
-    ).toLowerCase()
-    const eventData = payload.data || payload.event_data || payload.event || payload || {}
+    )
+    const eventType = rawEventType.toLowerCase().trim()
+    const eventData = payload.Data || payload.data || payload.event_data || payload.event || payload || {}
 
-    console.log(`⚡ Evento Recebido: ${eventType}`)
+    console.log(`⚡ Evento Recebido: "${rawEventType}" (Normalizado: "${eventType}")`)
 
     // --- FUNÇÃO DE BUSCA DE DADOS (ROBUSTA & SEGURA) ---
     const getCustomerData = (data: any) => {
-      const invoice = data.invoice || data.order || {}
-      // Tenta achar o objeto de usuário em vários lugares possíveis do payload
-      const user = data.user || data.customer || data.payer || invoice.payer || invoice.customer || data.subscriber || payload.customer || payload.user || {}
+      const invoice = data.Purchase || data.purchase || data.invoice || data.order || {}
+      // Tenta achar o objeto de usuário/comprador em vários lugares possíveis (Buyer na LastLink, user/customer em outras)
+      const user = data.Buyer || data.buyer || data.user || data.customer || data.payer || invoice.payer || invoice.customer || data.subscriber || payload.Buyer || payload.buyer || payload.customer || payload.user || {}
 
-      // E-mail: varre todas as possibilidades
-      const email = (user.email || data.email || invoice.email || data.userEmail || payload.email || "").toLowerCase().trim()
+      // E-mail: varre todas as possibilidades (Email, email, userEmail, etc.)
+      const email = String(
+        user.Email || 
+        user.email || 
+        data.Email || 
+        data.email || 
+        invoice.Email || 
+        invoice.email || 
+        data.userEmail || 
+        payload.Email || 
+        payload.email || 
+        ""
+      ).toLowerCase().trim()
 
       // Telefone: varre todas as possibilidades e limpa
-      let phone = user.phone || user.phone_number || user.cellphone || data.phone || invoice.phone || data.userPhone || ""
+      let phone = user.Phone || user.phone || user.phone_number || user.phoneNumber || user.cellphone || user.Cellphone || data.Phone || data.phone || invoice.Phone || invoice.phone || data.userPhone || ""
       if (phone) phone = String(phone).replace(/\D/g, "")
 
       // Nome: varre e formata
-      const rawName = user.name || user.fullName || user.firstName || data.first_name || data.userName || data.name || ""
-      const firstName = user.firstName || (rawName ? String(rawName).trim().split(' ')[0] : "") || "Cliente"
-      const lastName = user.lastName || (rawName ? String(rawName).trim().split(' ').slice(1).join(' ') : "") || ""
-      const fullName = String(user.fullName || rawName || `${firstName} ${lastName}`).trim() || firstName || "Cliente"
+      const rawName = user.Name || user.name || user.fullName || user.FullName || user.firstName || user.FirstName || data.first_name || data.userName || data.name || data.Name || ""
+      const firstName = user.FirstName || user.firstName || (rawName ? String(rawName).trim().split(' ')[0] : "") || "Cliente"
+      const lastName = user.LastName || user.lastName || (rawName ? String(rawName).trim().split(' ').slice(1).join(' ') : "") || ""
+      const fullName = String(user.fullName || user.FullName || rawName || `${firstName} ${lastName}`).trim() || firstName || "Cliente"
 
       return { email, firstName, fullName, phone, invoice, user }
     }
@@ -92,6 +114,11 @@ serve(async (req: Request) => {
     // GRUPO 1: VENDA APROVADA / ASSINATURA ATIVA
     // ====================================================
     const isPaid = [
+      'purchase_order_confirmed',
+      'purchaseorderconfirmed',
+      'purchase_order',
+      'order_confirmed',
+      'orderconfirmed',
       'invoice.payment_succeeded',
       'invoice.paid',
       'subscription.activated',
@@ -119,12 +146,17 @@ serve(async (req: Request) => {
       'charge_paid',
       'payment_approved',
       'approved',
-      'paid'
+      'paid',
+      'succeeded'
     ].some(term => eventType.includes(term));
     
     if (isPaid) {
 
       const { email, firstName, fullName, phone, invoice } = getCustomerData(eventData)
+
+      // Extração de produtos da LastLink (Array Products)
+      const lastlinkProducts = (Array.isArray(eventData.Products) ? eventData.Products : []).concat(Array.isArray(eventData.products) ? eventData.products : []);
+      const productNamesFromLastlink = lastlinkProducts.map((p: any) => `${p.Name || p.name || ''} ${p.Id || p.id || ''}`).join(" ");
 
       // Extração robusta do valor pago (em reais)
       let rawAmount = 0;
@@ -132,6 +164,13 @@ serve(async (req: Request) => {
         rawAmount = invoice.amount.totalCents / 100;
       } else {
         const potentialAmounts = [
+          eventData.Purchase?.Total,
+          eventData.Purchase?.Price,
+          eventData.purchase?.total,
+          eventData.purchase?.price,
+          eventData.purchase?.amount,
+          lastlinkProducts[0]?.Price,
+          lastlinkProducts[0]?.price,
           eventData.amount,
           eventData.total,
           eventData.order?.total,
@@ -158,6 +197,7 @@ serve(async (req: Request) => {
 
       // Junta todos os nomes possíveis de produto, oferta ou plano
       const allProductTexts = [
+        productNamesFromLastlink,
         eventData.product?.name,
         eventData.offer?.name,
         eventData.plan?.name,
@@ -189,7 +229,16 @@ serve(async (req: Request) => {
         planName = normalizedAmount > 100 ? "Anual" : "Mensal";
       }
 
-      const externalId = eventData.order?.id || eventData.order?.code || invoice.paymentSession?.utm?.content || invoice.id || eventData.id || eventData.transaction_id || `sub_${Date.now()}`;
+      const externalId = eventData.Purchase?.PaymentId || 
+        eventData.purchase?.paymentId || 
+        eventData.purchase?.payment_id || 
+        eventData.order?.id || 
+        eventData.order?.code || 
+        invoice.paymentSession?.utm?.content || 
+        invoice.id || 
+        eventData.id || 
+        eventData.transaction_id || 
+        `sub_${Date.now()}`;
 
       const { data: existingSubStatus } = await supabase
         .from("subscriptions")
@@ -387,6 +436,12 @@ serve(async (req: Request) => {
     // GRUPO 2: CANCELAMENTO / REEMBOLSO / EXPIRAÇÃO
     // ====================================================
     else if ([
+      'payment_refund',
+      'paymentrefund',
+      'payment_chargeback',
+      'paymentchargeback',
+      'purchase_order_canceled',
+      'purchaseordercanceled',
       'invoice.refunded',
       'subscription.canceled',
       'canceledsubscription',
@@ -396,9 +451,6 @@ serve(async (req: Request) => {
       'reembolso solicitado',
       'pagamento_reembolsado',
       'pagamento reembolsado',
-      'payment_refund',
-      'paymentrefund',
-      'subscription_canceled',
       'compra_cancelada',
       'compra cancelada',
       'pedido_cancelado',
@@ -411,8 +463,6 @@ serve(async (req: Request) => {
       'charge_refunded',
       'order_refunded',
       'chargeback',
-      'payment_chargeback',
-      'paymentchargeback',
       'dispute',
       'estorno',
       'estornado',
@@ -454,7 +504,11 @@ serve(async (req: Request) => {
         }).eq('email', email)
       }
 
+      const cancelProducts = (Array.isArray(eventData.Products) ? eventData.Products : []).concat(Array.isArray(eventData.products) ? eventData.products : []);
+      const cancelProductNames = cancelProducts.map((p: any) => `${p.Name || p.name || ''} ${p.Id || p.id || ''}`).join(" ");
+
       const allProductTextsCancel = [
+        cancelProductNames,
         eventData.product?.name,
         eventData.offer?.name,
         eventData.plan?.name,

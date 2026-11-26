@@ -10,7 +10,7 @@
 # No Easypanel: App > Source GitHub, branch de produção,
 # Build Path: /services/calculadora-rtc-simples   (Dockerfile)   Porta interna: 8082
 
-FROM eclipse-temurin:25-jdk AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY VERSAO VERSAO_BANCO /tmp/
 
@@ -18,15 +18,14 @@ COPY VERSAO VERSAO_BANCO /tmp/
 WORKDIR /banco
 RUN git -c advice.detachedHead=false clone --depth 1 --branch "$(tr -d ' \r\n' < /tmp/VERSAO_BANCO)" \
       https://github.com/ReceitaFederal/calculadora-rtc-regime-regular.git . \
- && chmod +x mvnw && mkdir -p calculadora/db \
- && ./mvnw -q flyway:migrate -Dflyway.configFiles=./flyway/flyway-pro.conf --batch-mode --errors
+ && mkdir -p calculadora/db \
+ && mvn -q flyway:migrate -Dflyway.configFiles=./flyway/flyway-pro.conf --batch-mode --errors
 
 # 2) Motor do Simples Nacional
 WORKDIR /src
 RUN git -c advice.detachedHead=false clone --depth 1 --branch "$(tr -d ' \r\n' < /tmp/VERSAO)" \
       https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional.git . \
- && chmod +x mvnw \
- && ./mvnw -q -DskipTests --batch-mode package \
+ && mvn -q -DskipTests --batch-mode package \
  && cp target/api-simples-nacional.jar /app.jar
 
 FROM eclipse-temurin:25-jre

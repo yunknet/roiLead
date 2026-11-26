@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
-  Lock,
   Search as SearchIcon,
   FileText,
   ChevronLeft,
@@ -21,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { LeadDetailsModal } from '@/components/LeadDetailsModal';
 import { LeadSearchForm } from '@/components/crm/LeadSearchForm';
+import { ApresentacaoRoilead } from '@/components/vendas/ApresentacaoRoilead';
 
 export default function Search() {
   const navigate = useNavigate();
@@ -121,14 +121,8 @@ export default function Search() {
           </div>
 
           {!hasActiveSubscription ? (
-            <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                <Lock className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3">Histórico Bloqueado</h3>
-              <p className="text-muted-foreground max-w-md mb-8">Para iniciar a busca por leads e acessar o histórico, é necessário assinar um plano.</p>
-              <Button size="lg" onClick={() => navigate('/dashboard/subscription')}>Ver Planos</Button>
-            </div>
+            // Sem assinatura: em vez de só "bloqueado", mostra o que o roiLead faz para a pessoa decidir comprar.
+            <ApresentacaoRoilead area="Busca de leads" />
           ) : filteredRequests.length === 0 ? (
             <div className="p-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center bg-card/50">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">

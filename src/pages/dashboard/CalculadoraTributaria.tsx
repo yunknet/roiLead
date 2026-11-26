@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Calculator, Database, Info, LayoutGrid, Store } from 'lucide-react';
 import { CalculadoraGuiada } from '@/components/calculadora/CalculadoraGuiada';
 import { CalculadoraSimples } from '@/components/calculadora/CalculadoraSimples';
 import { ExploradorApi, FONTE_REGULAR, FONTE_SIMPLES } from '@/components/calculadora/ExploradorApi';
 import { SobreCalculadora } from '@/components/calculadora/SobreCalculadora';
+import { ApresentacaoRoilead } from '@/components/vendas/ApresentacaoRoilead';
 import { CALC_SN_API, chamar, Versao } from '@/lib/calculadoraRtc';
 
 type Aba = 'calcular' | 'funcoes';
@@ -22,6 +24,7 @@ const formatarData = (d?: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDate
  * Funcionalidade gratuita: não depende de assinatura do roiLead.
  */
 export default function CalculadoraTributaria() {
+  const contexto = useOutletContext<{ hasActiveSubscription?: boolean } | undefined>();
   const [aba, setAba] = useState<Aba>('calcular');
   const [regime, setRegimeEstado] = useState<Regime>(lerRegime);
   const setRegime = (r: Regime) => {
@@ -84,6 +87,9 @@ export default function CalculadoraTributaria() {
         <div className={aba === 'calcular' && regime === 'simples' ? '' : 'hidden'}><CalculadoraSimples /></div>
         <div className={aba === 'funcoes' && regime === 'regular' ? '' : 'hidden'}><ExploradorApi fonte={FONTE_REGULAR} /></div>
         <div className={aba === 'funcoes' && regime === 'simples' ? '' : 'hidden'}><ExploradorApi fonte={FONTE_SIMPLES} /></div>
+
+        {/* Quem usa só a calculadora (grátis) conhece o resto do roiLead. */}
+        {contexto && !contexto.hasActiveSubscription && <ApresentacaoRoilead compacto />}
 
         <div className="bg-muted p-4 sm:p-6 rounded-xl flex gap-3 text-sm text-muted-foreground leading-relaxed">
           <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />

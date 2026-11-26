@@ -13,7 +13,7 @@ const Footer = () => {
               onClick={() => window.scrollTo(0, 0)}
             >
               <div className="flex items-center text-xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
-                <span style={{ color: '#81BB3D' }}>roi</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>roi</span>
                 <span className="text-[#2D3E50] dark:text-white">Lead</span>
               </div>
             </Link>

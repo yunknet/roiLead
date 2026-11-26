@@ -21,7 +21,7 @@ const Logo: React.FC<LogoProps> = ({ className = '', size = '2xl', dark = false 
             className={`flex items-center font-normal tracking-tighter select-none ${sizeClasses[size]} ${className}`}
             style={{ fontFamily: "'Varela Round', sans-serif" }}
         >
-            <span style={{ color: '#81BB3D' }}>roi</span>
+            <span style={{ color: 'hsl(var(--primary))' }}>roi</span>
             <span className={dark ? 'text-white' : 'text-[#2D3E50] dark:text-white'}>Lead</span>
         </div>
     );

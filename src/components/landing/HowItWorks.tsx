@@ -60,9 +60,9 @@ export const HowItWorks = () => {
               </div>
             </div>
             
-            <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full bg-white dark:bg-card flex flex-col items-center justify-center shadow-[0_0_80px_-15px_rgba(16,185,129,0.3)] z-20 border border-border">
+            <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full bg-white dark:bg-card flex flex-col items-center justify-center shadow-[0_0_80px_-15px_rgba(47,125,91,0.22)] z-20 border border-border">
               <div className="flex items-center text-3xl md:text-4xl font-normal tracking-tighter transition-transform hover:scale-110 duration-300" style={{ fontFamily: "'Varela Round', sans-serif" }}>
-                <span style={{ color: '#81BB3D' }}>roi</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>roi</span>
                 <span className="text-[#2D3E50] dark:text-white">Lead</span>
               </div>
               <div className="mt-2 h-1 w-12 bg-primary rounded-full animate-pulse" />
@@ -76,7 +76,7 @@ export const HowItWorks = () => {
             <h3 className="text-3xl md:text-5xl font-extrabold text-foreground tracking-tight flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
               Como o 
               <span className="flex items-center text-4xl md:text-6xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
-                <span style={{ color: '#81BB3D' }}>roi</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>roi</span>
                 <span className="text-[#2D3E50] dark:text-white">Lead</span>
               </span> 
               ajuda sua empresa

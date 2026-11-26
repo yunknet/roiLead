@@ -238,7 +238,7 @@ export const DashboardLayout = () => {
         <div className="p-4 border-b border-sidebar-border flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex items-center text-2xl font-normal tracking-tighter" style={{ fontFamily: "'Varela Round', sans-serif" }}>
-              <span style={{ color: '#81BB3D' }}>roi</span>
+              <span style={{ color: 'hsl(var(--primary))' }}>roi</span>
               <span className="text-sidebar-foreground">Lead</span>
             </div>
           </Link>

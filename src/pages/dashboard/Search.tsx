@@ -296,7 +296,7 @@ const RequestCard = ({ request, onDelete, onCallLead }: { request: any, onDelete
                           <h5 className="font-bold text-primary line-clamp-1" title={nome}>{nome}</h5>
                           <div className="flex flex-col gap-1.5 shrink-0 items-end">
                             <button onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }} className="w-full text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium transition-colors border border-green-200 whitespace-nowrap">Visualizar Completo</button>
-                            <button onClick={(e) => { e.stopPropagation(); if (onCallLead) onCallLead({ ...lead, telefone, nome_fantasia: nome }); }} className="w-full text-[10px] bg-[#2ecc71] text-black hover:bg-[#27ae60] px-2 py-1 rounded font-bold transition-colors flex items-center justify-center gap-1 shadow-sm whitespace-nowrap">
+                            <button onClick={(e) => { e.stopPropagation(); if (onCallLead) onCallLead({ ...lead, telefone, nome_fantasia: nome }); }} className="w-full text-[10px] bg-primary text-primary-foreground hover:bg-primary/90 px-2 py-1 rounded font-bold transition-colors flex items-center justify-center gap-1 shadow-sm whitespace-nowrap">
                               <MessageCircle className="w-3 h-3" /> Chamar
                             </button>
                             <button onClick={async (e) => {

@@ -280,7 +280,7 @@ export function LeadProfileModal({ lead, isOpen, onClose, onCallLead, onUpdateNo
                             if (onCallLead) onCallLead(lead.phone, lead.title);
                             onClose();
                         }}
-                        className="w-full h-12 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-lg font-bold text-base gap-3 active:scale-[0.98] transition-all"
+                        className="w-full h-12 bg-primary hover:bg-primary/90 text-white border-none shadow-lg font-bold text-base gap-3 active:scale-[0.98] transition-all"
                     >
                         <MessageCircle className="w-5 h-5 flex-shrink-0" />
                         Chamar no Contato

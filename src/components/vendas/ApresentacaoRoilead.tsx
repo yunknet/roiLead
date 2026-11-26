@@ -127,7 +127,7 @@ export function ApresentacaoRoilead({ area = 'Busca de leads', compacto = false 
             <p className="text-xs text-muted-foreground">CNPJ 12.345.678/0001-•• · Belo Horizonte/MG · Capital R$ 250.000</p>
             <p className="text-xs text-muted-foreground mt-1 select-none blur-[3px]">(31) 9 9999-9999 · contato@exemplo.com.br</p>
             <div className="flex gap-1.5 mt-2">
-              <span className="text-[10px] font-bold bg-[#2ecc71] text-black px-2 py-1 rounded flex items-center gap-1"><MessageCircle className="w-3 h-3" />Chamar</span>
+              <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2 py-1 rounded flex items-center gap-1"><MessageCircle className="w-3 h-3" />Chamar</span>
               <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-1 rounded">Enviar ao CRM</span>
             </div>
           </div>

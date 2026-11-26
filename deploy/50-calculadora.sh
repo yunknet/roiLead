@@ -27,14 +27,15 @@ normalizar() {
   printf '%s' "$u" | sed -E 's#^(https?://[^/]+).*#\1#'
 }
 
-indisponivel() { # arquivo, locations...
-  arquivo="$1"; shift
+indisponivel() { # arquivo, motivo, locations...
+  arquivo="$1"; motivo="$2"; shift 2
   : > "$arquivo"
   for loc in "$@"; do
     cat >> "$arquivo" <<EOF
 location $loc {
     default_type application/json;
-    return 503 '{"status":503,"title":"Calculadora indisponível","detail":"O serviço da calculadora não está configurado."}';
+    add_header Cache-Control "no-store" always;
+    return 503 '{"status":503,"title":"Calculadora indisponível","detail":"$motivo"}';
 }
 EOF
   done
@@ -65,17 +66,18 @@ EOF
 # Testa a configuração; se falhar, troca o trecho pelo de 503.
 validar() { # arquivo, nome, locations...
   arquivo="$1"; nome="$2"; shift 2
-  if nginx -t -q 2>/dev/null; then
+  if saida=$(nginx -t 2>&1); then
     echo "50-calculadora: $nome ativo"
   else
-    echo "50-calculadora: configuração de $nome inválida; responderá 503"
-    indisponivel "$arquivo" "$@"
+    echo "50-calculadora: o nginx recusou a configuração de $nome; responderá 503. Erro do nginx:"
+    printf '%s\n' "$saida" | sed 's/^/50-calculadora:   /'
+    indisponivel "$arquivo" "Configuração recusada pelo nginx (veja o log do site, linhas 50-calculadora)." "$@"
   fi
 }
 
 # Começa com as duas rotas em 503 para que cada teste valide só a sua parte.
-indisponivel "$PASTA/calculadora.conf" /api/calculadora/ "= /api/api-docs"
-indisponivel "$PASTA/calculadora-sn.conf" /api/calculadora-sn/
+indisponivel "$PASTA/calculadora.conf" "Variável CALCULADORA_RTC_URL não definida no App do site." /api/calculadora/ "= /api/api-docs"
+indisponivel "$PASTA/calculadora-sn.conf" "Variável CALCULADORA_SN_URL não definida no App do site." /api/calculadora-sn/
 
 # ---- Regime regular ----
 if [ -n "${CALCULADORA_RTC_URL:-}" ]; then

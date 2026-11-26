@@ -34,6 +34,8 @@ navegador ──> roilead.com.br/api/calculadora/*  (nginx do site, com limite d
    No GitHub, salve essa URL como secret `EASYPANEL_DEPLOY_CALCULADORA`, em
    *Settings → Secrets and variables → Actions*.
 
+> **Easypanel reaproveita a montagem quando o commit não muda.** Se você corrigir o Caminho de Build depois de uma implantação, o próximo Deploy pode terminar em segundos e continuar rodando a versão antiga. Para forçar uma montagem nova, basta um commit novo na branch (ou usar "Rebuild"/limpar o cache do serviço, se disponível).
+
 ## Atualização automática
 
 O workflow `.github/workflows/calculadora-rtc-atualizar.yml` roda todo dia às 06:17:

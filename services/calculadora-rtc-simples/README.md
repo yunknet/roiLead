@@ -26,6 +26,8 @@ Na tela do roiLead ele aparece quando a pessoa escolhe **"Simples Nacional"** no
 3. **(Opcional) Deploy automático.** Copie a URL de **Deploy Webhook** do serviço.
    No GitHub, salve-a como secret `EASYPANEL_DEPLOY_CALCULADORA_SN`.
 
+> **Easypanel reaproveita a montagem quando o commit não muda.** Se você corrigir o Caminho de Build depois de uma implantação, o próximo Deploy pode terminar em segundos e continuar rodando a versão antiga. Para forçar uma montagem nova, basta um commit novo na branch (ou usar "Rebuild"/limpar o cache do serviço, se disponível).
+
 ## Atualização automática
 
 O mesmo workflow da calculadora (`.github/workflows/calculadora-rtc-atualizar.yml`) tem um passo para o Simples.

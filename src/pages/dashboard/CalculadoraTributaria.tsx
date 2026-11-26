@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Calculator, Database, Info, LayoutGrid } from 'lucide-react';
 import { CalculadoraGuiada } from '@/components/calculadora/CalculadoraGuiada';
 import { ExploradorApi } from '@/components/calculadora/ExploradorApi';
+import { SobreCalculadora } from '@/components/calculadora/SobreCalculadora';
 import { chamar, Versao } from '@/lib/calculadoraRtc';
 
 type Aba = 'calcular' | 'funcoes';
@@ -25,9 +26,10 @@ export default function CalculadoraTributaria() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-2xl font-bold text-foreground">Calculadora da Reforma Tributária</h2>
               <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md uppercase tracking-wider">Grátis</span>
+              <SobreCalculadora />
             </div>
             <p className="text-muted-foreground">Simule CBS, IBS e Imposto Seletivo (LC 214/2025), consulte as tabelas oficiais e gere o XML do documento fiscal.</p>
           </div>

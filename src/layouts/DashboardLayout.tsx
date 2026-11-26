@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import {
   Settings,
@@ -9,12 +9,14 @@ import {
   MessageCircle,
   Loader2,
   Kanban,
-  Calculator
+  Calculator,
+  HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { ModeToggle } from '@/components/ModeToggle';
+import { TutorialRoilead, tutorialJaVisto, AreaPasso } from '@/components/tutorial/TutorialRoilead';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const CupulaIcon = () => (
@@ -25,12 +27,12 @@ const CupulaIcon = () => (
 );
 
 const menuItems = [
-  { icon: MessageCircle, label: 'roiLead', path: '/dashboard' },
-  { icon: Calculator, label: 'Calculadora Tributária', path: '/dashboard/calculadora-tributaria', isFree: true },
-  { icon: Kanban, label: 'CRM', path: '/dashboard/crm' },
-  { icon: CupulaIcon, label: 'Cúpula de Leads (em breve)', path: '/dashboard/cupula_leads', isNew: true, disabled: true },
-  { icon: CreditCard, label: 'Assinatura', path: '/dashboard/subscription' },
-  { icon: Settings, label: 'Configurações', path: '/dashboard/settings' },
+  { icon: MessageCircle, label: 'roiLead', path: '/dashboard', tour: 'menu-busca' },
+  { icon: Kanban, label: 'CRM', path: '/dashboard/crm', tour: 'menu-crm' },
+  { icon: Calculator, label: 'Calculadora Tributária', path: '/dashboard/calculadora-tributaria', isFree: true, tour: 'menu-calculadora' },
+  { icon: CupulaIcon, label: 'Cúpula de Leads (em breve)', path: '/dashboard/cupula_leads', isNew: true, disabled: true, tour: 'menu-cupula' },
+  { icon: CreditCard, label: 'Assinatura', path: '/dashboard/subscription', tour: 'menu-assinatura' },
+  { icon: Settings, label: 'Configurações', path: '/dashboard/settings', tour: 'menu-configuracoes' },
 ];
 
 export const DashboardLayout = () => {
@@ -55,6 +57,8 @@ export const DashboardLayout = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [tutorialAberto, setTutorialAberto] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -65,6 +69,7 @@ export const DashboardLayout = () => {
           navigate('/login');
           return;
         }
+        setUserId(user.id);
 
         const meta = user.user_metadata || {};
         const email = user.email || '';
@@ -170,6 +175,18 @@ export const DashboardLayout = () => {
     navigate('/');
   };
 
+  // Tutorial de primeiro acesso: abre sozinho uma única vez, depois que os termos foram aceitos.
+  useEffect(() => {
+    if (loading || !userId || showTermsModal || tutorialJaVisto(userId)) return;
+    const t = window.setTimeout(() => setTutorialAberto(true), 700);
+    return () => window.clearTimeout(t);
+  }, [loading, userId, showTermsModal]);
+
+  // No celular o menu lateral fica escondido: abre durante os passos do menu.
+  const aoMudarAreaTutorial = useCallback((area: AreaPasso) => {
+    if (window.innerWidth < 1024) setSidebarOpen(area === 'menu');
+  }, []);
+
   const handleAcceptTerms = async () => {
     setIsAcceptingTerms(true);
     try {
@@ -237,6 +254,7 @@ export const DashboardLayout = () => {
               return (
                 <li key={item.path}>
                   <Link
+                    data-tour={item.tour}
                     to={item.disabled ? '#' : item.path}
                     onClick={() => { if (!item.disabled) setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${item.disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""} ${isActive && !item.disabled
@@ -289,12 +307,12 @@ export const DashboardLayout = () => {
             </div>
             {whatsappUnlockedAt ? (
               new Date(whatsappUnlockedAt) > new Date() ? (
-                <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800 flex items-center gap-1.5 w-fit">
+                <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800 flex items-center gap-1.5 w-fit" data-tour="cabecalho-agente">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                   Agente no WhatsApp liberado em: {new Date(whatsappUnlockedAt).toLocaleDateString('pt-BR')}
                 </span>
               ) : (
-                <span className="text-xs font-medium px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400 rounded-md border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 w-fit">
+                <span className="text-xs font-medium px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400 rounded-md border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 w-fit" data-tour="cabecalho-agente">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                   Agente no WhatsApp: Liberado
                 </span>
@@ -306,7 +324,10 @@ export const DashboardLayout = () => {
               Cúpula de Leads (em breve)
             </Button>
             <div className="flex items-center gap-2">
-                <ModeToggle />
+                <Button variant="ghost" size="icon" onClick={() => setTutorialAberto(true)} title="Como usar o roiLead" aria-label="Como usar o roiLead" data-tour="cabecalho-ajuda" className="text-muted-foreground hover:text-foreground">
+                  <HelpCircle className="w-5 h-5" />
+                </Button>
+                <span data-tour="cabecalho-tema" className="inline-flex"><ModeToggle /></span>
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair
@@ -324,6 +345,13 @@ export const DashboardLayout = () => {
           </div>
         </div>
       </main>
+
+      <TutorialRoilead
+        aberto={tutorialAberto}
+        userId={userId}
+        onFechar={() => { setTutorialAberto(false); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+        onArea={aoMudarAreaTutorial}
+      />
 
       <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
         <DialogContent className="sm:max-w-[425px]">

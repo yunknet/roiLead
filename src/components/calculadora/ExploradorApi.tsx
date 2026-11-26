@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CALC_DOCS, chamarBruto, exemploDoSchema, hojeIso, limparDescricao, mensagemDeErro, OpenApi, resolverRef, RespostaBruta } from '@/lib/calculadoraRtc';
+import { CALC_DOCS, CALC_SN_API, CALC_SN_DOCS, chamarBruto, exemploDoSchema, hojeIso, limparDescricao, mensagemDeErro, OpenApi, resolverRef, RespostaBruta } from '@/lib/calculadoraRtc';
 
 interface Operacao {
   id: string;
@@ -32,10 +32,10 @@ const nomeGrupo = (t?: string) => (t || 'Outros').replace(/\s*-\s*VERS[ÃA]O BET
 
 const ORDEM_GRUPOS = ['Calculadora', 'Observabilidade', 'Base de Cálculo', 'NFS-e', 'Pedágio', 'Dados Abertos'];
 
-function lerOperacoes(spec: OpenApi): Operacao[] {
+function lerOperacoes(spec: OpenApi, incluir: (caminho: string) => boolean): Operacao[] {
   const ops: Operacao[] = [];
   Object.entries(spec.paths || {}).forEach(([caminho, metodos]) => {
-    if (!caminho.startsWith('/calculadora/')) return; // só o que o roiLead expõe
+    if (!incluir(caminho)) return; // só o que o roiLead expõe
     Object.entries(metodos).forEach(([m, o]: [string, any]) => {
       const metodo = m.toUpperCase();
       if (metodo !== 'GET' && metodo !== 'POST') return;
@@ -61,11 +61,26 @@ function lerOperacoes(spec: OpenApi): Operacao[] {
   return ops.sort((a, b) => ordem(a.grupo) - ordem(b.grupo) || a.grupo.localeCompare(b.grupo) || Number(a.obsoleta) - Number(b.obsoleta) || a.titulo.localeCompare(b.titulo));
 }
 
-const valorInicial = (p: any) => {
+// Valores de exemplo para parâmetros obrigatórios que a documentação deixa sem exemplo.
+const PARAMETROS_PADRAO: Record<string, Record<string, string>> = {
+  'GET /calculadora/observabilidade/erros': { codigo: 'REG-011' },
+  'GET /calculadora/observabilidade/simples-nacional/erros': { codigo: 'VSN-001' },
+};
+
+const valorInicial = (p: any, dataPadrao: string, dataMinima: string, opId: string) => {
   const s = p.schema || {};
+  const padrao = PARAMETROS_PADRAO[opId]?.[p.name];
+  if (padrao !== undefined) return padrao;
+  const ehData = /^data|dataOcorrencia/i.test(p.name) || s.format === 'date';
+  if (ehData) {
+    if (!p.required) return '';
+    const ex = s.example ?? p.example;
+    return ex !== undefined && String(ex) >= dataMinima ? String(ex) : dataPadrao;
+  }
+  // Filtros opcionais começam vazios; só os obrigatórios recebem o exemplo da documentação.
+  if (!p.required) return '';
   if (s.example !== undefined) return String(s.example);
   if (p.example !== undefined) return String(p.example);
-  if (/^data|dataOcorrencia/i.test(p.name) || s.format === 'date') return hojeIso();
   if (s.enum?.length && p.required) return String(s.enum[0]);
   return '';
 };
@@ -82,7 +97,14 @@ const OPERACAO_EXEMPLO = {
     { numero: 2, nbs: '122011200', cst: '200', cClassTrib: '200028', baseCalculo: 1200.0, aliquotasNominais: { cbs: 8.8, ibsEstadual: 0.05, ibsMunicipal: 0.05 } },
   ],
 };
+// Exemplo testado do Simples Nacional (NF-e de revenda, Anexo I).
+const OPERACAO_SN_EXEMPLO = {
+  id: 'exemplo-roilead', versao: '3.0.0', data: '2027-03-15', tpDoc: '55', CRT: '1',
+  aliquotasEfetivas: { anexoI: { pCBSSN: '1.1612', pIBSSN: '0.0129' } },
+  itens: [{ numero: 1, cAtivSN: '01', cClassTrib: '000001', ncm: '22030000', baseCalculo: '1000.00', valorImpostoSeletivo: '0.00' }],
+};
 const EXEMPLOS_FIXOS: Record<string, unknown> = {
+  'POST /calculadora/observabilidade/simples-nacional/nao-assistido': OPERACAO_SN_EXEMPLO,
   'POST /calculadora/regime-geral': OPERACAO_EXEMPLO,
   'POST /calculadora/observabilidade/regime-geral': OPERACAO_EXEMPLO,
 };
@@ -97,17 +119,34 @@ const corpoInicial = (spec: OpenApi, op: Operacao) => {
   return ex === undefined ? '{}' : JSON.stringify(ex, null, 2);
 };
 
-export function ExploradorApi({ operacaoInicial }: { operacaoInicial?: string }) {
+export interface FonteApi {
+  /** Endereço da documentação OpenAPI. */
+  docs: string;
+  /** Prefixo que o navegador usa para chegar ao servidor da documentação (ex.: /api). */
+  base: string;
+  /** Quais caminhos da documentação aparecem. */
+  incluir: (caminho: string) => boolean;
+  /** Primeira data com dados neste motor (o Simples só existe a partir de 2027). */
+  dataMinima?: string;
+}
+
+export const FONTE_REGULAR: FonteApi = { docs: CALC_DOCS, base: '/api', incluir: (c) => c.startsWith('/calculadora/') };
+export const FONTE_SIMPLES: FonteApi = {
+  docs: CALC_SN_DOCS, base: CALC_SN_API, incluir: (c) => c.startsWith('/calculadora/') || c === '/versao',
+  dataMinima: '2027-01-01',
+};
+
+export function ExploradorApi({ operacaoInicial, fonte = FONTE_REGULAR }: { operacaoInicial?: string; fonte?: FonteApi }) {
   const spec = useQuery<OpenApi>({
-    queryKey: ['calc', 'openapi'],
+    queryKey: ['calc', 'openapi', fonte.docs],
     queryFn: async () => {
-      const r = await chamarBruto(CALC_DOCS);
+      const r = await chamarBruto(fonte.docs);
       if (r.status !== 200 || typeof r.dados !== 'object') throw new Error(mensagemDeErro(r).detalhe);
       return r.dados as OpenApi;
     },
     staleTime: 1000 * 60 * 30, retry: 1,
   });
-  const operacoes = useMemo(() => (spec.data ? lerOperacoes(spec.data) : []), [spec.data]);
+  const operacoes = useMemo(() => (spec.data ? lerOperacoes(spec.data, fonte.incluir) : []), [spec.data, fonte]);
   const [filtro, setFiltro] = useState('');
   const [selecionada, setSelecionada] = useState<string | undefined>(operacaoInicial);
 
@@ -161,13 +200,14 @@ export function ExploradorApi({ operacaoInicial }: { operacaoInicial?: string })
         ))}
         {grupos.length === 0 && <p className="text-sm text-muted-foreground px-2">Nenhuma função encontrada.</p>}
       </aside>
-      {op && spec.data ? <PainelOperacao key={op.id} op={op} spec={spec.data} /> : <div />}
+      {op && spec.data ? <PainelOperacao key={fonte.base + op.id} op={op} spec={spec.data} base={fonte.base} dataMinima={fonte.dataMinima || ''} /> : <div />}
     </div>
   );
 }
 
-function PainelOperacao({ op, spec }: { op: Operacao; spec: OpenApi }) {
-  const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(op.parametros.map((p) => [p.name, valorInicial(p)])));
+function PainelOperacao({ op, spec, base, dataMinima }: { op: Operacao; spec: OpenApi; base: string; dataMinima: string }) {
+  const dataPadrao = dataMinima && hojeIso() < dataMinima ? dataMinima : hojeIso();
+  const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(op.parametros.map((p) => [p.name, valorInicial(p, dataPadrao, dataMinima, op.id)])));
   const [corpo, setCorpo] = useState(() => corpoInicial(spec, op));
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaBruta | null>(null);
@@ -192,7 +232,7 @@ function PainelOperacao({ op, spec }: { op: Operacao; spec: OpenApi }) {
     }
     setExecutando(true); setResposta(null);
     try {
-      setResposta(await chamarBruto('/api' + caminho, { method: op.metodo, query, body, contentType: op.corpo?.contentType }));
+      setResposta(await chamarBruto(base + caminho, { method: op.metodo, query, body, contentType: op.corpo?.contentType }));
     } catch (e: any) {
       toast.error(e?.message || 'Falha na comunicação.');
     } finally { setExecutando(false); }
@@ -209,7 +249,7 @@ function PainelOperacao({ op, spec }: { op: Operacao; spec: OpenApi }) {
         </div>
         <h3 className="text-lg font-semibold text-foreground">{op.titulo}</h3>
         {op.descricao && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{op.descricao}</p>}
-        <p className="text-xs text-muted-foreground mt-2 font-mono break-all">{op.metodo} /api{op.caminho}</p>
+        <p className="text-xs text-muted-foreground mt-2 font-mono break-all">{op.metodo} {base}{op.caminho}</p>
         {DICAS[op.id] && <p className="mt-3 text-sm rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-foreground">{DICAS[op.id]}</p>}
 
         {op.parametros.length > 0 && (

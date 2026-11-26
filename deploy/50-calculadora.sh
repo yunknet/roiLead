@@ -1,45 +1,46 @@
 #!/bin/sh
-# Gera, na inicialização do container do site, o trecho do nginx que liga
-# /api/calculadora/* ao serviço da Calculadora da Reforma Tributária.
+# Gera, na inicialização do container do site, os trechos do nginx que ligam o site aos
+# serviços da Calculadora da Reforma Tributária:
 #
-#   CALCULADORA_RTC_URL = endereço interno do serviço no Easypanel, só host e porta.
-#                         Ex.: http://roilead_calculadora-rtc:8080
+#   CALCULADORA_RTC_URL = motor do regime regular   (ex.: http://roilead_calculadora-rtc:8080)
+#   CALCULADORA_SN_URL  = motor do Simples Nacional (ex.: http://roilead_calculadora-rtc-simples:8082)
+#   (só esquema, host e porta)
 #
-# Segurança: se a variável faltar ou o trecho gerado for inválido, grava um trecho
-# que só responde 503 nessa rota. O resto do site nunca deixa de subir por causa disso.
+#   /api/calculadora/*     -> regime regular  (repassado igual)
+#   /api/api-docs          -> documentação do regime regular
+#   /api/calculadora-sn/*  -> Simples Nacional (vira /api/* no serviço)
+#
+# Segurança: se uma variável faltar ou o trecho gerado for inválido, aquela rota só responde 503.
+# O resto do site nunca deixa de subir por causa disso.
 
-DESTINO=/etc/nginx/snippets/calculadora.conf
-mkdir -p /etc/nginx/snippets
-
-indisponivel() {
-  cat > "$DESTINO" <<'EOF'
-location /api/calculadora/ {
-    default_type application/json;
-    return 503 '{"status":503,"title":"Calculadora indisponível","detail":"O serviço da calculadora não está configurado."}';
-}
-location = /api/api-docs {
-    default_type application/json;
-    return 503 '{"status":503,"title":"Calculadora indisponível"}';
-}
-EOF
-}
-
-URL="${CALCULADORA_RTC_URL:-}"
-if [ -z "$URL" ]; then
-  echo "50-calculadora: CALCULADORA_RTC_URL não definida; /api/calculadora responderá 503"
-  indisponivel
-  exit 0
-fi
-
-case "$URL" in http://*|https://*) ;; *) URL="http://$URL" ;; esac
-# Mantém só esquema://host:porta (o caminho /api/... é repassado igual ao recebido).
-URL=$(printf '%s' "$URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+PASTA=/etc/nginx/snippets
+mkdir -p "$PASTA"
 
 RESOLVER=$(awk '/^nameserver/ { print $2; exit }' /etc/resolv.conf 2>/dev/null)
 [ -z "$RESOLVER" ] && RESOLVER=127.0.0.11
 case "$RESOLVER" in *:*) RESOLVER="[$RESOLVER]" ;; esac
 
-bloco() {
+normalizar() {
+  u="$1"
+  case "$u" in http://*|https://*) ;; *) u="http://$u" ;; esac
+  # Mantém só esquema://host:porta.
+  printf '%s' "$u" | sed -E 's#^(https?://[^/]+).*#\1#'
+}
+
+indisponivel() { # arquivo, locations...
+  arquivo="$1"; shift
+  : > "$arquivo"
+  for loc in "$@"; do
+    cat >> "$arquivo" <<EOF
+location $loc {
+    default_type application/json;
+    return 503 '{"status":503,"title":"Calculadora indisponível","detail":"O serviço da calculadora não está configurado."}';
+}
+EOF
+  done
+}
+
+bloco() { # location, destino, regra de reescrita (opcional)
   cat <<EOF
 location $1 {
     limit_req zone=calculadora burst=60 nodelay;
@@ -47,7 +48,8 @@ location $1 {
     client_max_body_size 2m;
     # Resolve o nome a cada requisição: o site sobe mesmo se a calculadora estiver fora.
     resolver $RESOLVER valid=30s ipv6=off;
-    set \$calculadora_destino $URL;
+    set \$calculadora_destino $2;
+    $3
     proxy_pass \$calculadora_destino;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
@@ -56,17 +58,40 @@ location $1 {
     proxy_ssl_server_name on;
     proxy_connect_timeout 5s;
     proxy_read_timeout 60s;
-    proxy_intercept_errors off;
 }
 EOF
 }
 
-{ bloco /api/calculadora/; bloco "= /api/api-docs"; } > "$DESTINO"
+# Testa a configuração; se falhar, troca o trecho pelo de 503.
+validar() { # arquivo, nome, locations...
+  arquivo="$1"; nome="$2"; shift 2
+  if nginx -t -q 2>/dev/null; then
+    echo "50-calculadora: $nome ativo"
+  else
+    echo "50-calculadora: configuração de $nome inválida; responderá 503"
+    indisponivel "$arquivo" "$@"
+  fi
+}
 
-if nginx -t -q 2>/dev/null; then
-  echo "50-calculadora: /api/calculadora -> $URL"
+# Começa com as duas rotas em 503 para que cada teste valide só a sua parte.
+indisponivel "$PASTA/calculadora.conf" /api/calculadora/ "= /api/api-docs"
+indisponivel "$PASTA/calculadora-sn.conf" /api/calculadora-sn/
+
+# ---- Regime regular ----
+if [ -n "${CALCULADORA_RTC_URL:-}" ]; then
+  URL=$(normalizar "$CALCULADORA_RTC_URL")
+  { bloco /api/calculadora/ "$URL" ""; bloco "= /api/api-docs" "$URL" ""; } > "$PASTA/calculadora.conf"
+  validar "$PASTA/calculadora.conf" "regime regular -> $URL" /api/calculadora/ "= /api/api-docs"
 else
-  echo "50-calculadora: configuração gerada inválida; /api/calculadora responderá 503"
-  indisponivel
+  echo "50-calculadora: CALCULADORA_RTC_URL não definida; /api/calculadora responderá 503"
+fi
+
+# ---- Simples Nacional ----
+if [ -n "${CALCULADORA_SN_URL:-}" ]; then
+  URL=$(normalizar "$CALCULADORA_SN_URL")
+  bloco /api/calculadora-sn/ "$URL" 'rewrite ^/api/calculadora-sn/(.*)$ /api/$1 break;' > "$PASTA/calculadora-sn.conf"
+  validar "$PASTA/calculadora-sn.conf" "Simples Nacional -> $URL" /api/calculadora-sn/
+else
+  echo "50-calculadora: CALCULADORA_SN_URL não definida; /api/calculadora-sn responderá 503"
 fi
 exit 0

@@ -48,7 +48,7 @@ export const PASSOS_TUTORIAL: PassoTutorial[] = [
   {
     id: 'calculadora', alvo: 'menu-calculadora', area: 'menu', titulo: 'Calculadora Tributária (grátis)',
     texto: [
-      'Simule CBS, IBS e Imposto Seletivo da Reforma Tributária com o motor oficial e aberto da Receita Federal.',
+      'Simule CBS, IBS e Imposto Seletivo da Reforma Tributária com os motores oficiais e abertos da Receita Federal, para empresas do Lucro Real/Presumido e do Simples Nacional.',
       'Consulte NCM, NBS, classificações tributárias e alíquotas, e gere o XML do documento fiscal. É gratuita para todos, mesmo sem assinatura.',
     ],
   },

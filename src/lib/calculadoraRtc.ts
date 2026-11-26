@@ -5,6 +5,9 @@
 
 export const CALC_BASE = '/api/calculadora';
 export const CALC_DOCS = '/api/api-docs';
+// Motor do Simples Nacional: o proxy troca /api/calculadora-sn/* por /api/* no serviço.
+export const CALC_SN_API = '/api/calculadora-sn';
+export const CALC_SN_DOCS = '/api/calculadora-sn/api-docs';
 
 export class CalcError extends Error {
   status: number;

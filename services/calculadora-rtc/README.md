@@ -6,6 +6,8 @@ Repositório original: https://github.com/ReceitaFederal/calculadora-rtc-regime-
 A tela fica no roiLead em **Dashboard → Calculadora Tributária** (`/dashboard/calculadora-tributaria`).
 Ela é gratuita: exige login, mas não exige assinatura.
 
+Este serviço atende empresas do **Lucro Real ou Presumido** (regime regular). As do **Simples Nacional** usam outro motor da Receita, em [`services/calculadora-rtc-simples`](../calculadora-rtc-simples/README.md). Os dois aparecem na mesma tela.
+
 ## Como funciona
 
 ```

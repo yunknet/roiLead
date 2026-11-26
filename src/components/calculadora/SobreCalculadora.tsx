@@ -35,6 +35,14 @@ export function SobreCalculadora() {
             <p>A calculadora mostra quanto cada tributo dá numa venda de produto ou serviço, com as reduções e isenções da lei, e explica o cálculo passo a passo.</p>
           </Bloco>
 
+          <Bloco titulo="Lucro Real/Presumido ou Simples Nacional">
+            <p>No topo da página você escolhe o regime da empresa que está vendendo:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><b className="text-foreground">Lucro Real ou Presumido</b>: usa as alíquotas cheias da CBS e do IBS com as reduções da lei, calcula o Imposto Seletivo e gera o XML da nota.</li>
+              <li><b className="text-foreground">Simples Nacional</b> (ME e EPP): a partir de 2027, a CBS e o IBS saem da alíquota efetiva do anexo da empresa (I a V). Ela depende do faturamento dos últimos 12 meses e do fator "r", e está no PGDAS-D ou com o contador. Também atende quem optou por pagar IBS e CBS por fora do Simples. O MEI não entra nesse cálculo.</li>
+            </ul>
+          </Bloco>
+
           <Bloco titulo="Para quem é">
             <p>Empresários, contadores, vendedores e quem emite nota fiscal. Use para formar preço, conferir o que vai sair na nota, comparar cenários e preparar a empresa para a transição, que vai de 2026 a 2033.</p>
           </Bloco>

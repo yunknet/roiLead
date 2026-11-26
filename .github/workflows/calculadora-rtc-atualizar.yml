@@ -7,10 +7,15 @@
 #     na branch de produção e (opcional) aciona o deploy do Easypanel;
 #   - se algum teste falhar, NÃO troca nada e abre uma issue pedindo atualização manual.
 #
+# O segundo job faz o mesmo para o motor do SIMPLES NACIONAL
+# (https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional): atualiza
+# services/calculadora-rtc-simples/VERSAO e mantém VERSAO_BANCO igual à versão do regime regular.
+#
 # Observação: o GitHub só executa agendamentos a partir da branch padrão (main).
 # Configurações (Settings > Secrets and variables > Actions):
-#   Variable  CALC_BRANCH_PRODUCAO           branch que o Easypanel publica (padrão: nova-versao)
-#   Secret    EASYPANEL_DEPLOY_CALCULADORA   URL do "Deploy Webhook" do serviço da calculadora (opcional)
+#   Variable  CALC_BRANCH_PRODUCAO              branch que o Easypanel publica (padrão: nova-versao)
+#   Secret    EASYPANEL_DEPLOY_CALCULADORA      URL do "Deploy Webhook" do serviço do regime regular (opcional)
+#   Secret    EASYPANEL_DEPLOY_CALCULADORA_SN   URL do "Deploy Webhook" do serviço do Simples Nacional (opcional)
 
 name: Calculadora RTC - atualização automática
 
@@ -131,3 +136,95 @@ jobs:
       - name: Parar o motor de teste
         if: always()
         run: docker rm -f calc >/dev/null 2>&1 || true
+
+  simples-nacional:
+    needs: atualizar
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BRANCH: ${{ vars.CALC_BRANCH_PRODUCAO || 'nova-versao' }}
+      REPO_SN: https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional.git
+      PASTA: services/calculadora-rtc-simples
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }} # já inclui uma eventual atualização do regime regular feita no job anterior
+          fetch-depth: 1
+
+      - name: Verificar versão nova
+        id: versao
+        run: |
+          ATUAL=$(tr -d ' \r\n' < "$PASTA/VERSAO")
+          NOVA=$(git ls-remote --tags --refs "$REPO_SN" | sed 's#.*refs/tags/##' | grep -E '^v?[0-9]+(\.[0-9]+)*$' | sort -V | tail -n1)
+          BANCO_ATUAL=$(tr -d ' \r\n' < "$PASTA/VERSAO_BANCO")
+          BANCO_NOVO=$(tr -d ' \r\n' < services/calculadora-rtc/VERSAO)
+          [ -z "$NOVA" ] && { echo "Não foi possível ler as versões da Receita."; exit 1; }
+          MAIOR=$(printf '%s\n%s\n' "${ATUAL#v}" "${NOVA#v}" | sort -V | tail -n1)
+          [ "$MAIOR" = "${ATUAL#v}" ] && NOVA="$ATUAL"
+          echo "atual=$ATUAL" >> "$GITHUB_OUTPUT"; echo "nova=$NOVA" >> "$GITHUB_OUTPUT"
+          echo "banco_atual=$BANCO_ATUAL" >> "$GITHUB_OUTPUT"; echo "banco_novo=$BANCO_NOVO" >> "$GITHUB_OUTPUT"
+          if [ "$NOVA" = "$ATUAL" ] && [ "$BANCO_NOVO" = "$BANCO_ATUAL" ]; then
+            echo "Simples Nacional já atualizado (motor $ATUAL, tabelas $BANCO_ATUAL)."; echo "mudou=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "Atualização: motor $ATUAL -> $NOVA, tabelas $BANCO_ATUAL -> $BANCO_NOVO"; echo "mudou=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Montar o motor novo
+        if: steps.versao.outputs.mudou == 'sim'
+        run: |
+          printf '%s\n' "${{ steps.versao.outputs.nova }}" > "$PASTA/VERSAO"
+          printf '%s\n' "${{ steps.versao.outputs.banco_novo }}" > "$PASTA/VERSAO_BANCO"
+          docker build -t calculadora-sn:teste "$PASTA"
+
+      - name: Testar o motor novo
+        if: steps.versao.outputs.mudou == 'sim'
+        shell: bash
+        run: |
+          docker run -d --name calc-sn -p 8082:8082 calculadora-sn:teste
+          for i in $(seq 1 90); do curl -sf http://localhost:8082/api/versao >/dev/null && break; sleep 2; done
+          sh "$PASTA/testar.sh" http://localhost:8082 | tee resultado-testes.txt
+          grep -q 'TODOS OS TESTES PASSARAM' resultado-testes.txt
+
+      - name: Gravar a versão nova na branch de produção
+        if: steps.versao.outputs.mudou == 'sim' && success()
+        run: |
+          git config user.name "roiLead bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$PASTA/VERSAO" "$PASTA/VERSAO_BANCO"
+          git commit -m "chore(calculadora-sn): motor ${{ steps.versao.outputs.atual }} -> ${{ steps.versao.outputs.nova }}, tabelas ${{ steps.versao.outputs.banco_atual }} -> ${{ steps.versao.outputs.banco_novo }}" -m "Atualização automática: todos os testes de $PASTA/testar.sh passaram."
+          git pull --rebase origin "$BRANCH"
+          git push origin "HEAD:$BRANCH"
+
+      - name: Publicar no Easypanel
+        if: steps.versao.outputs.mudou == 'sim' && success()
+        env:
+          HOOK: ${{ secrets.EASYPANEL_DEPLOY_CALCULADORA_SN }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::Secret EASYPANEL_DEPLOY_CALCULADORA_SN não configurado: faça o Deploy do Simples Nacional no Easypanel."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" >/dev/null && echo "Deploy do Simples Nacional solicitado ao Easypanel."
+
+      - name: Avisar que precisa de atualização manual
+        if: failure() && steps.versao.outputs.mudou == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITULO="Calculadora Simples Nacional: versão ${{ steps.versao.outputs.nova }} (tabelas ${{ steps.versao.outputs.banco_novo }}) precisa de atualização manual"
+          if gh issue list --state open --search "$TITULO in:title" --json number --jq '.[0].number' | grep -q .; then echo "Issue já aberta."; exit 0; fi
+          {
+            echo "A atualização automática do motor do **Simples Nacional** não foi aplicada porque a montagem ou os testes falharam. A calculadora continua no ar na versão atual."
+            echo
+            echo "- Motor: ${{ steps.versao.outputs.atual }} -> ${{ steps.versao.outputs.nova }}"
+            echo "- Tabelas (regime regular): ${{ steps.versao.outputs.banco_atual }} -> ${{ steps.versao.outputs.banco_novo }}"
+            echo
+            echo "Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo; echo '```'; cat resultado-testes.txt 2>/dev/null || echo "(a montagem falhou antes dos testes)"; echo '```'
+          } > corpo.md
+          gh issue create --title "$TITULO" --body-file corpo.md
+
+      - name: Parar o motor de teste
+        if: always()
+        run: docker rm -f calc-sn >/dev/null 2>&1 || true

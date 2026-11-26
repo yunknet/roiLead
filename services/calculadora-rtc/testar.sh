@@ -5,6 +5,10 @@
 
 BASE="${1:-http://localhost:8080}/api"
 FALHAS=0
+# Testando pelo site, informe ORIGEM=https://roilead.com.br para enviar o Origin como o navegador faz
+# (pega bloqueios de CORS). Direto no motor, deixe vazio: o motor recusa Origin de outro endereço.
+ORIGEM="${ORIGEM:-}"
+pedir() { if [ -n "$ORIGEM" ]; then curl -H "Origin: $ORIGEM" "$@"; else curl "$@"; fi; }
 HOJE=$(date +%Y-%m-%d)
 
 ok()   { echo "  OK    $1"; }
@@ -13,7 +17,7 @@ erro() { echo "  FALHA $1"; FALHAS=$((FALHAS + 1)); }
 # status esperado + texto que precisa aparecer na resposta
 checar() {
   nome="$1"; esperado="$2"; contem="$3"; shift 3
-  resp=$(curl -s -m 60 -w '\n%{http_code}' "$@")
+  resp=$(pedir -s -m 60 -w '\n%{http_code}' "$@")
   codigo=$(printf '%s' "$resp" | tail -n1)
   corpo=$(printf '%s' "$resp" | sed '$d')
   if [ "$codigo" = "$esperado" ] && printf '%s' "$corpo" | grep -q -- "$contem"; then ok "$nome"; else erro "$nome (HTTP $codigo) $(printf '%s' "$corpo" | head -c 200)"; fi
@@ -38,8 +42,8 @@ checar "cálculo regime geral"   200 '"IBSCBSTot"' -X POST -H 'Content-Type: app
 checar "cálculo observabilidade" 200 '"estadoItem"' -X POST -H 'Content-Type: application/json' -d "$OPERACAO" "$BASE/calculadora/observabilidade/regime-geral"
 
 TMP=$(mktemp -d)
-curl -s -m 60 -X POST -H 'Content-Type: application/json' -d "$OPERACAO" "$BASE/calculadora/regime-geral" -o "$TMP/roc.json"
-curl -s -m 60 -X POST -H 'Content-Type: application/json' --data-binary "@$TMP/roc.json" "$BASE/calculadora/xml/generate?tipo=nfe" -o "$TMP/grupo.xml"
+pedir -s -m 60 -X POST -H 'Content-Type: application/json' -d "$OPERACAO" "$BASE/calculadora/regime-geral" -o "$TMP/roc.json"
+pedir -s -m 60 -X POST -H 'Content-Type: application/json' --data-binary "@$TMP/roc.json" "$BASE/calculadora/xml/generate?tipo=nfe" -o "$TMP/grupo.xml"
 if grep -q '<IBSCBS>' "$TMP/grupo.xml"; then ok "gerar XML NF-e"; else erro "gerar XML NF-e $(head -c 200 "$TMP/grupo.xml")"; fi
 checar "validar XML NF-e"       200 'true' -X POST -H 'Content-Type: application/xml' --data-binary "@$TMP/grupo.xml" "$BASE/calculadora/xml/validate?tipo=nfe&subtipo=grupo"
 rm -rf "$TMP"

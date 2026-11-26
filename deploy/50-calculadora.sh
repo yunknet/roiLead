@@ -56,6 +56,9 @@ location $1 {
     proxy_set_header Connection "";
     # Nomes internos do Easypanel têm "_" (ex.: sites_calculadora), que o Tomcat recusa (400). Usa um Host válido.
     proxy_set_header Host localhost;
+    # O navegador manda Origin: https://roilead.com.br. O motor do Simples trata isso como outro site e
+    # recusa (403 "Invalid CORS request"). Para o motor o pedido vem do próprio site, então não repassa.
+    proxy_set_header Origin "";
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_ssl_server_name on;

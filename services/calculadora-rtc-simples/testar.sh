@@ -5,6 +5,10 @@
 
 BASE="${1:-http://localhost:8082}/api"
 FALHAS=0
+# Testando pelo site, informe ORIGEM=https://roilead.com.br para enviar o Origin como o navegador faz
+# (pega bloqueios de CORS). Direto no motor, deixe vazio: o motor recusa Origin de outro endereço.
+ORIGEM="${ORIGEM:-}"
+pedir() { if [ -n "$ORIGEM" ]; then curl -H "Origin: $ORIGEM" "$@"; else curl "$@"; fi; }
 DATA=2027-03-15
 TMP=$(mktemp -d)
 
@@ -13,7 +17,7 @@ erro() { echo "  FALHA $1"; FALHAS=$((FALHAS + 1)); }
 
 checar() {
   nome="$1"; esperado="$2"; contem="$3"; shift 3
-  codigo=$(curl -s -m 60 -o "$TMP/resp" -w '%{http_code}' "$@")
+  codigo=$(pedir -s -m 60 -o "$TMP/resp" -w '%{http_code}' "$@")
   if [ "$codigo" = "$esperado" ] && grep -q -- "$contem" "$TMP/resp"; then ok "$nome"; else erro "$nome (HTTP $codigo) $(head -c 200 "$TMP/resp")"; fi
 }
 

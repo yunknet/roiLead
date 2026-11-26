@@ -8,7 +8,8 @@ import {
   CreditCard,
   MessageCircle,
   Loader2,
-  Kanban
+  Kanban,
+  Calculator
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -25,6 +26,7 @@ const CupulaIcon = () => (
 
 const menuItems = [
   { icon: MessageCircle, label: 'roiLead', path: '/dashboard' },
+  { icon: Calculator, label: 'Calculadora Tributária', path: '/dashboard/calculadora-tributaria', isFree: true },
   { icon: Kanban, label: 'CRM', path: '/dashboard/crm' },
   { icon: CupulaIcon, label: 'Cúpula de Leads (em breve)', path: '/dashboard/cupula_leads', isNew: true, disabled: true },
   { icon: CreditCard, label: 'Assinatura', path: '/dashboard/subscription' },
@@ -244,6 +246,11 @@ export const DashboardLayout = () => {
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="flex-1">{item.label}</span>
+                    {(item as any).isFree && (
+                      <span className="text-[10px] font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        Grátis
+                      </span>
+                    )}
                     {item.isNew && (
                       <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
                         Novo

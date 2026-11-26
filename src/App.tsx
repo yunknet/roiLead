@@ -16,6 +16,7 @@ import Crm from "./pages/dashboard/Crm";
 import SubscriptionPage from "./pages/dashboard/Subscription";
 import Settings from "./pages/dashboard/Settings";
 import CupulaLeadsPage from "./pages/dashboard/CupulaLeads";
+import CalculadoraTributaria from "./pages/dashboard/CalculadoraTributaria";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import CompleteRegistration from "./pages/CompleteRegistration";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<Search />} />
+              <Route path="calculadora-tributaria" element={<CalculadoraTributaria />} />
               <Route path="crm" element={<Crm />} />
               <Route path="subscription" element={<SubscriptionPage />} />
               <Route path="settings" element={<Settings />} />

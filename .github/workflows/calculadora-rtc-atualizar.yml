@@ -1,0 +1,133 @@
+# Atualização automática da Calculadora da Reforma Tributária.
+#
+# Todo dia verifica se a Receita Federal publicou uma versão nova do motor
+# (tags de https://github.com/ReceitaFederal/calculadora-rtc-regime-regular).
+# Se publicou: monta o motor novo, roda services/calculadora-rtc/testar.sh e,
+#   - se TODOS os testes passarem, grava a versão em services/calculadora-rtc/VERSAO
+#     na branch de produção e (opcional) aciona o deploy do Easypanel;
+#   - se algum teste falhar, NÃO troca nada e abre uma issue pedindo atualização manual.
+#
+# Observação: o GitHub só executa agendamentos a partir da branch padrão (main).
+# Configurações (Settings > Secrets and variables > Actions):
+#   Variable  CALC_BRANCH_PRODUCAO           branch que o Easypanel publica (padrão: nova-versao)
+#   Secret    EASYPANEL_DEPLOY_CALCULADORA   URL do "Deploy Webhook" do serviço da calculadora (opcional)
+
+name: Calculadora RTC - atualização automática
+
+on:
+  schedule:
+    - cron: '17 9 * * *' # todo dia, 06:17 (horário de Brasília)
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Forçar uma versão específica (tag da Receita). Vazio = mais recente.'
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: calculadora-rtc-atualizar
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BRANCH: ${{ vars.CALC_BRANCH_PRODUCAO || 'nova-versao' }}
+      REPO_RECEITA: https://github.com/ReceitaFederal/calculadora-rtc-regime-regular.git
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 1
+
+      - name: Verificar versão nova
+        id: versao
+        run: |
+          ATUAL=$(tr -d ' \r\n' < services/calculadora-rtc/VERSAO)
+          if [ -n "${{ github.event.inputs.versao }}" ]; then
+            NOVA="${{ github.event.inputs.versao }}"
+          else
+            NOVA=$(git ls-remote --tags --refs "$REPO_RECEITA" | sed 's#.*refs/tags/##' | grep -E '^v?[0-9]+(\.[0-9]+)*$' | sort -V | tail -n1)
+          fi
+          echo "atual=$ATUAL" >> "$GITHUB_OUTPUT"
+          echo "nova=$NOVA" >> "$GITHUB_OUTPUT"
+          if [ -z "$NOVA" ]; then echo "Não foi possível ler as versões da Receita."; exit 1; fi
+          MAIOR=$(printf '%s\n%s\n' "$ATUAL" "$NOVA" | sed 's/^v//' | sort -V | tail -n1)
+          if [ "$NOVA" = "$ATUAL" ] || { [ -z "${{ github.event.inputs.versao }}" ] && [ "$MAIOR" = "${ATUAL#v}" ]; }; then
+            echo "Já está na versão mais recente ($ATUAL)."
+            echo "mudou=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "Versão nova encontrada: $ATUAL -> $NOVA"
+            echo "mudou=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Montar o motor novo
+        if: steps.versao.outputs.mudou == 'sim'
+        id: build
+        run: |
+          printf '%s\n' "${{ steps.versao.outputs.nova }}" > services/calculadora-rtc/VERSAO
+          docker build -t calculadora-rtc:teste services/calculadora-rtc
+
+      - name: Testar o motor novo
+        if: steps.versao.outputs.mudou == 'sim'
+        id: teste
+        run: |
+          docker run -d --name calc -p 8080:8080 calculadora-rtc:teste
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:8080/api/calculadora/dados-abertos/versao >/dev/null && break
+            sleep 2
+          done
+          # bash do GitHub roda com pipefail: se testar.sh falhar, este passo falha.
+          sh services/calculadora-rtc/testar.sh http://localhost:8080 | tee resultado-testes.txt
+          grep -q 'TODOS OS TESTES PASSARAM' resultado-testes.txt
+        shell: bash
+
+      - name: Gravar a versão nova na branch de produção
+        if: steps.versao.outputs.mudou == 'sim' && success()
+        run: |
+          git config user.name "roiLead bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add services/calculadora-rtc/VERSAO
+          git commit -m "chore(calculadora): atualiza motor da Receita ${{ steps.versao.outputs.atual }} -> ${{ steps.versao.outputs.nova }}" -m "Atualização automática: todos os testes de services/calculadora-rtc/testar.sh passaram."
+          git push origin "HEAD:$BRANCH"
+
+      - name: Publicar no Easypanel
+        if: steps.versao.outputs.mudou == 'sim' && success()
+        env:
+          HOOK: ${{ secrets.EASYPANEL_DEPLOY_CALCULADORA }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::Secret EASYPANEL_DEPLOY_CALCULADORA não configurado: faça o Deploy da calculadora no Easypanel (ou ative o Auto Deploy)."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" >/dev/null && echo "Deploy da calculadora solicitado ao Easypanel."
+
+      - name: Avisar que precisa de atualização manual
+        if: failure() && steps.versao.outputs.mudou == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITULO="Calculadora RTC: versão ${{ steps.versao.outputs.nova }} da Receita precisa de atualização manual"
+          if gh issue list --state open --search "$TITULO in:title" --json number --jq '.[0].number' | grep -q .; then
+            echo "Issue já aberta."; exit 0
+          fi
+          {
+            echo "A Receita publicou a versão **${{ steps.versao.outputs.nova }}** do motor (a atual é **${{ steps.versao.outputs.atual }}**)."
+            echo
+            echo "A atualização automática **não foi aplicada** porque a montagem ou os testes falharam. A calculadora continua no ar na versão atual."
+            echo
+            echo "Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            cat resultado-testes.txt 2>/dev/null || echo "(a montagem falhou antes dos testes)"
+            echo '```'
+          } > corpo.md
+          gh issue create --title "$TITULO" --body-file corpo.md
+
+      - name: Parar o motor de teste
+        if: always()
+        run: docker rm -f calc >/dev/null 2>&1 || true

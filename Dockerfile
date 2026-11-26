@@ -26,6 +26,14 @@ COPY env.sh /docker-entrypoint.d/40-env.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.d/40-env.sh
 RUN chmod +x /docker-entrypoint.d/40-env.sh
 
+# Calculadora da Reforma Tributária: /api/calculadora -> serviço da calculadora (variável CALCULADORA_RTC_URL).
+# Sem a variável, o site sobe normalmente e só a calculadora mostra "indisponível".
+COPY deploy/calculadora-zona.conf /etc/nginx/conf.d/00-calculadora-zona.conf
+COPY deploy/50-calculadora.sh /docker-entrypoint.d/50-calculadora.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/50-calculadora.sh /etc/nginx/conf.d/00-calculadora-zona.conf \
+ && chmod +x /docker-entrypoint.d/50-calculadora.sh \
+ && mkdir -p /etc/nginx/snippets
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
